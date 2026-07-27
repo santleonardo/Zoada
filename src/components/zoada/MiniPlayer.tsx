@@ -3,11 +3,12 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, SkipForward, SkipBack, Heart, ChevronUp } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { audioEngine } from '@/lib/audioEngine';
 import Equalizer from './Equalizer';
 import { COVER_COLORS } from '@/lib/demo-data';
 
 const MiniPlayer: React.FC = () => {
-  const { player, queue, queueIndex, navigate, togglePlay, nextTrack, likes, toggleLike } = useAppStore();
+  const { player, queue, queueIndex, navigate, togglePlay, nextTrack, prevTrack, likes, toggleLike } = useAppStore();
   const { currentTrack, isPlaying, progress, duration } = player;
   const progressRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -24,7 +25,7 @@ const MiniPlayer: React.FC = () => {
     const rect = progressRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
     const newProgress = (x / rect.width) * duration;
-    useAppStore.getState().setProgress(newProgress);
+    audioEngine.seek(newProgress);
   }, [duration]);
 
   useEffect(() => {
@@ -118,7 +119,7 @@ const MiniPlayer: React.FC = () => {
           </button>
 
           <button
-            onClick={nextTrack}
+            onClick={prevTrack}
             className="p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label="Anterior"
           >

@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { audioEngine } from '@/lib/audioEngine';
 import { DEMO_COMMENTS } from '@/lib/demo-data';
 import LoginScreen from '@/components/zoada/LoginScreen';
 import MainScreen from '@/components/zoada/MainScreen';
@@ -77,21 +78,11 @@ export default function Home() {
     return unsub1;
   }, []);
 
-  // Simulate progress when playing
+  // Motor de áudio real (HTML5 Audio) — toca de fato o audio_url da faixa,
+  // em vez de simular o progresso com um timer falso.
   useEffect(() => {
     if (!isAuthenticated) return;
-    const interval = setInterval(() => {
-      const state = useAppStore.getState();
-      if (state.player.isPlaying && state.player.currentTrack) {
-        const newProgress = state.player.progress + 1;
-        if (newProgress >= state.player.duration) {
-          state.nextTrack();
-        } else {
-          state.setProgress(newProgress);
-        }
-      }
-    }, 1000);
-    return () => clearInterval(interval);
+    audioEngine.init();
   }, [isAuthenticated]);
 
   // Render current screen

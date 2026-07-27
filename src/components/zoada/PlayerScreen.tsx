@@ -16,6 +16,7 @@ import {
   Send,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { audioEngine } from '@/lib/audioEngine';
 import { DEMO_COMMENTS } from '@/lib/demo-data';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -48,7 +49,7 @@ const PlayerScreen: React.FC = () => {
       const rect = progressRef.current.getBoundingClientRect();
       const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
       const newProgress = (x / rect.width) * duration;
-      useAppStore.getState().setProgress(newProgress);
+      audioEngine.seek(newProgress);
     },
     [duration]
   );
