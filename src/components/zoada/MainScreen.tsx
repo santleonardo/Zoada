@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, TrendingUp, Play, Music2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { DEMO_TRACKS, DEMO_ARTISTS } from '@/lib/demo-data';
+import type { Track, Artist } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import { cn } from '@/lib/utils';
@@ -14,22 +15,46 @@ const MainScreen: React.FC = () => {
   const { playTrack, player } = useAppStore();
   const [activeTab, setActiveTab] = useState<Tab>('tracks');
   const [search, setSearch] = useState('');
+  const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
+  const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
+
+  // Busca faixas e artistas reais da API (a própria rota já retorna os dados
+  // demo automaticamente enquanto o Neon não estiver configurado).
+  useEffect(() => {
+    fetch('/api/tracks')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.tracks) && data.tracks.length > 0) setTracks(data.tracks);
+      })
+      .catch(() => {
+        // mantém os dados demo se a API falhar
+      });
+
+    fetch('/api/artists')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.artists) && data.artists.length > 0) setArtists(data.artists);
+      })
+      .catch(() => {
+        // mantém os dados demo se a API falhar
+      });
+  }, []);
 
   const filteredTracks = useMemo(() => {
-    if (!search) return DEMO_TRACKS;
+    if (!search) return tracks;
     const q = search.toLowerCase();
-    return DEMO_TRACKS.filter(
+    return tracks.filter(
       (t) => t.title.toLowerCase().includes(q) || t.artist_name.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [search, tracks]);
 
   const filteredArtists = useMemo(() => {
-    if (!search) return DEMO_ARTISTS;
+    if (!search) return artists;
     const q = search.toLowerCase();
-    return DEMO_ARTISTS.filter((a) => a.name.toLowerCase().includes(q));
-  }, [search]);
+    return artists.filter((a) => a.name.toLowerCase().includes(q));
+  }, [search, artists]);
 
-  const handlePlayTrack = (track: typeof DEMO_TRACKS[0]) => {
+  const handlePlayTrack = (track: Track) => {
     playTrack(track, filteredTracks);
   };
 

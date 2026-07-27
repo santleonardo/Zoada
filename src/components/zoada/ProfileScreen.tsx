@@ -15,6 +15,7 @@ import { DEMO_TRACKS } from '@/lib/demo-data';
 import GradientButton from './GradientButton';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
+import UploadMusicPanel from './UploadMusicPanel';
 
 const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, likes } = useAppStore();
@@ -156,6 +157,9 @@ const ProfileScreen: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Upload de músicas */}
+      <UploadMusicPanel userName={user.name} />
 
       {/* Settings */}
       <div className="space-y-2 mb-6">
