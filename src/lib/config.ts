@@ -9,7 +9,12 @@
 // Painel: https://console.neon.tech → Dashboard → Connection string
 // Formato: postgresql://user:password@ep-xxxx.region.aws.neon.tech/dbname?sslmode=require
 export const NEON_CONFIG = {
-  DATABASE_URL: process.env.NEON_DATABASE_URL || '',
+  DATABASE_URL:
+    process.env.NEON_DATABASE_URL ||
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    '',
 };
 
 // ---------- CLOUDFLARE R2 (S3-compatible Storage) ----------
