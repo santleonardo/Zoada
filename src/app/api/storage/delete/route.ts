@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/auth';
-import { deleteFromR2, isR2Configured } from '@/lib/r2';
+import { deleteFromR2 } from '@/lib/r2';
+import { isR2Configured } from '@/lib/config';
 
 // DELETE /api/storage/delete?key=xxx
 // Delete a file from Cloudflare R2
