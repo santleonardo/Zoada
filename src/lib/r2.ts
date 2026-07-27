@@ -68,3 +68,21 @@ export async function getPresignedUrl(
   });
   return getSignedUrl(client, command, { expiresIn });
 }
+
+// ---------- Generate signed PUT URL so the BROWSER uploads straight to R2 ----------
+// Necessário porque o Vercel limita o corpo de uma Serverless Function a ~4.5MB;
+// arquivos de áudio maiores que isso nunca chegariam no endpoint /api/storage/upload.
+// Com isso, o navegador manda o arquivo direto pro R2, sem passar pelo Vercel.
+export async function getPresignedUploadUrl(
+  key: string,
+  contentType: string,
+  expiresIn: number = 600
+): Promise<string> {
+  const client = getS3Client();
+  const command = new PutObjectCommand({
+    Bucket: R2_CONFIG.BUCKET_NAME,
+    Key: key,
+    ContentType: contentType,
+  });
+  return getSignedUrl(client, command, { expiresIn });
+}

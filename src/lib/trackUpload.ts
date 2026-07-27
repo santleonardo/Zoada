@@ -73,19 +73,43 @@ export async function getOrCreateMyArtistId(userName: string): Promise<string> {
   return artist.id;
 }
 
+/**
+ * Sobe um arquivo direto pro R2 (navegador -> R2, sem passar pelo Vercel),
+ * usando uma URL pré-assinada. Necessário porque o Vercel corta o corpo de
+ * uma Serverless Function em ~4.5MB, e músicas costumam passar disso.
+ */
+async function uploadFileDirectToR2(file: File, folder: string): Promise<string> {
+  const presignRes = await apiFetch('/api/storage/presign-upload', {
+    method: 'POST',
+    body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/octet-stream', folder }),
+  });
+
+  if (!presignRes.ok) {
+    const err = await presignRes.json().catch(() => ({}));
+    throw new Error(err.error || 'Falha ao gerar link de upload');
+  }
+
+  const { uploadUrl, publicUrl } = await presignRes.json();
+
+  const putRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+
+  if (!putRes.ok) {
+    throw new Error(
+      `Falha ao enviar o arquivo pro R2 (status ${putRes.status}). ` +
+      `Confira se o bucket tem uma política de CORS liberando PUT para o domínio do site.`
+    );
+  }
+
+  return publicUrl as string;
+}
+
 /** Sobe uma imagem (avatar/capa) pro R2 e devolve a URL pública. */
 export async function uploadImageFile(file: File, folder: 'avatars' | 'covers' | 'track-covers'): Promise<string> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('folder', folder);
-
-  const res = await apiFetch('/api/storage/upload', { method: 'POST', body: formData });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Falha ao enviar imagem');
-  }
-  const { url } = await res.json();
-  return url as string;
+  return uploadFileDirectToR2(file, folder);
 }
 
 export interface ArtistProfileFields {
@@ -123,7 +147,7 @@ export async function getMyArtistProfile(artistaId: string): Promise<{
   return (data.artists || []).find((a: { id: string }) => a.id === artistaId) || null;
 }
 
-/** Sobe um arquivo de áudio pro R2 e cria a faixa correspondente no banco. */
+/** Sobe um arquivo de áudio direto pro R2 e cria a faixa correspondente no banco. */
 export async function uploadTrackFile(
   file: File,
   artistaId: string,
@@ -131,22 +155,7 @@ export async function uploadTrackFile(
   coverUrl?: string
 ): Promise<void> {
   const duracao = await readAudioDuration(file);
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('folder', 'tracks');
-
-  const uploadRes = await apiFetch('/api/storage/upload', {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.json().catch(() => ({}));
-    throw new Error(err.error || 'Falha ao enviar o arquivo para o R2');
-  }
-
-  const { url } = await uploadRes.json();
+  const url = await uploadFileDirectToR2(file, 'tracks');
 
   const trackRes = await apiFetch('/api/tracks', {
     method: 'POST',
