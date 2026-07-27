@@ -1,0 +1,113 @@
+// ============================================================
+// ZÔADA — Prisma Schema for Neon (Postgres)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("NEON_DATABASE_URL")
+}
+
+// ---------- Usuários ----------
+model Usuario {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String   @default('')
+  avatarUrl    String?
+  bio          String?
+  passwordHash String?  @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  curtidas    Curtida[]
+  comentarios Comentario[]
+  enviado     Mensagem[] @relation("Enviadas")
+  recebido    Mensagem[] @relation("Recebidas")
+
+  @@map("usuarios")
+}
+
+// ---------- Artistas ----------
+model Artista {
+  id             String   @id @default(cuid())
+  nome           String
+  avatarUrl      String?  @map("avatar_url")
+  coverUrl       String?  @map("cover_url")
+  bio            String   @default('')
+  genero         String   @default('') @map("genero")
+  seguidoresCount Int      @default(0) @map("seguidores_count")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  faixas Faixa[]
+
+  @@map("artistas")
+}
+
+// ---------- Faixas (músicas) ----------
+model Faixa {
+  id          String   @id @default(cuid())
+  titulo      String
+  artistaId   String   @map("artista_id")
+  coverUrl    String?  @map("cover_url")
+  audioUrl    String?  @map("audio_url")
+  duracao     Int      @default(0) @map("duracao") // segundos
+  playsCount  Int      @default(0) @map("plays_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  artista    Artista     @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+  curtidas   Curtida[]
+  comentarios Comentario[]
+
+  @@map("faixas")
+}
+
+// ---------- Curtidas ----------
+model Curtida {
+  id        String   @id @default(cuid())
+  usuarioId String   @map("usuario_id")
+  faixaId   String   @map("faixa_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  faixa   Faixa   @relation(fields: [faixaId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, faixaId])
+  @@map("curtidas")
+}
+
+// ---------- Comentários ----------
+model Comentario {
+  id        String   @id @default(cuid())
+  usuarioId String   @map("usuario_id")
+  faixaId   String   @map("faixa_id")
+  conteudo  String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  faixa   Faixa   @relation(fields: [faixaId], references: [id], onDelete: Cascade)
+
+  @@map("comentarios")
+}
+
+// ---------- Mensagens (chat) ----------
+model Mensagem {
+  id           String   @id @default(cuid())
+  remetenteId  String   @map("remetente_id")
+  destinatarioId String  @map("destinatario_id")
+  conteudo      String
+  lida          Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  remetente  Usuario @relation("Enviadas", fields: [remetenteId], references: [id], onDelete: Cascade)
+  destinatario Usuario @relation("Recebidas", fields: [destinatarioId], references: [id], onDelete: Cascade)
+
+  @@index([remetenteId])
+  @@index([destinatarioId])
+  @@index([createdAt])
+  @@map("mensagens")
+}

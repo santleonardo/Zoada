@@ -1,0 +1,202 @@
+# Zôada — Música. Sem Rótulos.
+
+App social de streaming de música, estilo Progressive Web App (PWA).
+
+**Stack:** Next.js 16 · Neon (Postgres) · Cloudflare R2 · JWT Auth · Prisma ORM
+
+## Funcionalidades
+
+- 🔐 Registro/Login com email/senha (JWT + bcrypt)
+- 🎵 Player de música com controles completos
+- 📱 Tela de player em formato 9:16 (vertical)
+- ❤️ Curtidas por faixa (toggle via API)
+- 💬 Comentários por faixa
+- 📨 Chat entre usuários
+- 🎨 Interface escura com gradiente laranja → rosa → roxo
+- 📲 Instalável no celular (PWA)
+- 🔊 Audio em segundo plano (Media Session API)
+- 📡 Funcionamento offline básico (Service Worker)
+- ☁️ Upload de arquivos para Cloudflare R2
+
+## Arquitetura
+
+```
+Frontend (React/Next.js) → API Routes (/api/*) → Neon (Postgres) via Prisma
+                                            → Cloudflare R2 via S3 SDK
+                                            → JWT Auth via jose
+```
+
+| Camada | Tecnologia | Arquivo |
+|--------|-----------|---------|
+| Database | Neon Postgres | `prisma/schema.prisma` |
+| ORM | Prisma | `src/lib/db.ts` |
+| Auth | JWT (HS256) + bcrypt | `src/lib/auth.ts` |
+| Storage | Cloudflare R2 (S3) | `src/lib/r2.ts` |
+| Config | Environment vars | `src/lib/config.ts` |
+| API Client | fetch wrapper | `src/lib/api.ts` |
+
+## Configuração
+
+### 1. Neon (Postgres)
+
+1. Acesse [https://console.neon.tech](https://console.neon.tech)
+2. Crie um projeto e copie a **Connection string**
+3. Formato: `postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require`
+
+### 2. Cloudflare R2
+
+1. Acesse [https://dash.cloudflare.com](https://dash.cloudflare.com) → R2
+2. Crie um bucket (ex: `zoada-storage`)
+3. Vá em **Manage R2 API Tokens** → Create API Token
+4. Copie: Account ID, Access Key ID, Secret Access Key
+5. (Opcional) Configure um **Public URL** (r2.dev ou custom domain)
+
+### 3. JWT Secret
+
+Gere uma chave secreta forte:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### 4. Arquivo .env
+
+```bash
+cp .env.example .env
+```
+
+Preencha o `.env`:
+```env
+NEON_DATABASE_URL=postgresql://user:pass@ep-xxx.region.aws.neon.tech/dbname?sslmode=require
+R2_ACCOUNT_ID=sua-cloudflare-account-id
+R2_ACCESS_KEY_ID=sua-r2-access-key
+R2_SECRET_ACCESS_KEY=sua-r2-secret-key
+R2_BUCKET_NAME=zoada-storage
+R2_PUBLIC_URL=https://pub-xxx.r2.dev
+JWT_SECRET=sua-chave-secreta
+JWT_EXPIRES_IN=7d
+```
+
+### 5. Push do schema para o Neon
+
+```bash
+# Gerar Prisma Client
+npx prisma generate
+
+# Push schema para o banco
+npx prisma db push
+```
+
+Isso criará todas as tabelas: `usuarios`, `artistas`, `faixas`, `curtidas`, `comentarios`, `mensagens`.
+
+## Desenvolvimento
+
+```bash
+npm install
+cp .env.example .env   # Preencha suas credenciais
+npm run dev            # http://localhost:3000
+```
+
+O app funciona com **dados demo** quando o Neon não está configurado.
+
+## API Routes
+
+| Método | Rota | Autenticação | Descrição |
+|--------|------|:---:|----------|
+| POST | `/api/auth/register` | ❌ | Criar conta |
+| POST | `/api/auth/login` | ❌ | Login (retorna JWT) |
+| GET | `/api/tracks` | ❌ | Listar faixas |
+| POST | `/api/tracks` | ✅ | Criar faixa |
+| GET | `/api/artists` | ❌ | Listar artistas |
+| POST | `/api/artists` | ✅ | Criar artista |
+| GET | `/api/likes` | ❌ | Listar curtidas |
+| POST | `/api/likes` | ✅ | Curtir/Descurtir (toggle) |
+| DELETE | `/api/likes` | ✅ | Remover curtida |
+| GET | `/api/comments` | ❌ | Listar comentários |
+| POST | `/api/comments` | ✅ | Criar comentário |
+| GET | `/api/messages` | ✅ | Listar conversas/mensagens |
+| POST | `/api/messages` | ✅ | Enviar mensagem |
+| POST | `/api/storage/upload` | ✅ | Upload para R2 |
+| GET | `/api/storage/presign` | ✅ | URL assinada R2 |
+| DELETE | `/api/storage/delete` | ✅ | Deletar do R2 |
+
+## Instalar no celular
+
+### Android (Chrome)
+1. Abra o app → menu (⋮) → "Adicionar à tela inicial"
+
+### iPhone (Safari)
+1. Abra o app → compartilhar (↑) → "Adicionar à Tela de Início"
+
+## Estrutura de Arquivos
+
+```
+├── .env.example              # Template de variáveis de ambiente
+├── prisma/
+│   └── schema.prisma         # Schema Prisma (fonte de verdade)
+├── public/
+│   ├── manifest.json          # PWA manifest
+│   ├── sw.js                  # Service Worker
+│   ├── zoada-logo.png         # Logo
+│   ├── zoada-neon-schema.sql  # SQL de referência
+│   └── zoada-schema.sql       # SQL antigo (Supabase, legado)
+├── src/
+│   ├── app/
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   ├── page.tsx            # SPA principal
+│   │   └── api/
+│   │       ├── auth/
+│   │       │   ├── register/route.ts  # Registro + JWT
+│   │       │   └── login/route.ts     # Login + JWT
+│   │       ├── tracks/route.ts
+│   │       ├── artists/route.ts
+│   │       ├── likes/route.ts
+│   │       ├── comments/route.ts
+│   │       ├── messages/route.ts
+│   │       └── storage/
+│   │           ├── upload/route.ts     # R2 upload
+│   │           └── delete/route.ts     # R2 delete
+│   ├── components/zoada/      # 11 componentes de UI
+│   ├── lib/
+│   │   ├── config.ts           # Neon + R2 + JWT config
+│   │   ├── db.ts               # Prisma client
+│   │   ├── auth.ts             # JWT create/verify (server)
+│   │   ├── r2.ts               # R2 S3 client (server)
+│   │   ├── api.ts              # API helpers (client)
+│   │   ├── supabase.ts         # Re-export (legacy)
+│   │   ├── demo-data.ts        # Dados demo
+│   │   └── utils.ts
+│   ├── store/
+│   │   └── useAppStore.ts     # Zustand (state + auth persistence)
+│   └── types/
+│       └── index.ts
+└── README.md
+```
+
+## Migração do Supabase para Neon + R2
+
+### O que mudou
+
+| Antes (Supabase) | Depois (Neon + R2) |
+|---|---|
+| `supabase.auth.signInWithPassword()` | JWT via `jose` + bcrypt |
+| `supabase.from('tabela').select()` | Prisma ORM (`db.faixa.findMany()`) |
+| `supabase.storage.from('bucket')` | Cloudflare R2 via `@aws-sdk/client-s3` |
+| RLS (Row Level Security) | Validação manual em API routes |
+| Supabase Realtime | WebSocket mini-service (futuro) |
+| Variáveis no código | Variáveis de ambiente (.env) |
+
+### Rotas de API novas
+
+- `/api/auth/register` — Novo endpoint de registro
+- `/api/storage/upload` — Upload para R2
+- `/api/storage/delete` — Delete do R2
+- `/api/storage/presign` — URL assinada para arquivos privados
+- `/api/artists` — CRUD de artistas
+
+### Autenticação
+
+- Tokens JWT com expiração configurável
+- Store com persistência no localStorage
+- Header `Authorization: Bearer <token>` em todas as requests
+- Helper `apiFetch()` para requests autenticadas automaticamente
