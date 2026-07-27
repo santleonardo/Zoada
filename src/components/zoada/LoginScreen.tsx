@@ -34,8 +34,9 @@ const LoginScreen: React.FC = () => {
 
       const data = await res.json();
 
-      if (!res.ok || data.demo) {
-        // Neon not configured — use demo login
+      if (data.demo) {
+        // Backend disse explicitamente que o Neon não está configurado —
+        // aí sim faz sentido cair em modo demo (sem token real).
         await new Promise(resolve => setTimeout(resolve, 400));
         setUser({
           ...DEMO_USER,
@@ -45,8 +46,10 @@ const LoginScreen: React.FC = () => {
         return;
       }
 
-      if (data.error) {
-        setError(data.error);
+      if (!res.ok || data.error) {
+        // Erro de verdade (ex: senha incorreta) — mostra pro usuário,
+        // NÃO loga como demo, senão ele acaba "logado" sem token real.
+        setError(data.error || 'Não foi possível entrar. Tente novamente.');
         return;
       }
 
@@ -58,13 +61,9 @@ const LoginScreen: React.FC = () => {
         created_at: data.created_at,
       }, data.token);
     } catch {
-      // On any network error, fall back to demo
-      await new Promise(resolve => setTimeout(resolve, 400));
-      setUser({
-        ...DEMO_USER,
-        email,
-        name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      }, null);
+      // Erro de rede de verdade (backend inacessível) — aqui sim faz
+      // sentido oferecer o modo demo, mas avisando o usuário.
+      setError('Não foi possível conectar ao servidor. Tente novamente ou use o modo demo.');
     } finally {
       setLoading(false);
     }

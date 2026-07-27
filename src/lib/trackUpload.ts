@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAuthToken } from '@/lib/api';
 
 // ============================================================
 // Upload de músicas: pega o arquivo de áudio, sobe pro R2
@@ -79,6 +79,15 @@ export async function getOrCreateMyArtistId(userName: string): Promise<string> {
  * uma Serverless Function em ~4.5MB, e músicas costumam passar disso.
  */
 async function uploadFileDirectToR2(file: File, folder: string): Promise<string> {
+  if (!getAuthToken()) {
+    // Modo demo (sem token real) — a rota de upload exige autenticação
+    // de verdade, então avisamos antes de tentar, em vez de deixar
+    // estourar 401 e derrubar a sessão do usuário.
+    throw new Error(
+      'Upload de música precisa de uma conta real. Você está no modo demo — crie uma conta ou faça login para poder subir músicas.'
+    );
+  }
+
   const presignRes = await apiFetch('/api/storage/presign-upload', {
     method: 'POST',
     body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/octet-stream', folder }),

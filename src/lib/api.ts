@@ -74,7 +74,13 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     headers,
   });
 
-  if (response.status === 401) {
+  if (response.status === 401 && token) {
+    // Só força logout/reload se HAVIA um token sendo enviado (ou seja,
+    // era uma sessão real que expirou/foi invalidada). Se não havia
+    // token (ex: usuário em modo demo), não faz sentido "deslogar"
+    // alguém que nunca esteve autenticado de verdade — quem chamou
+    // apiFetch deve tratar o erro 401 normalmente (ex: mostrando uma
+    // mensagem pedindo pra criar uma conta real).
     clearAuth();
     window.location.reload();
   }
