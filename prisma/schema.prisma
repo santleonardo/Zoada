@@ -15,7 +15,7 @@ datasource db {
 model Usuario {
   id           String   @id @default(cuid())
   email        String   @unique
-  name         String   @default('')
+  name         String   @default("")
   avatarUrl    String?
   bio          String?
   passwordHash String?  @map("password_hash")
@@ -36,8 +36,8 @@ model Artista {
   nome           String
   avatarUrl      String?  @map("avatar_url")
   coverUrl       String?  @map("cover_url")
-  bio            String   @default('')
-  genero         String   @default('') @map("genero")
+  bio            String   @default("")
+  genero         String   @default("") @map("genero")
   seguidoresCount Int      @default(0) @map("seguidores_count")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
