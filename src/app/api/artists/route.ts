@@ -70,3 +70,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Erro ao criar artista' }, { status: 500 });
   }
 }
+
+// PATCH /api/artists — Update an existing artist's profile (name, bio, genre, images)
+export async function PATCH(request: Request) {
+  try {
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const { id, nome, avatarUrl, coverUrl, bio, genero } = await request.json();
+
+    if (!id) {
+      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+
+    const existing = await db.artista.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Artista não encontrado' }, { status: 404 });
+    }
+
+    const artista = await db.artista.update({
+      where: { id },
+      data: {
+        ...(nome !== undefined ? { nome } : {}),
+        ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+        ...(coverUrl !== undefined ? { coverUrl } : {}),
+        ...(bio !== undefined ? { bio } : {}),
+        ...(genero !== undefined ? { genero } : {}),
+      },
+    });
+
+    return NextResponse.json({
+      id: artista.id,
+      name: artista.nome,
+      avatar_url: artista.avatarUrl,
+      cover_url: artista.coverUrl,
+      bio: artista.bio,
+      genre: artista.genero,
+      followers_count: artista.seguidoresCount,
+    });
+  } catch (error) {
+    console.error('[ARTISTS PATCH]', error);
+    return NextResponse.json({ error: 'Erro ao atualizar artista' }, { status: 500 });
+  }
+}

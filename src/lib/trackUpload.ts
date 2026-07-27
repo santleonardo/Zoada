@@ -73,8 +73,63 @@ export async function getOrCreateMyArtistId(userName: string): Promise<string> {
   return artist.id;
 }
 
+/** Sobe uma imagem (avatar/capa) pro R2 e devolve a URL pública. */
+export async function uploadImageFile(file: File, folder: 'avatars' | 'covers' | 'track-covers'): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder', folder);
+
+  const res = await apiFetch('/api/storage/upload', { method: 'POST', body: formData });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Falha ao enviar imagem');
+  }
+  const { url } = await res.json();
+  return url as string;
+}
+
+export interface ArtistProfileFields {
+  nome?: string;
+  genero?: string;
+  bio?: string;
+  avatarUrl?: string;
+  coverUrl?: string;
+}
+
+/** Atualiza nome/gênero/bio/avatar/capa do artista que representa o usuário logado. */
+export async function updateMyArtistProfile(artistaId: string, fields: ArtistProfileFields): Promise<void> {
+  const res = await apiFetch('/api/artists', {
+    method: 'PATCH',
+    body: JSON.stringify({ id: artistaId, ...fields }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Falha ao atualizar perfil de artista');
+  }
+}
+
+/** Busca os dados atuais do artista (pra pré-preencher o formulário de perfil). */
+export async function getMyArtistProfile(artistaId: string): Promise<{
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  cover_url: string | null;
+  bio: string;
+  genre: string;
+} | null> {
+  const res = await fetch('/api/artists');
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (data.artists || []).find((a: { id: string }) => a.id === artistaId) || null;
+}
+
 /** Sobe um arquivo de áudio pro R2 e cria a faixa correspondente no banco. */
-export async function uploadTrackFile(file: File, artistaId: string): Promise<void> {
+export async function uploadTrackFile(
+  file: File,
+  artistaId: string,
+  titulo: string,
+  coverUrl?: string
+): Promise<void> {
   const duracao = await readAudioDuration(file);
 
   const formData = new FormData();
@@ -92,11 +147,10 @@ export async function uploadTrackFile(file: File, artistaId: string): Promise<vo
   }
 
   const { url } = await uploadRes.json();
-  const titulo = file.name.replace(/\.[^/.]+$/, '');
 
   const trackRes = await apiFetch('/api/tracks', {
     method: 'POST',
-    body: JSON.stringify({ titulo, artistaId, audioUrl: url, duracao }),
+    body: JSON.stringify({ titulo, artistaId, audioUrl: url, coverUrl: coverUrl || null, duracao }),
   });
 
   if (!trackRes.ok) {
