@@ -1,19 +1,20 @@
 'use client';
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Heart, ChevronUp } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Heart, ChevronUp, Star } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
 import Equalizer from './Equalizer';
 import { COVER_COLORS } from '@/lib/demo-data';
 
 const MiniPlayer: React.FC = () => {
-  const { player, queue, queueIndex, navigate, togglePlay, nextTrack, prevTrack, likes, toggleLike } = useAppStore();
+  const { player, queue, queueIndex, navigate, togglePlay, nextTrack, prevTrack, likes, toggleLike, favorites, toggleFavorite } = useAppStore();
   const { currentTrack, isPlaying, progress, duration } = player;
   const progressRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
   const isLiked = currentTrack ? likes.some(l => l.track_id === currentTrack.id) : false;
+  const isFav = currentTrack ? favorites.includes(currentTrack.id) : false;
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
 
   const [coverFailed, setCoverFailed] = useState(false);
@@ -125,6 +126,17 @@ const MiniPlayer: React.FC = () => {
 
         {/* Controls */}
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => toggleFavorite(currentTrack.id)}
+            className="p-2 rounded-full hover:bg-white/10 transition-colors"
+            aria-label={isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+          >
+            <Star
+              size={18}
+              className={isFav ? 'fill-[#FFD700] text-[#FFD700]' : 'text-white/60'}
+            />
+          </button>
+
           <button
             onClick={() => toggleLike(currentTrack.id)}
             className="p-2 rounded-full hover:bg-white/10 transition-colors"

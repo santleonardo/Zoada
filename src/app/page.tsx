@@ -14,12 +14,17 @@ import BottomNav from '@/components/zoada/BottomNav';
 import MiniPlayer from '@/components/zoada/MiniPlayer';
 
 export default function Home() {
-  const { currentScreen, isAuthenticated, setComments, restoreSession } = useAppStore();
+  const { currentScreen, isAuthenticated, setComments, restoreSession, initFavorites } = useAppStore();
 
   // Restore auth session from localStorage on mount
   useEffect(() => {
     restoreSession();
   }, [restoreSession]);
+
+  // Load favorites from localStorage on mount
+  useEffect(() => {
+    initFavorites();
+  }, [initFavorites]);
 
   // Load demo comments on mount
   useEffect(() => {

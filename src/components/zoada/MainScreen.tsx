@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, TrendingUp, Play, Music2 } from 'lucide-react';
+import { Search, TrendingUp, Play, Music2, Star } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { DEMO_TRACKS, DEMO_ARTISTS } from '@/lib/demo-data';
 import type { Track, Artist } from '@/types';
@@ -9,16 +9,15 @@ import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import { cn } from '@/lib/utils';
 
-type Tab = 'tracks' | 'artists';
+type Tab = 'tracks' | 'artists' | 'favorites';
 
 const MainScreen: React.FC = () => {
-  const { playTrack, player, selectArtist, mainTab: activeTab, setMainTab: setActiveTab } = useAppStore();
+  const { playTrack, player, selectArtist, mainTab: activeTab, setMainTab: setActiveTab, favorites, toggleFavorite } = useAppStore();
   const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
   const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
 
-  // Busca faixas e artistas reais da API (a própria rota já retorna os dados
-  // demo automaticamente enquanto o Neon não estiver configurado).
+  // Busca faixas e artistas reais da API
   useEffect(() => {
     fetch('/api/tracks')
       .then((res) => res.json())
@@ -39,6 +38,10 @@ const MainScreen: React.FC = () => {
       });
   }, []);
 
+  const favoriteTracks = useMemo(() => {
+    return tracks.filter((t) => favorites.includes(t.id));
+  }, [tracks, favorites]);
+
   const filteredTracks = useMemo(() => {
     if (!search) return tracks;
     const q = search.toLowerCase();
@@ -47,6 +50,14 @@ const MainScreen: React.FC = () => {
     );
   }, [search, tracks]);
 
+  const filteredFavoriteTracks = useMemo(() => {
+    if (!search) return favoriteTracks;
+    const q = search.toLowerCase();
+    return favoriteTracks.filter(
+      (t) => t.title.toLowerCase().includes(q) || t.artist_name.toLowerCase().includes(q)
+    );
+  }, [search, favoriteTracks]);
+
   const filteredArtists = useMemo(() => {
     if (!search) return artists;
     const q = search.toLowerCase();
@@ -54,12 +65,81 @@ const MainScreen: React.FC = () => {
   }, [search, artists]);
 
   const handlePlayTrack = (track: Track) => {
-    playTrack(track, filteredTracks);
+    playTrack(track, activeTab === 'favorites' ? favoriteTracks : filteredTracks);
+  };
+
+  const handleToggleFavorite = (e: React.MouseEvent, trackId: string) => {
+    e.stopPropagation();
+    toggleFavorite(trackId);
   };
 
   const formatNumber = (n: number) => {
     if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
     return n.toString();
+  };
+
+  const renderTrackCard = (track: Track, displayTracks: Track[]) => {
+    const isCurrentTrack = player.currentTrack?.id === track.id;
+    const isFav = favorites.includes(track.id);
+    return (
+      <button
+        key={track.id}
+        onClick={() => handlePlayTrack(track)}
+        className={cn(
+          'relative rounded-2xl overflow-hidden text-left transition-all duration-200 active:scale-[0.97]',
+          isCurrentTrack && 'ring-2 ring-[#FF8C42] shadow-lg shadow-[#FF8C42]/20'
+        )}
+      >
+        <CoverArt
+          title={track.title}
+          artistName={track.artist_name}
+          coverUrl={track.cover_url}
+          size="lg"
+        />
+        {/* Play overlay */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center shadow-xl">
+            <Play size={22} className="text-white ml-0.5" fill="white" />
+          </div>
+        </div>
+        {/* Playing indicator */}
+        {isCurrentTrack && player.isPlaying && (
+          <div className="absolute top-2 right-2">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full glass">
+              <Equalizer barCount={3} height={12} barWidth={2} gap={1} />
+            </div>
+          </div>
+        )}
+        {/* Favorite button */}
+        <button
+          onClick={(e) => handleToggleFavorite(e, track.id)}
+          className="absolute top-2 left-2 p-1.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors z-10"
+          aria-label={isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+        >
+          <Star
+            size={16}
+            className={cn(
+              'transition-all duration-200',
+              isFav ? 'fill-[#FFD700] text-[#FFD700]' : 'text-white/70'
+            )}
+          />
+        </button>
+        {/* Info bar */}
+        <div className="p-3 pt-0 -mt-3 relative">
+          <div className="bg-[#1E2030] rounded-b-2xl px-3 py-2.5">
+            <p className="text-sm font-semibold text-white truncate">{track.title}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-white/40">{track.artist_name}</span>
+              <span className="text-white/20">·</span>
+              <div className="flex items-center gap-1">
+                <TrendingUp size={10} className="text-white/30" />
+                <span className="text-xs text-white/30">{formatNumber(track.plays_count)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </button>
+    );
   };
 
   return (
@@ -68,10 +148,14 @@ const MainScreen: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold gradient-text">
-            {activeTab === 'tracks' ? 'Início' : 'Explorar'}
+            {activeTab === 'tracks' ? 'Início' : activeTab === 'favorites' ? 'Favoritos' : 'Explorar'}
           </h1>
           <p className="text-white/40 text-sm mt-0.5">
-            {activeTab === 'tracks' ? 'Suas faixas em alta' : 'Descubra novos artistas'}
+            {activeTab === 'tracks'
+              ? 'Suas faixas em alta'
+              : activeTab === 'favorites'
+                ? `${favoriteTracks.length} música${favoriteTracks.length !== 1 ? 's' : ''} salva${favoriteTracks.length !== 1 ? 's' : ''}`
+                : 'Descubra novos artistas'}
           </p>
         </div>
         {player.isPlaying && (
@@ -96,7 +180,7 @@ const MainScreen: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-5">
-        {(['tracks', 'artists'] as Tab[]).map((tab) => (
+        {(['tracks', 'favorites', 'artists'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -107,7 +191,7 @@ const MainScreen: React.FC = () => {
                 : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70'
             )}
           >
-            {tab === 'tracks' ? '🎵 Faixas' : '🎤 Artistas'}
+            {tab === 'tracks' ? '🎵 Faixas' : tab === 'favorites' ? '⭐ Favoritos' : '🎤 Artistas'}
           </button>
         ))}
       </div>
@@ -115,54 +199,23 @@ const MainScreen: React.FC = () => {
       {/* Tracks Grid */}
       {activeTab === 'tracks' && (
         <div className="grid grid-cols-2 gap-3">
-          {filteredTracks.map((track) => {
-            const isCurrentTrack = player.currentTrack?.id === track.id;
-            return (
-              <button
-                key={track.id}
-                onClick={() => handlePlayTrack(track)}
-                className={cn(
-                  'relative rounded-2xl overflow-hidden text-left transition-all duration-200 active:scale-[0.97]',
-                  isCurrentTrack && 'ring-2 ring-[#FF8C42] shadow-lg shadow-[#FF8C42]/20'
-                )}
-              >
-                <CoverArt
-                  title={track.title}
-                  artistName={track.artist_name}
-                  coverUrl={track.cover_url}
-                  size="lg"
-                />
-                {/* Play overlay */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center shadow-xl">
-                    <Play size={22} className="text-white ml-0.5" fill="white" />
-                  </div>
-                </div>
-                {/* Playing indicator */}
-                {isCurrentTrack && player.isPlaying && (
-                  <div className="absolute top-2 right-2">
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-full glass">
-                      <Equalizer barCount={3} height={12} barWidth={2} gap={1} />
-                    </div>
-                  </div>
-                )}
-                {/* Info bar */}
-                <div className="p-3 pt-0 -mt-3 relative">
-                  <div className="bg-[#1E2030] rounded-b-2xl px-3 py-2.5">
-                    <p className="text-sm font-semibold text-white truncate">{track.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-white/40">{track.artist_name}</span>
-                      <span className="text-white/20">·</span>
-                      <div className="flex items-center gap-1">
-                        <TrendingUp size={10} className="text-white/30" />
-                        <span className="text-xs text-white/30">{formatNumber(track.plays_count)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+          {filteredTracks.map((track) => renderTrackCard(track, filteredTracks))}
+        </div>
+      )}
+
+      {/* Favorites Grid */}
+      {activeTab === 'favorites' && (
+        <div className="grid grid-cols-2 gap-3">
+          {filteredFavoriteTracks.length === 0 && (
+            <div className="col-span-2 flex flex-col items-center justify-center py-16">
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                <Star size={28} className="text-white/20" />
+              </div>
+              <p className="text-white/40 text-sm font-medium">Nenhuma música favoritada</p>
+              <p className="text-white/25 text-xs mt-1">Toque na estrela para salvar suas músicas favoritas</p>
+            </div>
+          )}
+          {filteredFavoriteTracks.map((track) => renderTrackCard(track, filteredFavoriteTracks))}
         </div>
       )}
 

@@ -15,6 +15,7 @@ import {
   Shuffle,
   MessageCircle,
   Send,
+  Star,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
@@ -29,6 +30,7 @@ const PlayerScreen: React.FC = () => {
     player, queue, queueIndex, goBack, togglePlay, nextTrack, prevTrack,
     likes, toggleLike, comments, addComment,
     shuffleEnabled, toggleShuffle, repeatMode, cycleRepeatMode,
+    favorites, toggleFavorite,
   } = useAppStore();
   const { currentTrack, isPlaying, progress, duration } = player;
 
@@ -39,6 +41,7 @@ const PlayerScreen: React.FC = () => {
   const progressRef = useRef<HTMLDivElement>(null);
 
   const isLiked = currentTrack ? likes.some((l) => l.track_id === currentTrack.id) : false;
+  const isFav = currentTrack ? favorites.includes(currentTrack.id) : false;
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
   const trackComments = currentTrack ? comments.filter((c) => c.track_id === currentTrack.id) : [];
 
@@ -143,6 +146,19 @@ const PlayerScreen: React.FC = () => {
             <p className="text-white/50 text-sm">{currentTrack.artist_name}</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => currentTrack && toggleFavorite(currentTrack.id)}
+              className="p-2.5 rounded-full hover:bg-white/10 transition-all active:scale-90"
+              aria-label={isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+            >
+              <Star
+                size={22}
+                className={cn(
+                  'transition-all duration-200',
+                  isFav ? 'fill-[#FFD700] text-[#FFD700] scale-110' : 'text-white/50'
+                )}
+              />
+            </button>
             <button
               onClick={() => currentTrack && toggleLike(currentTrack.id)}
               className="p-2.5 rounded-full hover:bg-white/10 transition-all active:scale-90"

@@ -2,6 +2,23 @@ import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, Like } from '@/types';
 import { getAuthToken, getStoredUser, saveAuth, clearAuth } from '@/lib/api';
 
+const FAVORITES_KEY = 'zoada-favorites';
+
+function loadFavorites(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(FAVORITES_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFavorites(favorites: string[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+}
+
 interface PlayerState {
   currentTrack: Track | null;
   isPlaying: boolean;
@@ -19,7 +36,7 @@ interface AppState {
   // Navigation
   currentScreen: Screen;
   previousScreen: Screen | null;
-  mainTab: 'tracks' | 'artists';
+  mainTab: 'tracks' | 'artists' | 'favorites';
 
   // Player
   player: PlayerState;
@@ -39,15 +56,18 @@ interface AppState {
   likes: Like[];
   comments: Comment[];
 
+  // Favorites
+  favorites: string[]; // track IDs
+
   // Actions - Auth
   setUser: (user: User | null, token?: string | null) => void;
   logout: () => void;
   restoreSession: () => void;
 
   // Actions - Navigation
-  navigate: (screen: Screen, tab?: 'tracks' | 'artists') => void;
+  navigate: (screen: Screen, tab?: 'tracks' | 'artists' | 'favorites') => void;
   goBack: () => void;
-  setMainTab: (tab: 'tracks' | 'artists') => void;
+  setMainTab: (tab: 'tracks' | 'artists' | 'favorites') => void;
 
   // Actions - Player
   playTrack: (track: Track, queue?: Track[]) => void;
@@ -71,6 +91,11 @@ interface AppState {
   toggleLike: (trackId: string) => void;
   setComments: (comments: Comment[]) => void;
   addComment: (comment: Comment) => void;
+
+  // Actions - Favorites
+  toggleFavorite: (trackId: string) => void;
+  isFavorite: (trackId: string) => boolean;
+  initFavorites: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -86,6 +111,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedArtistId: null,
   likes: [],
   comments: [],
+  favorites: [],
 
   player: {
     currentTrack: null,
@@ -302,4 +328,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   addComment: (comment) => set((state) => ({
     comments: [...state.comments, comment],
   })),
+
+  // Favorites actions
+  initFavorites: () => set({ favorites: loadFavorites() }),
+  toggleFavorite: (trackId) => set((state) => {
+    const exists = state.favorites.includes(trackId);
+    const next = exists
+      ? state.favorites.filter((id) => id !== trackId)
+      : [...state.favorites, trackId];
+    saveFavorites(next);
+    return { favorites: next };
+  }),
+  isFavorite: (trackId) => {
+    return get().favorites.includes(trackId);
+  },
 }));
