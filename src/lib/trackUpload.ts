@@ -7,8 +7,6 @@ import { apiFetch, getAuthToken } from '@/lib/api';
 // o usuário logado.
 // ============================================================
 
-const MY_ARTIST_ID_KEY = 'zoada-my-artist-id';
-
 /**
  * DIAGNÓSTICO TEMPORÁRIO: sobe o arquivo passando pelo próprio servidor
  * (/api/storage/upload) em vez de ir direto pro R2. Serve pra descobrir
@@ -62,30 +60,29 @@ export function readAudioDuration(file: File): Promise<number> {
 
 /**
  * Garante que existe um "artista" no banco representando o usuário logado
- * (reaproveita se já existir; cria se for a primeira vez) e guarda o id
- * em localStorage para não recriar a cada upload.
+ * (reaproveita se já existir; cria se for a primeira vez).
+ *
+ * Importante: quem identifica "de quem é esse artista" é o token de
+ * autenticação (no servidor), não um id guardado em localStorage. A versão
+ * antiga cacheava um único id no navegador e reaproveitava ele pra
+ * qualquer nome digitado no formulário — então subir uma música como
+ * "Rick Tropical" e depois mudar o campo "Nome artístico" pra "Jamba Jô"
+ * apenas renomeava o mesmo artista (e a foto), fazendo a faixa antiga
+ * "trocar de dono" na tela. Agora cada conta tem no máximo um artista, e
+ * o servidor garante isso a partir de quem está logado.
  */
 export async function getOrCreateMyArtistId(userName: string): Promise<string> {
   if (typeof window === 'undefined') throw new Error('Só funciona no navegador');
 
-  const cached = localStorage.getItem(MY_ARTIST_ID_KEY);
-  if (cached) return cached;
-
-  // Tenta achar um artista já existente com esse nome (ex: você já subiu música antes
-  // em outro navegador, ou o artista foi criado manualmente).
-  const listRes = await fetch('/api/artists');
-  if (listRes.ok) {
-    const data = await listRes.json();
-    const existing = (data.artists || []).find(
-      (a: { id: string; name: string }) => a.name === userName
-    );
-    if (existing) {
-      localStorage.setItem(MY_ARTIST_ID_KEY, existing.id);
-      return existing.id;
-    }
+  const mineRes = await apiFetch('/api/artists?mine=1');
+  if (mineRes.ok) {
+    const data = await mineRes.json();
+    if (data.artist) return data.artist.id as string;
+  } else if (mineRes.status === 401) {
+    throw new Error('Você precisa estar logado com uma conta real para enviar músicas.');
   }
 
-  // Não existe ainda -> cria
+  // Ainda não existe -> cria o artista da sua conta
   const createRes = await apiFetch('/api/artists', {
     method: 'POST',
     body: JSON.stringify({ nome: userName || 'Artista Zôada', genero: '' }),
@@ -97,8 +94,7 @@ export async function getOrCreateMyArtistId(userName: string): Promise<string> {
   }
 
   const artist = await createRes.json();
-  localStorage.setItem(MY_ARTIST_ID_KEY, artist.id);
-  return artist.id;
+  return artist.id as string;
 }
 
 /**

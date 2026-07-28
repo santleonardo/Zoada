@@ -27,6 +27,7 @@ model Usuario {
   comentarios Comentario[]
   enviado     Mensagem[] @relation("Enviadas")
   recebido    Mensagem[] @relation("Recebidas")
+  artista     Artista?
 
   @@map("usuarios")
 }
@@ -34,6 +35,13 @@ model Usuario {
 // ---------- Artistas ----------
 model Artista {
   id             String   @id @default(cuid())
+  // Dono do perfil de artista (o usuário logado que fez o upload). Nullable
+  // pra não quebrar artistas antigos/seed que não têm dono — mas toda
+  // criação nova via /api/artists passa a exigir e preencher isso, é o que
+  // garante que o perfil de "Rick Tropical" não vire o de "Jamba Jô" só
+  // porque os dois foram editados no mesmo navegador.
+  usuarioId      String?  @unique @map("usuario_id")
+  usuario        Usuario? @relation(fields: [usuarioId], references: [id])
   nome           String
   avatarUrl      String?  @map("avatar_url")
   coverUrl       String?  @map("cover_url")

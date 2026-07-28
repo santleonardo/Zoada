@@ -66,10 +66,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'titulo e artistaId são obrigatórios' }, { status: 400 });
     }
 
-    // Verify artist exists
+    // Verifica que o artista existe E que pertence a quem está enviando a
+    // faixa — sem isso, um usuário autenticado poderia colar o id de
+    // qualquer artista (inclusive de outra pessoa) e a faixa apareceria
+    // como se fosse dela.
     const artista = await db.artista.findUnique({ where: { id: artistaId } });
     if (!artista) {
       return NextResponse.json({ error: 'Artista não encontrado' }, { status: 404 });
+    }
+    if (artista.usuarioId && artista.usuarioId !== userId) {
+      return NextResponse.json({ error: 'Esse artista não pertence à sua conta' }, { status: 403 });
     }
 
     const faixa = await db.faixa.create({
@@ -100,13 +106,7 @@ export async function POST(request: Request) {
   }
 }
 
-// DELETE /api/tracks?id=xxx — Remove uma faixa (autenticado)
-//
-// Observação: assim como no POST, o app hoje não guarda qual usuário é
-// "dono" de qual artista (o modelo Artista não tem essa relação no banco),
-// então a mesma regra frouxa vale aqui: qualquer usuário autenticado pode
-// apagar. Isso é consistente com o resto da API, mas vale reforçar a
-// autenticação de verdade quando essa relação existir.
+// DELETE /api/tracks?id=xxx — Remove uma faixa (autenticado, só o dono)
 export async function DELETE(request: Request) {
   try {
     const userId = await authenticateRequest(request);
@@ -124,9 +124,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
     }
 
-    const faixa = await db.faixa.findUnique({ where: { id } });
+    const faixa = await db.faixa.findUnique({ where: { id }, include: { artista: true } });
     if (!faixa) {
       return NextResponse.json({ error: 'Faixa não encontrada' }, { status: 404 });
+    }
+    if (faixa.artista.usuarioId && faixa.artista.usuarioId !== userId) {
+      return NextResponse.json({ error: 'Você não tem permissão para apagar essa faixa' }, { status: 403 });
     }
 
     // Apaga a linha do banco primeiro (é o que realmente importa pro app
