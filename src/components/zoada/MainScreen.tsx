@@ -12,8 +12,7 @@ import { cn } from '@/lib/utils';
 type Tab = 'tracks' | 'artists';
 
 const MainScreen: React.FC = () => {
-  const { playTrack, player, selectArtist } = useAppStore();
-  const [activeTab, setActiveTab] = useState<Tab>('tracks');
+  const { playTrack, player, selectArtist, mainTab: activeTab, setMainTab: setActiveTab } = useAppStore();
   const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
   const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
@@ -68,8 +67,12 @@ const MainScreen: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold gradient-text">Explorar</h1>
-          <p className="text-white/40 text-sm mt-0.5">Descubra novas vibes</p>
+          <h1 className="text-2xl font-bold gradient-text">
+            {activeTab === 'tracks' ? 'Início' : 'Explorar'}
+          </h1>
+          <p className="text-white/40 text-sm mt-0.5">
+            {activeTab === 'tracks' ? 'Suas faixas em alta' : 'Descubra novos artistas'}
+          </p>
         </div>
         {player.isPlaying && (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5">

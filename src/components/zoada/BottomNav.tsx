@@ -10,17 +10,18 @@ interface NavItem {
   icon: React.ReactNode;
   label: string;
   screen: Screen;
+  tab?: 'tracks' | 'artists';
 }
 
 const navItems: NavItem[] = [
-  { icon: <Home size={22} />, label: 'Início', screen: 'main' },
-  { icon: <Disc3 size={22} />, label: 'Explorar', screen: 'main' },
+  { icon: <Home size={22} />, label: 'Início', screen: 'main', tab: 'tracks' },
+  { icon: <Disc3 size={22} />, label: 'Explorar', screen: 'main', tab: 'artists' },
   { icon: <MessageCircle size={22} />, label: 'Chat', screen: 'chat' },
   { icon: <User size={22} />, label: 'Perfil', screen: 'profile' },
 ];
 
 const BottomNav: React.FC = () => {
-  const { currentScreen, navigate, player } = useAppStore();
+  const { currentScreen, mainTab, navigate, player } = useAppStore();
   const hasActiveTrack = !!player.currentTrack;
 
   return (
@@ -41,12 +42,14 @@ const BottomNav: React.FC = () => {
               ? currentScreen === 'chat' || currentScreen === 'chat-conversation'
               : item.screen === 'profile'
               ? currentScreen === 'profile'
+              : item.tab
+              ? currentScreen === 'main' && mainTab === item.tab
               : currentScreen === 'main';
 
           return (
             <button
               key={item.label}
-              onClick={() => navigate(item.screen)}
+              onClick={() => navigate(item.screen, item.tab)}
               className={cn(
                 'flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 no-select',
                 isActive

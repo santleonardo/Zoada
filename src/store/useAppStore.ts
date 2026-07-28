@@ -19,6 +19,7 @@ interface AppState {
   // Navigation
   currentScreen: Screen;
   previousScreen: Screen | null;
+  mainTab: 'tracks' | 'artists';
 
   // Player
   player: PlayerState;
@@ -44,8 +45,9 @@ interface AppState {
   restoreSession: () => void;
 
   // Actions - Navigation
-  navigate: (screen: Screen) => void;
+  navigate: (screen: Screen, tab?: 'tracks' | 'artists') => void;
   goBack: () => void;
+  setMainTab: (tab: 'tracks' | 'artists') => void;
 
   // Actions - Player
   playTrack: (track: Track, queue?: Track[]) => void;
@@ -78,6 +80,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   authToken: getAuthToken(),
   currentScreen: 'login',
   previousScreen: null,
+  mainTab: 'tracks',
   selectedConversationId: null,
   selectedConversationName: null,
   selectedArtistId: null,
@@ -153,10 +156,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Navigation actions
-  navigate: (screen) => set((state) => ({
+  navigate: (screen, tab) => set((state) => ({
     previousScreen: state.currentScreen,
     currentScreen: screen,
+    mainTab: tab ?? state.mainTab,
   })),
+
+  setMainTab: (tab) => set({ mainTab: tab }),
 
   goBack: () => set((state) => ({
     currentScreen: state.previousScreen || 'main',
