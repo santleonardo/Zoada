@@ -17,7 +17,9 @@ const MiniPlayer: React.FC = () => {
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
 
   const coverColors = currentTrack
-    ? COVER_COLORS[parseInt(currentTrack.id.replace('track-', ''), 10) % COVER_COLORS.length]
+    ? COVER_COLORS[
+        currentTrack.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % COVER_COLORS.length
+      ]
     : ['#FF8C42', '#E84393'];
 
   const handleProgressInteraction = useCallback((clientX: number) => {
