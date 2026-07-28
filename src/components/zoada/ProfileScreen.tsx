@@ -16,11 +16,13 @@ import GradientButton from './GradientButton';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import UploadMusicPanel from './UploadMusicPanel';
+import MyTracksPanel from './MyTracksPanel';
 
 const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, likes } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
+  const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
 
   if (!user) return null;
 
@@ -159,8 +161,14 @@ const ProfileScreen: React.FC = () => {
         )}
       </div>
 
-      {/* Upload de músicas */}
-      <UploadMusicPanel userName={user.name} />
+      {/* Suas músicas enviadas (seção separada, só listagem/apagar) */}
+      <MyTracksPanel userName={user.name} refreshKey={tracksRefreshKey} />
+
+      {/* Upload de músicas novas */}
+      <UploadMusicPanel
+        userName={user.name}
+        onUploaded={() => setTracksRefreshKey((k) => k + 1)}
+      />
 
       {/* Settings */}
       <div className="space-y-2 mb-6">
