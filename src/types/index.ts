@@ -63,4 +63,4 @@ export interface Conversation {
   unread_count: number;
 }
 
-export type Screen = 'login' | 'main' | 'player' | 'profile' | 'chat' | 'chat-conversation';
+export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'chat' | 'chat-conversation';

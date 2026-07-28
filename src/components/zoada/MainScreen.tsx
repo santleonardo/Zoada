@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 type Tab = 'tracks' | 'artists';
 
 const MainScreen: React.FC = () => {
-  const { playTrack, player } = useAppStore();
+  const { playTrack, player, selectArtist } = useAppStore();
   const [activeTab, setActiveTab] = useState<Tab>('tracks');
   const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
@@ -167,9 +167,10 @@ const MainScreen: React.FC = () => {
       {activeTab === 'artists' && (
         <div className="space-y-3">
           {filteredArtists.map((artist) => (
-            <div
+            <button
               key={artist.id}
-              className="flex items-center gap-4 p-3 rounded-2xl bg-[#1E2030] hover:bg-[#252840] transition-colors"
+              onClick={() => selectArtist(artist.id)}
+              className="w-full flex items-center gap-4 p-3 rounded-2xl bg-[#1E2030] hover:bg-[#252840] transition-colors text-left"
             >
               <CoverArt
                 title={artist.name}
@@ -186,13 +187,13 @@ const MainScreen: React.FC = () => {
                 <p className="text-xs text-white/50">{formatNumber(artist.followers_count)}</p>
                 <p className="text-[10px] text-white/30">seguidores</p>
               </div>
-              <button
-                className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+              <div
+                className="p-2 rounded-full bg-white/5"
                 aria-label="Ver perfil do artista"
               >
                 <Music2 size={16} className="text-white/60" />
-              </button>
-            </div>
+              </div>
+            </button>
           ))}
         </div>
       )}

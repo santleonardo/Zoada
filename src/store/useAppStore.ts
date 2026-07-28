@@ -29,6 +29,9 @@ interface AppState {
   selectedConversationId: string | null;
   selectedConversationName: string | null;
 
+  // Artist profile (perfil público de um artista)
+  selectedArtistId: string | null;
+
   // Social
   likes: Like[];
   comments: Comment[];
@@ -54,6 +57,9 @@ interface AppState {
   // Actions - Chat
   selectConversation: (id: string, name: string) => void;
 
+  // Actions - Artist profile
+  selectArtist: (id: string) => void;
+
   // Actions - Social
   setLikes: (likes: Like[]) => void;
   toggleLike: (trackId: string) => void;
@@ -70,6 +76,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   previousScreen: null,
   selectedConversationId: null,
   selectedConversationName: null,
+  selectedArtistId: null,
   likes: [],
   comments: [],
 
@@ -221,6 +228,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     selectedConversationId: id,
     selectedConversationName: name,
   }),
+
+  // Artist profile actions
+  selectArtist: (id) => set((state) => ({
+    selectedArtistId: id,
+    previousScreen: state.currentScreen,
+    currentScreen: 'artist',
+  })),
 
   // Social actions
   setLikes: (likes) => set({ likes }),

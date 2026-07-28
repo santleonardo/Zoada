@@ -8,6 +8,7 @@ import LoginScreen from '@/components/zoada/LoginScreen';
 import MainScreen from '@/components/zoada/MainScreen';
 import PlayerScreen from '@/components/zoada/PlayerScreen';
 import ProfileScreen from '@/components/zoada/ProfileScreen';
+import ArtistProfileScreen from '@/components/zoada/ArtistProfileScreen';
 import ChatScreen from '@/components/zoada/ChatScreen';
 import BottomNav from '@/components/zoada/BottomNav';
 import MiniPlayer from '@/components/zoada/MiniPlayer';
@@ -96,6 +97,8 @@ export default function Home() {
         return <PlayerScreen />;
       case 'profile':
         return <ProfileScreen />;
+      case 'artist':
+        return <ArtistProfileScreen />;
       case 'chat':
       case 'chat-conversation':
         return <ChatScreen />;
