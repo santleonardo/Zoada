@@ -64,6 +64,24 @@ export function getPublicUrl(key: string): string {
   return `https://${R2_CONFIG.ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_CONFIG.BUCKET_NAME}/${key}`;
 }
 
+// ---------- Reverse of getPublicUrl: recover the R2 key from a public URL ----------
+// Usado quando apagamos uma faixa: o banco só guarda a URL pública, então
+// precisamos "desfazer" o getPublicUrl acima pra saber qual objeto apagar no R2.
+export function keyFromPublicUrl(url: string): string | null {
+  if (!url) return null;
+  const bases = [
+    R2_CONFIG.PUBLIC_URL,
+    `https://${R2_CONFIG.ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_CONFIG.BUCKET_NAME}`,
+  ].filter(Boolean) as string[];
+
+  for (const base of bases) {
+    if (url.startsWith(`${base}/`)) {
+      return url.slice(base.length + 1);
+    }
+  }
+  return null;
+}
+
 // ---------- Generate signed (presigned) URL for private files ----------
 export async function getPresignedUrl(
   key: string,

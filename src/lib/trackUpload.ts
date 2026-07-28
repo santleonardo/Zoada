@@ -152,6 +152,17 @@ export async function uploadImageFile(file: File, folder: 'avatars' | 'covers' |
   return uploadFileViaServer(file, folder);
 }
 
+/** Apaga uma faixa já enviada (remove do banco e tenta apagar os arquivos no R2). */
+export async function deleteTrackFile(trackId: string): Promise<void> {
+  const res = await apiFetch(`/api/tracks?id=${encodeURIComponent(trackId)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Falha ao apagar a faixa');
+  }
+}
+
 export interface ArtistProfileFields {
   nome?: string;
   genero?: string;
