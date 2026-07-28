@@ -18,6 +18,14 @@ function getS3Client(): S3Client {
         accessKeyId: R2_CONFIG.ACCESS_KEY_ID,
         secretAccessKey: R2_CONFIG.SECRET_ACCESS_KEY,
       },
+      // Desde versões recentes do AWS SDK v3, o cliente passa a incluir por
+      // padrão um checksum (CRC32) na assinatura de toda URL pré-assinada.
+      // O R2 (e outros S3-compatíveis) valida a assinatura à risca, mas o
+      // PUT feito direto pelo navegador (fetch simples) não envia esse
+      // checksum — resultado: 403 Forbidden mesmo com credenciais corretas.
+      // Desativamos aqui para manter as URLs pré-assinadas compatíveis.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
   return _s3Client;
