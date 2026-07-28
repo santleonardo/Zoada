@@ -22,9 +22,10 @@ interface TrackItem {
 
 interface UploadMusicPanelProps {
   userName: string;
+  onProfileChange?: (avatarUrl: string | null, coverUrl: string | null) => void;
 }
 
-const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName }) => {
+const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfileChange }) => {
   const [artistaId, setArtistaId] = useState<string | null>(null);
   const [artistName, setArtistName] = useState(userName);
   const [genre, setGenre] = useState('');
@@ -33,6 +34,11 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName }) => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  // Guarda a última URL "real" (do servidor, não um blob local) de avatar/capa,
+  // pra sempre avisar o componente pai com o valor certo — mesmo quando essa
+  // execução do envio não trocou uma das duas imagens.
+  const lastKnownAvatarUrl = useRef<string | null>(null);
+  const lastKnownCoverUrl = useRef<string | null>(null);
 
   const [items, setItems] = useState<TrackItem[]>([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -54,6 +60,9 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName }) => {
           setBio(profile.bio || '');
           setAvatarPreview(profile.avatar_url || null);
           setCoverPreview(profile.cover_url || null);
+          lastKnownAvatarUrl.current = profile.avatar_url || null;
+          lastKnownCoverUrl.current = profile.cover_url || null;
+          onProfileChange?.(profile.avatar_url || null, profile.cover_url || null);
         }
       })
       .catch((err) => setGlobalError(err instanceof Error ? err.message : 'Erro ao carregar perfil'));
@@ -136,11 +145,32 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName }) => {
           );
         }
       }
+
+      // 3) Busca o perfil salvo de novo no servidor: troca os previews (que até
+      // aqui eram só blobs locais) pelas URLs reais, limpa os arquivos já
+      // enviados (senão eles seriam reenviados à toa no próximo envio) e avisa
+      // o componente pai. É isso que efetivamente "atualiza a tela".
+      const freshProfile = await getMyArtistProfile(artistaId);
+      if (freshProfile) {
+        setAvatarPreview(freshProfile.avatar_url || null);
+        setCoverPreview(freshProfile.cover_url || null);
+        lastKnownAvatarUrl.current = freshProfile.avatar_url || null;
+        lastKnownCoverUrl.current = freshProfile.cover_url || null;
+        onProfileChange?.(freshProfile.avatar_url || null, freshProfile.cover_url || null);
+      }
+      setAvatarFile(null);
+      setCoverFile(null);
     } catch (err) {
       setGlobalError(err instanceof Error ? err.message : 'Erro ao salvar perfil de artista');
     } finally {
       setIsRunning(false);
     }
+  };
+
+  /** Limpa a lista de músicas já processadas (enviadas ou com erro) para
+   * deixar o painel pronto para um novo envio, sem precisar recarregar a página. */
+  const handleStartNewUpload = () => {
+    setItems((prev) => prev.filter((it) => it.status === 'pending' || it.status === 'uploading'));
   };
 
   const doneCount = items.filter((i) => i.status === 'done').length;
@@ -300,7 +330,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName }) => {
         </div>
       )}
 
-      {items.length > 0 && (
+      {items.length > 0 && !allFinished && (
         <GradientButton
           variant="primary"
           size="md"
@@ -313,11 +343,21 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName }) => {
       )}
 
       {allFinished && (
-        <p className="text-xs text-white/40 pt-3">
-          {doneCount} enviada{doneCount === 1 ? '' : 's'} com sucesso
-          {errorCount > 0 ? ` · ${errorCount} com erro` : ''}. Volte para a aba{' '}
-          <span className="text-white/60">Explorar</span> para ouvir.
-        </p>
+        <div className="pt-3">
+          <p className="text-xs text-white/40 mb-2">
+            {doneCount} enviada{doneCount === 1 ? '' : 's'} com sucesso
+            {errorCount > 0 ? ` · ${errorCount} com erro` : ''}. Volte para a aba{' '}
+            <span className="text-white/60">Explorar</span> para ouvir.
+          </p>
+          <GradientButton
+            variant="outline"
+            size="sm"
+            onClick={handleStartNewUpload}
+            className="w-full"
+          >
+            Enviar mais músicas
+          </GradientButton>
+        </div>
       )}
     </div>
   );
