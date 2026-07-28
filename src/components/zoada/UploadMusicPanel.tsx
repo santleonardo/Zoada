@@ -3,11 +3,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UploadCloud, Music2, CheckCircle2, XCircle, Loader2, ImagePlus, X } from 'lucide-react';
 import {
-  getOrCreateMyArtistId,
-  getMyArtistProfile,
+  listMyArtists,
+  createArtist,
   updateMyArtistProfile,
   uploadImageFile,
   uploadTrackFile,
+  type ArtistProfile,
 } from '@/lib/trackUpload';
 import GradientButton from './GradientButton';
 
@@ -22,14 +23,23 @@ interface TrackItem {
 
 interface UploadMusicPanelProps {
   userName: string;
-  onProfileChange?: (avatarUrl: string | null, coverUrl: string | null) => void;
   /** Chamado sempre que um envio termina (com sucesso ou erro), pra quem
    * estiver de fora (ex: a lista de "músicas enviadas") poder se atualizar. */
   onUploaded?: () => void;
 }
 
-const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfileChange, onUploaded }) => {
-  const [artistaId, setArtistaId] = useState<string | null>(null);
+/** Valor especial usado no seletor pra representar "vou criar um artista novo". */
+const NEW_ARTIST = '__new__';
+
+const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploaded }) => {
+  // Lista de artistas que essa conta já criou. Uma conta pode ter vários —
+  // por exemplo, alguém populando o catálogo com diferentes artistas
+  // fictícios — então em vez de "o meu artista", o app deixa escolher com
+  // qual artista (existente ou novo) o envio atual é.
+  const [artists, setArtists] = useState<ArtistProfile[]>([]);
+  const [loadingArtists, setLoadingArtists] = useState(true);
+  const [selectedArtistId, setSelectedArtistId] = useState<string>(NEW_ARTIST);
+
   const [artistName, setArtistName] = useState(userName);
   const [genre, setGenre] = useState('');
   const [bio, setBio] = useState('');
@@ -37,11 +47,6 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
-  // Guarda a última URL "real" (do servidor, não um blob local) de avatar/capa,
-  // pra sempre avisar o componente pai com o valor certo — mesmo quando essa
-  // execução do envio não trocou uma das duas imagens.
-  const lastKnownAvatarUrl = useRef<string | null>(null);
-  const lastKnownCoverUrl = useRef<string | null>(null);
 
   const [items, setItems] = useState<TrackItem[]>([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -53,26 +58,53 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  // Carrega o perfil de artista existente (se já tiver enviado música antes)
+  const applyArtistToForm = (a: ArtistProfile) => {
+    setArtistName(a.name);
+    setGenre(a.genre || '');
+    setBio(a.bio || '');
+    setAvatarPreview(a.avatar_url || null);
+    setCoverPreview(a.cover_url || null);
+    setAvatarFile(null);
+    setCoverFile(null);
+  };
+
+  const resetFormForNewArtist = () => {
+    setArtistName('');
+    setGenre('');
+    setBio('');
+    setAvatarPreview(null);
+    setCoverPreview(null);
+    setAvatarFile(null);
+    setCoverFile(null);
+  };
+
+  // Carrega os artistas que essa conta já tem (se houver, pré-seleciona o
+  // mais recente; senão já deixa no modo "criar novo artista").
   useEffect(() => {
-    getOrCreateMyArtistId(userName)
-      .then(async (id) => {
-        setArtistaId(id);
-        const profile = await getMyArtistProfile(id);
-        if (profile) {
-          setArtistName(profile.name || userName);
-          setGenre(profile.genre || '');
-          setBio(profile.bio || '');
-          setAvatarPreview(profile.avatar_url || null);
-          setCoverPreview(profile.cover_url || null);
-          lastKnownAvatarUrl.current = profile.avatar_url || null;
-          lastKnownCoverUrl.current = profile.cover_url || null;
-          onProfileChange?.(profile.avatar_url || null, profile.cover_url || null);
+    listMyArtists()
+      .then((list) => {
+        setArtists(list);
+        if (list.length > 0) {
+          setSelectedArtistId(list[0].id);
+          applyArtistToForm(list[0]);
+        } else {
+          setSelectedArtistId(NEW_ARTIST);
         }
       })
-      .catch((err) => setGlobalError(err instanceof Error ? err.message : 'Erro ao carregar perfil'));
+      .catch((err) => setGlobalError(err instanceof Error ? err.message : 'Erro ao carregar seus artistas'))
+      .finally(() => setLoadingArtists(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleSelectArtist = (value: string) => {
+    setSelectedArtistId(value);
+    if (value === NEW_ARTIST) {
+      resetFormForNewArtist();
+      return;
+    }
+    const found = artists.find((a) => a.id === value);
+    if (found) applyArtistToForm(found);
+  };
 
   const handlePickAudio = (fileList: FileList | null) => {
     if (!fileList) return;
@@ -116,24 +148,72 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
   };
 
   const handleSendAll = async () => {
-    if (!artistaId || items.length === 0) return;
+    if (items.length === 0) return;
+    if (!artistName.trim()) {
+      setGlobalError('Digite um nome artístico antes de enviar.');
+      return;
+    }
     setIsRunning(true);
     setGlobalError(null);
     setSuccessMessage(null);
     if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
 
     try {
-      // 1) Salva o perfil do artista (nome/gênero/bio + imagens, se trocadas)
-      const profileUpdate: { nome: string; genero: string; bio: string; avatarUrl?: string; coverUrl?: string } = {
-        nome: artistName,
-        genero: genre,
-        bio,
-      };
-      if (avatarFile) profileUpdate.avatarUrl = await uploadImageFile(avatarFile, 'avatars');
-      if (coverFile) profileUpdate.coverUrl = await uploadImageFile(coverFile, 'covers');
-      await updateMyArtistProfile(artistaId, profileUpdate);
+      // 1) Sobe avatar/capa novos, se houver (fica pronto pra usar tanto na
+      // criação quanto na atualização do artista).
+      const avatarUrl = avatarFile ? await uploadImageFile(avatarFile, 'avatars') : undefined;
+      const coverUrl = coverFile ? await uploadImageFile(coverFile, 'covers') : undefined;
 
-      // 2) Sobe cada música (com capa própria, se tiver)
+      let targetArtistId: string;
+
+      if (selectedArtistId === NEW_ARTIST) {
+        // 2a) Cria um artista NOVO e separado. Isso é o que garante que
+        // subir música como "Jamba Jô" não reescreve o "Rick Tropical" que
+        // já existia — cada nome novo vira seu próprio registro no banco.
+        const created = await createArtist({
+          nome: artistName,
+          genero: genre,
+          bio,
+          avatarUrl,
+          coverUrl,
+        });
+        targetArtistId = created.id;
+        setArtists((prev) => [created, ...prev]);
+        setSelectedArtistId(created.id);
+      } else {
+        // 2b) Atualiza o artista já existente e selecionado (e só ele).
+        targetArtistId = selectedArtistId;
+        const profileUpdate: { nome: string; genero: string; bio: string; avatarUrl?: string; coverUrl?: string } = {
+          nome: artistName,
+          genero: genre,
+          bio,
+        };
+        if (avatarUrl) profileUpdate.avatarUrl = avatarUrl;
+        if (coverUrl) profileUpdate.coverUrl = coverUrl;
+        await updateMyArtistProfile(targetArtistId, profileUpdate);
+        setArtists((prev) =>
+          prev.map((a) =>
+            a.id === targetArtistId
+              ? {
+                  ...a,
+                  name: artistName,
+                  genre,
+                  bio,
+                  avatar_url: avatarUrl || a.avatar_url,
+                  cover_url: coverUrl || a.cover_url,
+                }
+              : a
+          )
+        );
+      }
+
+      if (avatarUrl) setAvatarPreview(avatarUrl);
+      if (coverUrl) setCoverPreview(coverUrl);
+      setAvatarFile(null);
+      setCoverFile(null);
+
+      // 3) Sobe cada música (com capa própria, se tiver), associada ao
+      // artista resolvido acima.
       let successCount = 0;
       for (let i = 0; i < items.length; i++) {
         setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, status: 'uploading' } : it)));
@@ -141,7 +221,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
           const item = items[i];
           let trackCoverUrl: string | undefined;
           if (item.coverFile) trackCoverUrl = await uploadImageFile(item.coverFile, 'track-covers');
-          await uploadTrackFile(item.file, artistaId, item.title || item.file.name, trackCoverUrl);
+          await uploadTrackFile(item.file, targetArtistId, item.title || item.file.name, trackCoverUrl);
           successCount++;
           setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, status: 'done' } : it)));
         } catch (err) {
@@ -155,28 +235,13 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
         }
       }
 
-      // 3) Busca o perfil salvo de novo no servidor: troca os previews (que até
-      // aqui eram só blobs locais) pelas URLs reais, limpa os arquivos já
-      // enviados (senão eles seriam reenviados à toa no próximo envio) e avisa
-      // o componente pai. É isso que efetivamente "atualiza a tela".
-      const freshProfile = await getMyArtistProfile(artistaId);
-      if (freshProfile) {
-        setAvatarPreview(freshProfile.avatar_url || null);
-        setCoverPreview(freshProfile.cover_url || null);
-        lastKnownAvatarUrl.current = freshProfile.avatar_url || null;
-        lastKnownCoverUrl.current = freshProfile.cover_url || null;
-        onProfileChange?.(freshProfile.avatar_url || null, freshProfile.cover_url || null);
-      }
-      setAvatarFile(null);
-      setCoverFile(null);
-
-      // 4) Limpa a tela automaticamente: remove as faixas que já foram enviadas
-      // com sucesso (as com erro ficam, pra dar pra tentar de novo ou remover
-      // manualmente), deixando o painel pronto pra um novo envio na hora.
+      // 4) Limpa a tela automaticamente: remove as faixas que já foram
+      // enviadas com sucesso (as com erro ficam, pra dar pra tentar de novo
+      // ou remover manualmente), deixando o painel pronto pra um novo envio.
       setItems((prev) => prev.filter((it) => it.status !== 'done'));
       if (successCount > 0) {
         setSuccessMessage(
-          `${successCount} música${successCount === 1 ? '' : 's'} enviada${successCount === 1 ? '' : 's'} com sucesso! Volte para a aba Explorar para ouvir.`
+          `${successCount} música${successCount === 1 ? '' : 's'} enviada${successCount === 1 ? '' : 's'} como ${artistName}! Volte para a aba Explorar para ouvir.`
         );
         successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 6000);
       }
@@ -220,9 +285,32 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
         <p className="text-xs text-[#00CEC9] mb-3">{successMessage}</p>
       )}
 
+      {/* Escolha de artista: um existente (edita ele) ou um novo (cria um
+          registro separado, sem mexer nos outros). */}
+      {!loadingArtists && artists.length > 0 && (
+        <div className="mb-3">
+          <label className="block text-xs text-white/40 mb-1.5">Enviar como</label>
+          <select
+            value={selectedArtistId}
+            onChange={(e) => handleSelectArtist(e.target.value)}
+            disabled={isRunning}
+            className="w-full rounded-xl bg-[#252840] border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-[#FF8C42]/50"
+          >
+            {artists.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+            <option value={NEW_ARTIST}>+ Criar novo artista</option>
+          </select>
+        </div>
+      )}
+
       {/* Perfil do artista */}
       <div className="rounded-xl bg-white/5 p-4 mb-4">
-        <p className="text-sm font-semibold text-white/80 mb-3">Perfil de artista</p>
+        <p className="text-sm font-semibold text-white/80 mb-3">
+          {selectedArtistId === NEW_ARTIST ? 'Novo artista' : 'Perfil de artista'}
+        </p>
 
         <div className="flex items-center gap-3 mb-3">
           <button

@@ -25,14 +25,16 @@ function serializeArtista(a: {
 }
 
 // GET /api/artists            -> lista pública de todos os artistas
-// GET /api/artists?mine=1     -> só o artista do usuário autenticado (ou null)
+// GET /api/artists?mine=1     -> lista só dos artistas do usuário autenticado
+// (uma conta pode ter vários artistas — ex: alguém populando o catálogo
+// com diferentes artistas fictícios)
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const mine = searchParams.get('mine') === '1';
 
     if (!isNeonConfigured) {
-      if (mine) return NextResponse.json({ artist: null });
+      if (mine) return NextResponse.json({ artists: [] });
       return NextResponse.json({ artists: DEMO_ARTISTS });
     }
 
@@ -41,8 +43,11 @@ export async function GET(request: Request) {
       if (!userId) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
       }
-      const artista = await db.artista.findUnique({ where: { usuarioId: userId } });
-      return NextResponse.json({ artist: artista ? serializeArtista(artista) : null });
+      const artistas = await db.artista.findMany({
+        where: { usuarioId: userId },
+        orderBy: { createdAt: 'desc' },
+      });
+      return NextResponse.json({ artists: artistas.map(serializeArtista) });
     }
 
     const artistas = await db.artista.findMany({
@@ -56,10 +61,14 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/artists — Cria (ou devolve, se já existir) o artista do usuário
-// autenticado. Cada conta tem no máximo um artista, e ele é sempre marcado
-// como dono (usuarioId) — é isso que impede duas contas diferentes de
-// acabarem compartilhando/"roubando" o mesmo perfil de artista.
+// POST /api/artists — Cria um artista NOVO para o usuário autenticado.
+//
+// Importante: sempre cria — nunca reaproveita um artista existente por
+// nome ou por ser "o único que você tem". É assim que dois artistas
+// diferentes (ex: "Rick Tropical" e "Jamba Jô") permanecem separados
+// mesmo sendo enviados pela mesma conta: cada um vira sua própria linha
+// no banco, com seu próprio id, nome e foto. Editar um artista já criado
+// é feito à parte, via PATCH passando o id dele.
 export async function POST(request: Request) {
   try {
     if (!isNeonConfigured) {
@@ -69,13 +78,6 @@ export async function POST(request: Request) {
     const userId = await authenticateRequest(request);
     if (!userId) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
-
-    // Já existe um artista para esse usuário? Devolve o mesmo em vez de criar
-    // um segundo (evita duplicar e evita "perder" o dono do primeiro).
-    const existing = await db.artista.findUnique({ where: { usuarioId: userId } });
-    if (existing) {
-      return NextResponse.json(serializeArtista(existing), { status: 200 });
     }
 
     const { nome, avatarUrl, coverUrl, bio, genero } = await request.json();
@@ -102,10 +104,11 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH /api/artists — Atualiza o perfil de um artista (nome, bio, gênero,
-// imagens). Só o dono (usuarioId) pode editar — sem essa checagem, editar
-// o "Nome artístico" no formulário de upload reescrevia qualquer artista
-// cujo id estivesse em cache no navegador, mesmo que fosse de outra conta.
+// PATCH /api/artists — Atualiza o perfil de UM artista já existente (nome,
+// bio, gênero, imagens). Só o dono (usuarioId) pode editar — sem essa
+// checagem, editar o "Nome artístico" no formulário de upload podia
+// reescrever qualquer artista cujo id estivesse em cache no navegador,
+// mesmo que fosse de outra conta (ou de outro artista seu).
 export async function PATCH(request: Request) {
   try {
     if (!isNeonConfigured) {

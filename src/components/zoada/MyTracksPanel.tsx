@@ -2,21 +2,22 @@
 
 import React, { useEffect, useState } from 'react';
 import { Music2, Loader2, Check, X, Trash2, ListMusic } from 'lucide-react';
-import { getOrCreateMyArtistId, deleteTrackFile } from '@/lib/trackUpload';
+import { apiFetch } from '@/lib/api';
+import { deleteTrackFile } from '@/lib/trackUpload';
 import type { Track } from '@/types';
 
 interface MyTracksPanelProps {
-  userName: string;
   /** Muda toda vez que um novo envio termina, pra essa lista se atualizar sozinha. */
   refreshKey?: number;
 }
 
 /**
- * Seção separada de "Suas músicas enviadas": só lista o que já foi
- * publicado (com opção de apagar). Fica independente do painel de
- * envio (UploadMusicPanel), que cuida apenas de subir músicas novas.
+ * Seção separada de "Suas músicas enviadas": lista tudo que já foi
+ * publicado por QUALQUER artista dessa conta (uma conta pode ter mais de
+ * um artista), com opção de apagar. Fica independente do painel de envio
+ * (UploadMusicPanel), que cuida apenas de subir músicas novas.
  */
-const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ userName, refreshKey }) => {
+const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ refreshKey }) => {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -27,8 +28,15 @@ const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ userName, refreshKey }) =
     setLoading(true);
     setError(null);
     try {
-      const artistaId = await getOrCreateMyArtistId(userName);
-      const res = await fetch(`/api/tracks?artist_id=${encodeURIComponent(artistaId)}`);
+      const res = await apiFetch('/api/tracks?mine=1');
+      if (!res.ok) {
+        if (res.status === 401) {
+          setTracks([]);
+          return;
+        }
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao carregar suas músicas');
+      }
       const data = await res.json();
       if (Array.isArray(data.tracks)) setTracks(data.tracks);
     } catch (err) {
@@ -66,7 +74,9 @@ const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ userName, refreshKey }) =
         </div>
         {!loading && <span className="text-sm text-white/40">{tracks.length} faixas</span>}
       </div>
-      <p className="text-white/40 text-sm mb-4">Tudo que você já publicou na sua conta de artista.</p>
+      <p className="text-white/40 text-sm mb-4">
+        Tudo que você já publicou, em todos os artistas da sua conta.
+      </p>
 
       {error && <p className="text-xs text-[#E84393] mb-3">{error}</p>}
 
@@ -89,7 +99,10 @@ const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ userName, refreshKey }) =
                   <Music2 size={14} className="text-white/30" />
                 )}
               </div>
-              <p className="flex-1 min-w-0 text-sm text-white truncate">{track.title}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white truncate">{track.title}</p>
+                <p className="text-xs text-white/40 truncate">{track.artist_name}</p>
+              </div>
 
               {confirmDeleteId === track.id ? (
                 <div className="flex items-center gap-1.5 flex-shrink-0">

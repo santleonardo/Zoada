@@ -162,7 +162,7 @@ const ProfileScreen: React.FC = () => {
       </div>
 
       {/* Suas músicas enviadas (seção separada, só listagem/apagar) */}
-      <MyTracksPanel userName={user.name} refreshKey={tracksRefreshKey} />
+      <MyTracksPanel refreshKey={tracksRefreshKey} />
 
       {/* Upload de músicas novas */}
       <UploadMusicPanel

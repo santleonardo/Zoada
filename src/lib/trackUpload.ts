@@ -58,43 +58,54 @@ export function readAudioDuration(file: File): Promise<number> {
   });
 }
 
+export interface ArtistProfile {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  cover_url: string | null;
+  bio: string;
+  genre: string;
+}
+
 /**
- * Garante que existe um "artista" no banco representando o usuário logado
- * (reaproveita se já existir; cria se for a primeira vez).
- *
- * Importante: quem identifica "de quem é esse artista" é o token de
- * autenticação (no servidor), não um id guardado em localStorage. A versão
- * antiga cacheava um único id no navegador e reaproveitava ele pra
- * qualquer nome digitado no formulário — então subir uma música como
- * "Rick Tropical" e depois mudar o campo "Nome artístico" pra "Jamba Jô"
- * apenas renomeava o mesmo artista (e a foto), fazendo a faixa antiga
- * "trocar de dono" na tela. Agora cada conta tem no máximo um artista, e
- * o servidor garante isso a partir de quem está logado.
+ * Lista TODOS os artistas do usuário logado (uma conta pode ter vários —
+ * ex: alguém populando o catálogo com diferentes artistas fictícios).
  */
-export async function getOrCreateMyArtistId(userName: string): Promise<string> {
-  if (typeof window === 'undefined') throw new Error('Só funciona no navegador');
-
-  const mineRes = await apiFetch('/api/artists?mine=1');
-  if (mineRes.ok) {
-    const data = await mineRes.json();
-    if (data.artist) return data.artist.id as string;
-  } else if (mineRes.status === 401) {
-    throw new Error('Você precisa estar logado com uma conta real para enviar músicas.');
+export async function listMyArtists(): Promise<ArtistProfile[]> {
+  const res = await apiFetch('/api/artists?mine=1');
+  if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error('Você precisa estar logado com uma conta real para enviar músicas.');
+    }
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Não foi possível carregar seus artistas');
   }
+  const data = await res.json();
+  return (data.artists || []) as ArtistProfile[];
+}
 
-  // Ainda não existe -> cria o artista da sua conta
-  const createRes = await apiFetch('/api/artists', {
+/**
+ * Cria um artista NOVO (sempre um registro novo — nunca reaproveita um já
+ * existente). É isso que garante que subir música como "Jamba Jô" não
+ * reescreve o "Rick Tropical" que você já tinha criado antes: cada nome
+ * novo vira seu próprio artista, com seu próprio id e foto.
+ */
+export async function createArtist(fields: {
+  nome: string;
+  genero?: string;
+  bio?: string;
+  avatarUrl?: string;
+  coverUrl?: string;
+}): Promise<ArtistProfile> {
+  const res = await apiFetch('/api/artists', {
     method: 'POST',
-    body: JSON.stringify({ nome: userName || 'Artista Zôada', genero: '' }),
+    body: JSON.stringify(fields),
   });
-
-  if (!createRes.ok) {
-    const err = await createRes.json().catch(() => ({}));
-    throw new Error(err.error || 'Não foi possível criar seu perfil de artista');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Não foi possível criar o artista');
   }
-
-  const artist = await createRes.json();
-  return artist.id as string;
+  return (await res.json()) as ArtistProfile;
 }
 
 /**
@@ -177,21 +188,6 @@ export async function updateMyArtistProfile(artistaId: string, fields: ArtistPro
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Falha ao atualizar perfil de artista');
   }
-}
-
-/** Busca os dados atuais do artista (pra pré-preencher o formulário de perfil). */
-export async function getMyArtistProfile(artistaId: string): Promise<{
-  id: string;
-  name: string;
-  avatar_url: string | null;
-  cover_url: string | null;
-  bio: string;
-  genre: string;
-} | null> {
-  const res = await fetch('/api/artists');
-  if (!res.ok) return null;
-  const data = await res.json();
-  return (data.artists || []).find((a: { id: string }) => a.id === artistaId) || null;
 }
 
 /** Sobe um arquivo de áudio direto pro R2 e cria a faixa correspondente no banco. */

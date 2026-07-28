@@ -5,21 +5,33 @@ import { isNeonConfigured, isR2Configured } from '@/lib/config';
 import { deleteFromR2, keyFromPublicUrl } from '@/lib/r2';
 import { DEMO_TRACKS } from '@/lib/demo-data';
 
-// GET /api/tracks?artist_id=xxx
-// Return all tracks, optionally filtered by artist
+// GET /api/tracks?artist_id=xxx  -> faixas de um artista específico (público)
+// GET /api/tracks?mine=1         -> faixas de TODOS os artistas do usuário logado
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const artistId = searchParams.get('artist_id');
+    const mine = searchParams.get('mine') === '1';
 
     if (!isNeonConfigured) {
       // Demo mode
       let tracks = DEMO_TRACKS;
       if (artistId) tracks = tracks.filter((t) => t.artist_id === artistId);
+      if (mine) tracks = [];
       return NextResponse.json({ tracks });
     }
 
-    const where = artistId ? { artistaId: artistId } : {};
+    let where: { artistaId?: string; artista?: { usuarioId: string } } = {};
+    if (mine) {
+      const userId = await authenticateRequest(request);
+      if (!userId) {
+        return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+      }
+      where = { artista: { usuarioId: userId } };
+    } else if (artistId) {
+      where = { artistaId: artistId };
+    }
+
     const faixas = await db.faixa.findMany({
       where,
       include: {
