@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const faixas = await db.faixa.findMany({
       where,
       include: {
-        artista: { select: { id: true, nome: true } },
+        artista: { select: { id: true, nome: true, avatarUrl: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -32,7 +32,8 @@ export async function GET(request: Request) {
       title: f.titulo,
       artist_id: f.artistaId,
       artist_name: f.artista.nome,
-      cover_url: f.coverUrl,
+      // Se a faixa não tem capa própria, usa a foto do artista como fallback
+      cover_url: f.coverUrl || f.artista.avatarUrl || null,
       audio_url: f.audioUrl,
       duration: f.duracao,
       plays_count: f.playsCount,
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
         audioUrl: audioUrl || null,
         duracao: duracao || 0,
       },
-      include: { artista: { select: { nome: true } } },
+      include: { artista: { select: { nome: true, avatarUrl: true } } },
     });
 
     return NextResponse.json({
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
       title: faixa.titulo,
       artist_id: faixa.artistaId,
       artist_name: faixa.artista.nome,
-      cover_url: faixa.coverUrl,
+      cover_url: faixa.coverUrl || faixa.artista.avatarUrl || null,
       audio_url: faixa.audioUrl,
       duration: faixa.duracao,
       plays_count: faixa.playsCount,
