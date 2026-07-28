@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
-import { isNeonConfigured } from '@/lib/config';
+import { isNeonConfigured, isR2Configured } from '@/lib/config';
+import { deleteFromR2, keyFromPublicUrl } from '@/lib/r2';
 import { DEMO_ARTISTS } from '@/lib/demo-data';
 
 function serializeArtista(a: {
@@ -149,5 +150,69 @@ export async function PATCH(request: Request) {
   } catch (error) {
     console.error('[ARTISTS PATCH]', error);
     return NextResponse.json({ error: 'Erro ao atualizar artista' }, { status: 500 });
+  }
+}
+
+// DELETE /api/artists?id=xxx — Apaga um artista inteiro (autenticado, só o
+// dono). Isso remove também todas as faixas desse artista (a relação no
+// Prisma tem onDelete: Cascade), e as faixas cascateiam para curtidas e
+// comentários — então apagar um artista limpa todo o catálogo dele de uma
+// vez. Apagar os arquivos no R2 (avatar, capa e os áudios/capas de cada
+// faixa) é best-effort, igual à rota de faixas: se falhar, não desfazemos
+// a exclusão, só avisamos no log.
+export async function DELETE(request: Request) {
+  try {
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+
+    const artista = await db.artista.findUnique({
+      where: { id },
+      include: { faixas: true },
+    });
+    if (!artista) {
+      return NextResponse.json({ error: 'Artista não encontrado' }, { status: 404 });
+    }
+    if (artista.usuarioId && artista.usuarioId !== userId) {
+      return NextResponse.json({ error: 'Você não tem permissão para apagar esse artista' }, { status: 403 });
+    }
+
+    // Apaga a linha do banco primeiro (o que faz o artista e as músicas
+    // dele sumirem do app de fato); a limpeza dos arquivos no R2 vem
+    // depois, sem bloquear a exclusão caso algo falhe lá.
+    await db.artista.delete({ where: { id } });
+
+    if (isR2Configured) {
+      const keys = [
+        artista.avatarUrl ? keyFromPublicUrl(artista.avatarUrl) : null,
+        artista.coverUrl ? keyFromPublicUrl(artista.coverUrl) : null,
+        ...artista.faixas.flatMap((f) => [
+          f.audioUrl ? keyFromPublicUrl(f.audioUrl) : null,
+          f.coverUrl ? keyFromPublicUrl(f.coverUrl) : null,
+        ]),
+      ].filter((k): k is string => !!k);
+
+      await Promise.all(
+        keys.map((key) =>
+          deleteFromR2(key).catch((err) => console.warn('[ARTISTS DELETE] falha ao apagar arquivo no R2:', err))
+        )
+      );
+    }
+
+    return NextResponse.json({ deleted: true });
+  } catch (error) {
+    console.error('[ARTISTS DELETE]', error);
+    return NextResponse.json({ error: 'Erro ao apagar artista' }, { status: 500 });
   }
 }

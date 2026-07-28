@@ -190,6 +190,20 @@ export async function updateMyArtistProfile(artistaId: string, fields: ArtistPro
   }
 }
 
+/**
+ * Apaga um artista inteiro (e, junto, todas as músicas dele — a exclusão
+ * cascateia no banco). Só o dono do artista pode apagar.
+ */
+export async function deleteArtistProfile(artistaId: string): Promise<void> {
+  const res = await apiFetch(`/api/artists?id=${encodeURIComponent(artistaId)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Falha ao apagar o artista');
+  }
+}
+
 /** Sobe um arquivo de áudio direto pro R2 e cria a faixa correspondente no banco. */
 export async function uploadTrackFile(
   file: File,
