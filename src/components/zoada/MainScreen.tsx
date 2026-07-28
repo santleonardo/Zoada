@@ -126,6 +126,7 @@ const MainScreen: React.FC = () => {
                 <CoverArt
                   title={track.title}
                   artistName={track.artist_name}
+                  coverUrl={track.cover_url}
                   size="lg"
                 />
                 {/* Play overlay */}
@@ -173,6 +174,7 @@ const MainScreen: React.FC = () => {
               <CoverArt
                 title={artist.name}
                 artistName={artist.genre}
+                coverUrl={artist.avatar_url || artist.cover_url}
                 size="sm"
                 className="!w-14 !h-14 !max-w-none !rounded-xl flex-shrink-0"
               />

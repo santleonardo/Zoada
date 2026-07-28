@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Play, Pause, SkipForward, SkipBack, Heart, ChevronUp } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
@@ -15,6 +15,11 @@ const MiniPlayer: React.FC = () => {
 
   const isLiked = currentTrack ? likes.some(l => l.track_id === currentTrack.id) : false;
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
+
+  const [coverFailed, setCoverFailed] = useState(false);
+  useEffect(() => {
+    setCoverFailed(false);
+  }, [currentTrack?.cover_url]);
 
   const coverColors = currentTrack
     ? COVER_COLORS[
@@ -88,16 +93,27 @@ const MiniPlayer: React.FC = () => {
           aria-label="Abrir player"
         >
           <div
-            className="w-full h-full flex items-center justify-center"
+            className="w-full h-full flex items-center justify-center relative"
             style={{ background: `linear-gradient(135deg, ${coverColors[0]}, ${coverColors[1]})` }}
           >
-            {isPlaying ? (
-              <Equalizer barCount={3} height={24} barWidth={3} gap={2} />
-            ) : (
-              <span className="text-white/80 text-xs font-bold">
-                {currentTrack.artist_name.charAt(0)}
-              </span>
+            {currentTrack.cover_url && !coverFailed && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={currentTrack.cover_url}
+                alt={currentTrack.title}
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={() => setCoverFailed(true)}
+              />
             )}
+            <div className="relative z-10">
+              {isPlaying ? (
+                <Equalizer barCount={3} height={24} barWidth={3} gap={2} />
+              ) : !currentTrack.cover_url || coverFailed ? (
+                <span className="text-white/80 text-xs font-bold">
+                  {currentTrack.artist_name.charAt(0)}
+                </span>
+              ) : null}
+            </div>
           </div>
         </button>
 

@@ -144,6 +144,7 @@ const ProfileScreen: React.FC = () => {
                 <CoverArt
                   title={track.title}
                   artistName={track.artist_name}
+                  coverUrl={track.cover_url}
                   size="sm"
                   className="!w-12 !h-12 !max-w-none !rounded-lg flex-shrink-0"
                 />

@@ -123,6 +123,7 @@ const PlayerScreen: React.FC = () => {
         <CoverArt
           title={currentTrack.title}
           artistName={currentTrack.artist_name}
+          coverUrl={currentTrack.cover_url}
           size="full"
           showEqualizer
           isPlaying={isPlaying}
