@@ -9,6 +9,34 @@ import { apiFetch, getAuthToken } from '@/lib/api';
 
 const MY_ARTIST_ID_KEY = 'zoada-my-artist-id';
 
+/**
+ * DIAGNÓSTICO TEMPORÁRIO: sobe o arquivo passando pelo próprio servidor
+ * (/api/storage/upload) em vez de ir direto pro R2. Serve pra descobrir
+ * o erro real que o R2 devolve, já que erros direto no navegador ficam
+ * escondidos atrás de CORS. Depois de resolver o 403, isso pode ser
+ * removido e voltar a usar uploadFileDirectToR2 pra tudo (o upload
+ * direto é necessário pra músicas grandes, por causa do limite de ~4.5MB
+ * do corpo de uma Serverless Function na Vercel).
+ */
+async function uploadFileViaServer(file: File, folder: string): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder', folder);
+
+  const res = await apiFetch('/api/storage/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao enviar o arquivo (status ${res.status})`);
+  }
+
+  const data = await res.json();
+  return data.url as string;
+}
+
 /** Lê a duração real do arquivo de áudio no navegador, sem precisar subir nada. */
 export function readAudioDuration(file: File): Promise<number> {
   return new Promise((resolve) => {
@@ -118,7 +146,10 @@ async function uploadFileDirectToR2(file: File, folder: string): Promise<string>
 
 /** Sobe uma imagem (avatar/capa) pro R2 e devolve a URL pública. */
 export async function uploadImageFile(file: File, folder: 'avatars' | 'covers' | 'track-covers'): Promise<string> {
-  return uploadFileDirectToR2(file, folder);
+  // TEMPORÁRIO (diagnóstico do 403 no upload direto): usando a rota do
+  // servidor em vez do upload direto pro R2. Reverter para
+  // `return uploadFileDirectToR2(file, folder);` depois de resolver.
+  return uploadFileViaServer(file, folder);
 }
 
 export interface ArtistProfileFields {
