@@ -11,6 +11,7 @@ import {
   SkipBack,
   SkipForward,
   Repeat,
+  Repeat1,
   Shuffle,
   MessageCircle,
   Send,
@@ -24,7 +25,11 @@ import { cn } from '@/lib/utils';
 import type { Comment } from '@/types';
 
 const PlayerScreen: React.FC = () => {
-  const { player, queue, queueIndex, goBack, togglePlay, nextTrack, prevTrack, likes, toggleLike, comments, addComment } = useAppStore();
+  const {
+    player, queue, queueIndex, goBack, togglePlay, nextTrack, prevTrack,
+    likes, toggleLike, comments, addComment,
+    shuffleEnabled, toggleShuffle, repeatMode, cycleRepeatMode,
+  } = useAppStore();
   const { currentTrack, isPlaying, progress, duration } = player;
 
   const [showComments, setShowComments] = useState(false);
@@ -199,7 +204,15 @@ const PlayerScreen: React.FC = () => {
 
       {/* Controls */}
       <div className="flex items-center justify-center gap-6 px-6 mb-6">
-        <button className="p-2 text-white/40 hover:text-white/70 transition-colors" aria-label="Aleatório">
+        <button
+          onClick={toggleShuffle}
+          className={cn(
+            'p-2 transition-colors',
+            shuffleEnabled ? 'text-[#FF8C42]' : 'text-white/40 hover:text-white/70'
+          )}
+          aria-label={shuffleEnabled ? 'Desativar aleatório' : 'Ativar aleatório'}
+          aria-pressed={shuffleEnabled}
+        >
           <Shuffle size={20} />
         </button>
         <button
@@ -227,8 +240,18 @@ const PlayerScreen: React.FC = () => {
         >
           <SkipForward size={26} className="text-white" fill="white" />
         </button>
-        <button className="p-2 text-white/40 hover:text-white/70 transition-colors" aria-label="Repetir">
-          <Repeat size={20} />
+        <button
+          onClick={cycleRepeatMode}
+          className={cn(
+            'p-2 transition-colors',
+            repeatMode !== 'off' ? 'text-[#FF8C42]' : 'text-white/40 hover:text-white/70'
+          )}
+          aria-label={
+            repeatMode === 'off' ? 'Ativar repetição' :
+            repeatMode === 'all' ? 'Repetir apenas esta faixa' : 'Desativar repetição'
+          }
+        >
+          {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
         </button>
       </div>
 

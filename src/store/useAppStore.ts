@@ -24,6 +24,8 @@ interface AppState {
   player: PlayerState;
   queue: Track[];
   queueIndex: number;
+  shuffleEnabled: boolean;
+  repeatMode: 'off' | 'all' | 'one';
 
   // Chat
   selectedConversationId: string | null;
@@ -50,9 +52,11 @@ interface AppState {
   togglePlay: () => void;
   setProgress: (progress: number) => void;
   setDuration: (duration: number) => void;
-  nextTrack: () => void;
+  nextTrack: (auto?: boolean) => void;
   prevTrack: () => void;
   setVolume: (volume: number) => void;
+  toggleShuffle: () => void;
+  cycleRepeatMode: () => void;
 
   // Actions - Chat
   selectConversation: (id: string, name: string) => void;
@@ -90,6 +94,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   queue: [],
   queueIndex: 0,
+  shuffleEnabled: false,
+  repeatMode: 'off',
 
   // Auth actions
   setUser: (user, token) => {
@@ -125,6 +131,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       },
       queue: [],
       queueIndex: 0,
+      shuffleEnabled: false,
+      repeatMode: 'off',
     });
   },
 
@@ -187,10 +195,34 @@ export const useAppStore = create<AppState>((set, get) => ({
     player: { ...state.player, duration },
   })),
 
-  nextTrack: () => {
+  // `auto` = true quando chamado pelo fim natural da faixa (evento "ended"
+  // do <audio>); `auto` = false (padrão) quando o usuário clica em "próxima".
+  // Isso permite que "repetir desligado" realmente pare no fim da fila em
+  // vez de sempre dar a volta, enquanto o botão "próxima" continua pulando
+  // livremente mesmo com repeat desligado.
+  nextTrack: (auto = false) => {
     const state = get();
     if (state.queue.length === 0) return;
-    const nextIndex = (state.queueIndex + 1) % state.queue.length;
+
+    let nextIndex: number;
+
+    if (state.shuffleEnabled && state.queue.length > 1) {
+      do {
+        nextIndex = Math.floor(Math.random() * state.queue.length);
+      } while (nextIndex === state.queueIndex);
+    } else {
+      nextIndex = state.queueIndex + 1;
+      if (nextIndex >= state.queue.length) {
+        if (auto && state.repeatMode !== 'all') {
+          // Chegou ao fim da fila sem repetição habilitada: para de tocar
+          // em vez de simular um loop que não existe de verdade.
+          set({ player: { ...state.player, isPlaying: false } });
+          return;
+        }
+        nextIndex = 0;
+      }
+    }
+
     const nextTrack = state.queue[nextIndex];
     set({
       player: {
@@ -221,6 +253,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setVolume: (volume) => set((state) => ({
     player: { ...state.player, volume },
+  })),
+
+  toggleShuffle: () => set((state) => ({ shuffleEnabled: !state.shuffleEnabled })),
+
+  cycleRepeatMode: () => set((state) => ({
+    repeatMode:
+      state.repeatMode === 'off' ? 'all' :
+      state.repeatMode === 'all' ? 'one' : 'off',
   })),
 
   // Chat actions

@@ -35,7 +35,16 @@ class AudioEngine {
     });
 
     audio.addEventListener('ended', () => {
-      useAppStore.getState().nextTrack();
+      const { repeatMode } = useAppStore.getState();
+      if (repeatMode === 'one') {
+        // Repetir uma: volta pro início e toca de novo, em vez de pular.
+        audio.currentTime = 0;
+        useAppStore.getState().setProgress(0);
+        audio.play().catch((err) => console.warn('[audioEngine] play() falhou:', err));
+        return;
+      }
+      // auto=true: respeita "sem repetição" parando no fim da fila.
+      useAppStore.getState().nextTrack(true);
     });
 
     audio.addEventListener('error', () => {
