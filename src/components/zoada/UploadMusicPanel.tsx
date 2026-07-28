@@ -46,6 +46,8 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
   const [items, setItems] = useState<TrackItem[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const audioInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -117,6 +119,8 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
     if (!artistaId || items.length === 0) return;
     setIsRunning(true);
     setGlobalError(null);
+    setSuccessMessage(null);
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
 
     try {
       // 1) Salva o perfil do artista (nome/gênero/bio + imagens, se trocadas)
@@ -130,6 +134,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
       await updateMyArtistProfile(artistaId, profileUpdate);
 
       // 2) Sobe cada música (com capa própria, se tiver)
+      let successCount = 0;
       for (let i = 0; i < items.length; i++) {
         setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, status: 'uploading' } : it)));
         try {
@@ -137,6 +142,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
           let trackCoverUrl: string | undefined;
           if (item.coverFile) trackCoverUrl = await uploadImageFile(item.coverFile, 'track-covers');
           await uploadTrackFile(item.file, artistaId, item.title || item.file.name, trackCoverUrl);
+          successCount++;
           setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, status: 'done' } : it)));
         } catch (err) {
           setItems((prev) =>
@@ -163,6 +169,17 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
       }
       setAvatarFile(null);
       setCoverFile(null);
+
+      // 4) Limpa a tela automaticamente: remove as faixas que já foram enviadas
+      // com sucesso (as com erro ficam, pra dar pra tentar de novo ou remover
+      // manualmente), deixando o painel pronto pra um novo envio na hora.
+      setItems((prev) => prev.filter((it) => it.status !== 'done'));
+      if (successCount > 0) {
+        setSuccessMessage(
+          `${successCount} música${successCount === 1 ? '' : 's'} enviada${successCount === 1 ? '' : 's'} com sucesso! Volte para a aba Explorar para ouvir.`
+        );
+        successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 6000);
+      }
     } catch (err) {
       setGlobalError(err instanceof Error ? err.message : 'Erro ao salvar perfil de artista');
     } finally {
@@ -171,15 +188,20 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
     }
   };
 
-  /** Limpa a lista de músicas já processadas (enviadas ou com erro) para
-   * deixar o painel pronto para um novo envio, sem precisar recarregar a página. */
-  const handleStartNewUpload = () => {
-    setItems((prev) => prev.filter((it) => it.status === 'pending' || it.status === 'uploading'));
+  // Limpa o timeout da mensagem de sucesso ao desmontar o componente.
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
+  }, []);
+
+  /** Remove as faixas com erro, deixando o painel limpo pra um novo envio. */
+  const handleClearErrors = () => {
+    setItems((prev) => prev.filter((it) => it.status !== 'error'));
   };
 
-  const doneCount = items.filter((i) => i.status === 'done').length;
   const errorCount = items.filter((i) => i.status === 'error').length;
-  const allFinished = items.length > 0 && !isRunning && items.every((i) => i.status === 'done' || i.status === 'error');
+  const hasPendingWork = items.some((i) => i.status === 'pending' || i.status === 'uploading');
 
   return (
     <div className="rounded-2xl bg-[#1E2030] p-5 mb-6">
@@ -193,6 +215,9 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
 
       {globalError && (
         <p className="text-xs text-[#E84393] mb-3">{globalError}</p>
+      )}
+      {successMessage && (
+        <p className="text-xs text-[#00CEC9] mb-3">{successMessage}</p>
       )}
 
       {/* Perfil do artista */}
@@ -328,13 +353,22 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
               )}
               {item.status === 'uploading' && <Loader2 size={16} className="text-[#FF8C42] animate-spin flex-shrink-0" />}
               {item.status === 'done' && <CheckCircle2 size={16} className="text-[#00CEC9] flex-shrink-0" />}
-              {item.status === 'error' && <XCircle size={16} className="text-[#E84393] flex-shrink-0" title={item.error} />}
+              {item.status === 'error' && (
+                <button
+                  onClick={() => removeItem(idx)}
+                  aria-label="Remover (erro no envio)"
+                  title={item.error}
+                  className="text-[#E84393] hover:text-[#E84393]/70 flex-shrink-0"
+                >
+                  <XCircle size={16} />
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {items.length > 0 && !allFinished && (
+      {hasPendingWork && (
         <GradientButton
           variant="primary"
           size="md"
@@ -346,20 +380,18 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onProfile
         </GradientButton>
       )}
 
-      {allFinished && (
-        <div className="pt-3">
+      {!hasPendingWork && errorCount > 0 && (
+        <div className="pt-1">
           <p className="text-xs text-white/40 mb-2">
-            {doneCount} enviada{doneCount === 1 ? '' : 's'} com sucesso
-            {errorCount > 0 ? ` · ${errorCount} com erro` : ''}. Volte para a aba{' '}
-            <span className="text-white/60">Explorar</span> para ouvir.
+            {errorCount} música{errorCount === 1 ? '' : 's'} com erro no envio. Remova ou tente adicionar de novo.
           </p>
           <GradientButton
             variant="outline"
             size="sm"
-            onClick={handleStartNewUpload}
+            onClick={handleClearErrors}
             className="w-full"
           >
-            Enviar mais músicas
+            Limpar erros
           </GradientButton>
         </div>
       )}
