@@ -28,8 +28,8 @@ const GradientButton: React.FC<GradientButtonProps> = ({
 
   const variantStyles = {
     primary: 'gradient-bg text-white shadow-lg hover:shadow-xl hover:brightness-110 active:brightness-95',
-    outline: 'bg-transparent border border-white/20 text-white hover:bg-white/10 active:bg-white/5',
-    ghost: 'bg-white/5 text-white hover:bg-white/10 active:bg-white/5',
+    outline: 'bg-transparent border border-foreground/15 text-foreground hover:bg-foreground/5 active:bg-foreground/10',
+    ghost: 'bg-foreground/5 text-foreground hover:bg-foreground/10 active:bg-foreground/5',
   };
 
   return (
@@ -45,7 +45,7 @@ const GradientButton: React.FC<GradientButtonProps> = ({
       {...props}
     >
       {loading ? (
-        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-current/30 border-t-current rounded-full animate-spin" />
       ) : icon ? (
         <span className="flex-shrink-0">{icon}</span>
       ) : null}

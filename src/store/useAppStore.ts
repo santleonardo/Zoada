@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, Like } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth } from '@/lib/api';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, apiFetch } from '@/lib/api';
+import { DEMO_TRACKS } from '@/lib/demo-data';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -44,6 +45,11 @@ interface AppState {
   queueIndex: number;
   shuffleEnabled: boolean;
   repeatMode: 'off' | 'all' | 'one';
+  // Última reprodução contabilizada de verdade (ver audioEngine.ts): outras
+  // telas que mantêm sua própria lista local de faixas (MainScreen,
+  // ArtistProfileScreen) observam isso pra atualizar o número exibido sem
+  // precisar recarregar a página.
+  lastCountedPlay: { trackId: string; nonce: number } | null;
 
   // Chat
   selectedConversationId: string | null;
@@ -58,6 +64,12 @@ interface AppState {
 
   // Favorites
   favorites: string[]; // track IDs
+
+  // Tracks (lista real de faixas, compartilhada entre MainScreen,
+  // ProfileScreen, etc. — antes cada tela guardava sua própria cópia
+  // local começando em DEMO_TRACKS, o que fazia telas que nunca buscavam
+  // a API (como o perfil) nunca verem as faixas reais).
+  tracks: Track[];
 
   // Actions - Auth
   setUser: (user: User | null, token?: string | null) => void;
@@ -79,6 +91,10 @@ interface AppState {
   setVolume: (volume: number) => void;
   toggleShuffle: () => void;
   cycleRepeatMode: () => void;
+  // Contabiliza uma reprodução real (chamado pelo audioEngine depois que a
+  // faixa tocou por um tempo mínimo): atualiza o contador otimisticamente
+  // na tela e envia pro servidor persistir.
+  registerPlay: (trackId: string) => void;
 
   // Actions - Chat
   selectConversation: (id: string, name: string) => void;
@@ -88,7 +104,8 @@ interface AppState {
 
   // Actions - Social
   setLikes: (likes: Like[]) => void;
-  toggleLike: (trackId: string) => void;
+  loadLikes: () => Promise<void>;
+  toggleLike: (trackId: string) => Promise<void>;
   setComments: (comments: Comment[]) => void;
   addComment: (comment: Comment) => void;
 
@@ -96,6 +113,10 @@ interface AppState {
   toggleFavorite: (trackId: string) => void;
   isFavorite: (trackId: string) => boolean;
   initFavorites: () => void;
+
+  // Actions - Tracks
+  setTracks: (tracks: Track[]) => void;
+  loadTracks: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -112,6 +133,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   likes: [],
   comments: [],
   favorites: [],
+  tracks: DEMO_TRACKS,
 
   player: {
     currentTrack: null,
@@ -125,8 +147,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   queueIndex: 0,
   shuffleEnabled: false,
   repeatMode: 'off',
-
-  // Auth actions
+  lastCountedPlay: null,
   setUser: (user, token) => {
     if (token !== null && token !== undefined) {
       if (user && token) {
@@ -162,6 +183,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       queueIndex: 0,
       shuffleEnabled: false,
       repeatMode: 'off',
+      likes: [],
     });
   },
 
@@ -289,6 +311,36 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleShuffle: () => set((state) => ({ shuffleEnabled: !state.shuffleEnabled })),
 
+  registerPlay: (trackId) => {
+    const state = get();
+
+    // Atualiza o contador na hora, na tela (otimista): tanto na faixa
+    // tocando agora quanto na fila, se ela estiver lá — pra quem está
+    // olhando o player veja o número subir no mesmo instante em que a
+    // reprodução foi contabilizada, sem esperar um recarregamento.
+    set({
+      player:
+        state.player.currentTrack?.id === trackId
+          ? {
+              ...state.player,
+              currentTrack: {
+                ...state.player.currentTrack,
+                plays_count: state.player.currentTrack.plays_count + 1,
+              },
+            }
+          : state.player,
+      queue: state.queue.map((t) =>
+        t.id === trackId ? { ...t, plays_count: t.plays_count + 1 } : t
+      ),
+      // nonce garante que o efeito dispara mesmo se a mesma faixa for
+      // contada de novo em seguida (ex: repetir uma música)
+      lastCountedPlay: { trackId, nonce: Date.now() + Math.random() },
+    });
+
+    // Persiste no servidor — não precisa aguardar nem travar a UI por isso.
+    registerTrackPlay(trackId);
+  },
+
   cycleRepeatMode: () => set((state) => ({
     repeatMode:
       state.repeatMode === 'off' ? 'all' :
@@ -310,20 +362,72 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Social actions
   setLikes: (likes) => set({ likes }),
-  toggleLike: (trackId) => set((state) => {
-    const exists = state.likes.some(l => l.track_id === trackId);
-    if (exists) {
-      return { likes: state.likes.filter(l => l.track_id !== trackId) };
+
+  // Busca as curtidas do usuário logado no servidor. Chamado ao restaurar
+  // a sessão / logo após o login, pra sincronizar o estado local com o
+  // que está realmente salvo no banco (senão as curtidas "somem" a cada
+  // reload, já que antes só existiam em memória).
+  loadLikes: async () => {
+    const user = get().user;
+    if (!user) return;
+    try {
+      const res = await apiFetch(`/api/likes?user_id=${encodeURIComponent(user.id)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.likes)) set({ likes: data.likes });
+    } catch (err) {
+      console.warn('[loadLikes] falha ao buscar curtidas:', err);
     }
-    return {
-      likes: [...state.likes, {
-        id: `like-${Date.now()}`,
-        user_id: state.user?.id || '',
-        track_id: trackId,
-        created_at: new Date().toISOString(),
-      }],
-    };
-  }),
+  },
+
+  // Curte/descurte uma faixa. Atualiza o estado local imediatamente
+  // (otimista) pra UI responder na hora, mas agora persiste de verdade no
+  // servidor via /api/likes — antes isso só mexia no estado em memória e
+  // se perdia a cada reload/login.
+  toggleLike: async (trackId) => {
+    const state = get();
+    const existing = state.likes.find((l) => l.track_id === trackId);
+    const wasLiked = !!existing;
+
+    // Atualização otimista
+    if (wasLiked) {
+      set({ likes: state.likes.filter((l) => l.track_id !== trackId) });
+    } else {
+      set({
+        likes: [...state.likes, {
+          id: `pending-${Date.now()}`,
+          user_id: state.user?.id || '',
+          track_id: trackId,
+          created_at: new Date().toISOString(),
+        }],
+      });
+    }
+
+    try {
+      const res = await apiFetch('/api/likes', {
+        method: 'POST',
+        body: JSON.stringify({ track_id: trackId }),
+      });
+
+      if (!res.ok) throw new Error(`status ${res.status}`);
+
+      const data = await res.json();
+      // Confirma o estado com o que o servidor retornou (ex: troca o id
+      // temporário pela curtida de verdade vinda do banco).
+      if (data.liked && data.like) {
+        set((s) => ({
+          likes: s.likes.map((l) => (l.track_id === trackId ? data.like : l)),
+        }));
+      } else if (!data.liked) {
+        set((s) => ({ likes: s.likes.filter((l) => l.track_id !== trackId) }));
+      }
+    } catch (err) {
+      // Falhou: desfaz a atualização otimista pra não mostrar uma
+      // curtida que não foi salva de verdade.
+      console.warn('[toggleLike] falha ao salvar curtida no servidor:', err);
+      set({ likes: state.likes });
+    }
+  },
   setComments: (comments) => set({ comments }),
   addComment: (comment) => set((state) => ({
     comments: [...state.comments, comment],
@@ -341,5 +445,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   }),
   isFavorite: (trackId) => {
     return get().favorites.includes(trackId);
+  },
+
+  // Tracks actions
+  setTracks: (tracks) => set({ tracks }),
+
+  // Busca as faixas reais da API e substitui os dados demo. Chamado tanto
+  // pelo MainScreen quanto pelo ProfileScreen (e qualquer outra tela que
+  // precise da lista completa), ja que agora vivem no store global -- antes
+  // so o MainScreen buscava, e outras telas ficavam presas ao DEMO_TRACKS.
+  loadTracks: async () => {
+    try {
+      const res = await fetch('/api/tracks');
+      const data = await res.json();
+      if (Array.isArray(data.tracks) && data.tracks.length > 0) {
+        set({ tracks: data.tracks });
+      }
+    } catch (err) {
+      // mantem os dados demo/atuais se a API falhar
+      console.warn('[loadTracks] falha ao buscar faixas:', err);
+    }
   },
 }));

@@ -44,44 +44,44 @@
   --color-zoada-orange: #FF8C42;
   --color-zoada-pink: #E84393;
   --color-zoada-purple: #6C5CE7;
-  --color-zoada-navy: #0F1117;
-  --color-zoada-navy-light: #1A1D2E;
-  --color-zoada-navy-lighter: #252840;
-  --color-zoada-surface: #1E2030;
+  --color-zoada-navy: #F7F7FB;
+  --color-zoada-navy-light: #FFFFFF;
+  --color-zoada-navy-lighter: #EFEFF6;
+  --color-zoada-surface: #FFFFFF;
 }
 
 :root {
   --radius: 0.75rem;
-  --background: #0F1117;
-  --foreground: #FFFFFF;
-  --card: #1E2030;
-  --card-foreground: #FFFFFF;
-  --popover: #1E2030;
-  --popover-foreground: #FFFFFF;
+  --background: #F7F7FB;
+  --foreground: #16181F;
+  --card: #FFFFFF;
+  --card-foreground: #16181F;
+  --popover: #FFFFFF;
+  --popover-foreground: #16181F;
   --primary: linear-gradient(135deg, #FF8C42, #E84393, #6C5CE7);
   --primary-foreground: #FFFFFF;
-  --secondary: #252840;
-  --secondary-foreground: #FFFFFF;
-  --muted: #252840;
-  --muted-foreground: #8B8FA3;
+  --secondary: #EFEFF6;
+  --secondary-foreground: #16181F;
+  --muted: #EFEFF6;
+  --muted-foreground: #6B6F80;
   --accent: #FF8C42;
   --accent-foreground: #FFFFFF;
   --destructive: #E84393;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.1);
+  --border: rgba(15, 17, 23, 0.08);
+  --input: rgba(15, 17, 23, 0.06);
   --ring: #FF8C42;
   --chart-1: #FF8C42;
   --chart-2: #E84393;
   --chart-3: #6C5CE7;
   --chart-4: #00CEC9;
   --chart-5: #FDCB6E;
-  --sidebar: #0F1117;
-  --sidebar-foreground: #FFFFFF;
+  --sidebar: #F7F7FB;
+  --sidebar-foreground: #16181F;
   --sidebar-primary: #FF8C42;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #252840;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-accent: #EFEFF6;
+  --sidebar-accent-foreground: #16181F;
+  --sidebar-border: rgba(15, 17, 23, 0.08);
   --sidebar-ring: #FF8C42;
 }
 
@@ -96,13 +96,13 @@
 
 /* Zôada Custom Styles */
 html {
-  background: #0F1117;
-  color: #FFFFFF;
+  background: #F7F7FB;
+  color: #16181F;
 }
 
 body {
-  background: #0F1117;
-  color: #FFFFFF;
+  background: #F7F7FB;
+  color: #16181F;
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -141,7 +141,7 @@ body {
 .gradient-border {
   position: relative;
   border-radius: 12px;
-  background: #1E2030;
+  background: #FFFFFF;
 }
 .gradient-border::before {
   content: '';
@@ -198,7 +198,7 @@ body {
 
 /* Glass morphism effect */
 .glass {
-  background: rgba(30, 32, 48, 0.8);
+  background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -219,14 +219,14 @@ body {
   user-select: none;
 }
 
-/* Custom input styles for dark theme */
+/* Custom input styles for light theme */
 input[type="email"],
 input[type="password"],
 input[type="text"],
 textarea {
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #16181F;
+  background: rgba(15, 17, 23, 0.03);
+  border: 1px solid rgba(15, 17, 23, 0.1);
   border-radius: 12px;
   padding: 14px 16px;
   width: 100%;
@@ -239,12 +239,22 @@ input[type="text"]:focus,
 textarea:focus {
   outline: none;
   border-color: #FF8C42;
-  background: rgba(255, 255, 255, 0.08);
+  background: #FFFFFF;
   box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.15);
 }
 input[type="email"]::placeholder,
 input[type="password"]::placeholder,
 input[type="text"]::placeholder,
 textarea::placeholder {
-  color: rgba(139, 143, 163, 0.7);
+  color: rgba(107, 111, 128, 0.7);
+}
+
+/* Esconde a barra de rolagem em listas horizontais (ex: "Mais tocadas"),
+   sem desativar a rolagem em si — só o indicador visual. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

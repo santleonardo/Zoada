@@ -115,16 +115,6 @@ const LoginScreen: React.FC = () => {
     }
   };
 
-  const handleDemoLogin = () => {
-    setEmail('demo@zoada.com');
-    setPassword('demo123');
-    setLoading(true);
-    setTimeout(() => {
-      setUser(DEMO_USER, null);
-      setLoading(false);
-    }, 500);
-  };
-
   const handleSubmit = () => {
     if (mode === 'login') handleLogin();
     else handleRegister();
@@ -143,20 +133,17 @@ const LoginScreen: React.FC = () => {
         style={{ background: 'radial-gradient(circle, #6C5CE7, transparent)' }}
       />
 
-      <div className="w-full max-w-sm z-10 fade-in">
+      <div className="w-full max-w-sm z-10 fade-in mt-16">
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center mb-6">
             <img
               src="/zoada-logo.png"
               alt="Zôada Logo"
-              className="w-48 h-48 object-contain drop-shadow-2xl"
+              className="w-64 h-64 object-contain drop-shadow-2xl"
             />
           </div>
-          <h1 className="text-2xl font-bold gradient-text mb-2">
-            MÚSICA. SEM RÓTULOS.
-          </h1>
-          <p className="text-white/40 text-sm">
+          <p className="text-foreground/40 text-sm">
             {mode === 'login' ? 'Entre na sua conta' : 'Crie sua conta'}
           </p>
         </div>
@@ -165,7 +152,7 @@ const LoginScreen: React.FC = () => {
         <div className="space-y-4 mb-6">
           {mode === 'register' && (
             <div className="relative">
-              <UserPlus size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+              <UserPlus size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
               <input
                 type="text"
                 placeholder="Seu nome"
@@ -177,7 +164,7 @@ const LoginScreen: React.FC = () => {
             </div>
           )}
           <div className="relative">
-            <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+            <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
             <input
               type="email"
               placeholder="Seu email"
@@ -188,7 +175,7 @@ const LoginScreen: React.FC = () => {
             />
           </div>
           <div className="relative">
-            <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+            <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="Sua senha"
@@ -200,7 +187,7 @@ const LoginScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition-colors"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -223,16 +210,9 @@ const LoginScreen: React.FC = () => {
         {/* Toggle mode */}
         <button
           onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}
-          className="w-full text-center text-white/40 text-sm hover:text-white/60 transition-colors py-1"
+          className="w-full text-center text-foreground/40 text-sm hover:text-foreground/70 transition-colors py-1"
         >
           {mode === 'login' ? 'Não tem conta? Criar conta' : 'Já tem conta? Fazer login'}
-        </button>
-
-        <button
-          onClick={handleDemoLogin}
-          className="w-full text-center text-white/25 text-xs hover:text-white/40 transition-colors py-1 mt-1"
-        >
-          Entrar como demo
         </button>
 
         {/* Equalizer decoration */}

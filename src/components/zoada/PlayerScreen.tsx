@@ -19,10 +19,11 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
+import { toast } from 'sonner';
 import { DEMO_COMMENTS } from '@/lib/demo-data';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber } from '@/lib/utils';
 import type { Comment } from '@/types';
 
 const PlayerScreen: React.FC = () => {
@@ -50,6 +51,45 @@ const PlayerScreen: React.FC = () => {
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Comportamento padrão de players de música: se a faixa já passou de
+  // alguns segundos, "anterior" reinicia ela do zero; só volta pra faixa
+  // de fato anterior se apertado logo no começo (ou de novo em seguida).
+  const handlePrevious = useCallback(() => {
+    if (progress > 3) {
+      audioEngine.seek(0);
+    } else {
+      prevTrack();
+    }
+  }, [progress, prevTrack]);
+
+  // Compartilha a faixa atual: usa o share nativo do dispositivo quando
+  // disponível (mobile/PWA) e cai para copiar o link no clipboard em
+  // navegadores desktop que não suportam a Web Share API.
+  const handleShare = useCallback(async () => {
+    if (!currentTrack) return;
+
+    const shareText = `Ouça "${currentTrack.title}" de ${currentTrack.artist_name} no Zôada`;
+    const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ title: currentTrack.title, text: shareText, url: shareUrl });
+        return;
+      }
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(`${shareText} — ${shareUrl}`);
+        toast.success('Link copiado para a área de transferência');
+        return;
+      }
+      toast.error('Compartilhamento não é suportado neste navegador');
+    } catch (err) {
+      // Usuário cancelando o share nativo não é um erro de verdade.
+      if ((err as Error)?.name !== 'AbortError') {
+        toast.error('Não foi possível compartilhar');
+      }
+    }
+  }, [currentTrack]);
 
   const handleProgressInteraction = useCallback(
     (clientX: number) => {
@@ -108,21 +148,21 @@ const PlayerScreen: React.FC = () => {
       <div className="flex items-center justify-between px-4 py-3 safe-top">
         <button
           onClick={goBack}
-          className="p-2 rounded-full hover:bg-white/10 transition-colors"
+          className="p-2 rounded-full hover:bg-foreground/10 transition-colors"
           aria-label="Voltar"
         >
-          <ChevronLeft size={24} className="text-white/80" />
+          <ChevronLeft size={24} className="text-foreground/70" />
         </button>
         <div className="text-center">
-          <p className="text-xs text-white/40 uppercase tracking-wider">Reproduzindo</p>
-          <p className="text-sm font-semibold text-white">{currentTrack.artist_name}</p>
+          <p className="text-xs text-foreground/40 uppercase tracking-wider">Reproduzindo</p>
+          <p className="text-sm font-semibold text-foreground">{currentTrack.artist_name}</p>
         </div>
         <button
           onClick={() => setShowMenu(!showMenu)}
-          className="p-2 rounded-full hover:bg-white/10 transition-colors"
+          className="p-2 rounded-full hover:bg-foreground/10 transition-colors"
           aria-label="Mais opções"
         >
-          <MoreHorizontal size={22} className="text-white/60" />
+          <MoreHorizontal size={22} className="text-foreground/60" />
         </button>
       </div>
 
@@ -142,50 +182,55 @@ const PlayerScreen: React.FC = () => {
       <div className="px-6 mb-4">
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0 mr-4">
-            <h2 className="text-xl font-bold text-white truncate">{currentTrack.title}</h2>
-            <p className="text-white/50 text-sm">{currentTrack.artist_name}</p>
+            <h2 className="text-xl font-bold text-foreground truncate">{currentTrack.title}</h2>
+            <p className="text-foreground/50 text-sm">{currentTrack.artist_name}</p>
+            <p className="text-foreground/35 text-xs mt-0.5">{formatNumber(currentTrack.plays_count)} reproduções</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => currentTrack && toggleFavorite(currentTrack.id)}
-              className="p-2.5 rounded-full hover:bg-white/10 transition-all active:scale-90"
+              className="p-2.5 rounded-full hover:bg-foreground/10 transition-all active:scale-90"
               aria-label={isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
             >
               <Star
                 size={22}
                 className={cn(
                   'transition-all duration-200',
-                  isFav ? 'fill-[#FFD700] text-[#FFD700] scale-110' : 'text-white/50'
+                  isFav ? 'fill-[#FFD700] text-[#FFD700] scale-110' : 'text-foreground/50'
                 )}
               />
             </button>
             <button
               onClick={() => currentTrack && toggleLike(currentTrack.id)}
-              className="p-2.5 rounded-full hover:bg-white/10 transition-all active:scale-90"
+              className="p-2.5 rounded-full hover:bg-foreground/10 transition-all active:scale-90"
               aria-label={isLiked ? 'Descurtir' : 'Curtir'}
             >
               <Heart
                 size={22}
                 className={cn(
                   'transition-all duration-200',
-                  isLiked ? 'fill-[#E84393] text-[#E84393] scale-110' : 'text-white/50'
+                  isLiked ? 'fill-[#E84393] text-[#E84393] scale-110' : 'text-foreground/50'
                 )}
               />
             </button>
             <button
               onClick={() => setShowComments(!showComments)}
-              className="p-2.5 rounded-full hover:bg-white/10 transition-all active:scale-90"
+              className="p-2.5 rounded-full hover:bg-foreground/10 transition-all active:scale-90"
               aria-label="Comentários"
             >
-              <MessageCircle size={22} className="text-white/50" />
+              <MessageCircle size={22} className="text-foreground/50" />
               {trackComments.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full gradient-bg text-[10px] font-bold text-white flex items-center justify-center">
                   {trackComments.length}
                 </span>
               )}
             </button>
-            <button className="p-2.5 rounded-full hover:bg-white/10 transition-colors" aria-label="Compartilhar">
-              <Share2 size={22} className="text-white/50" />
+            <button
+              onClick={handleShare}
+              className="p-2.5 rounded-full hover:bg-foreground/10 transition-colors active:scale-90"
+              aria-label="Compartilhar"
+            >
+              <Share2 size={22} className="text-foreground/50" />
             </button>
           </div>
         </div>
@@ -195,7 +240,7 @@ const PlayerScreen: React.FC = () => {
       <div className="px-6 mb-3">
         <div
           ref={progressRef}
-          className="w-full h-2 bg-white/10 rounded-full cursor-pointer group relative"
+          className="w-full h-2 bg-foreground/10 rounded-full cursor-pointer group relative"
           onMouseDown={(e) => {
             setIsDragging(true);
             handleProgressInteraction(e.clientX);
@@ -213,8 +258,8 @@ const PlayerScreen: React.FC = () => {
           </div>
         </div>
         <div className="flex justify-between mt-1.5">
-          <span className="text-xs text-white/40 font-mono">{formatTime(progress)}</span>
-          <span className="text-xs text-white/40 font-mono">{formatTime(duration)}</span>
+          <span className="text-xs text-foreground/40 font-mono">{formatTime(progress)}</span>
+          <span className="text-xs text-foreground/40 font-mono">{formatTime(duration)}</span>
         </div>
       </div>
 
@@ -224,7 +269,7 @@ const PlayerScreen: React.FC = () => {
           onClick={toggleShuffle}
           className={cn(
             'p-2 transition-colors',
-            shuffleEnabled ? 'text-[#FF8C42]' : 'text-white/40 hover:text-white/70'
+            shuffleEnabled ? 'text-[#FF8C42]' : 'text-foreground/40 hover:text-foreground/70'
           )}
           aria-label={shuffleEnabled ? 'Desativar aleatório' : 'Ativar aleatório'}
           aria-pressed={shuffleEnabled}
@@ -232,11 +277,11 @@ const PlayerScreen: React.FC = () => {
           <Shuffle size={20} />
         </button>
         <button
-          onClick={prevTrack}
-          className="p-3 rounded-full hover:bg-white/10 transition-all active:scale-90"
+          onClick={handlePrevious}
+          className="p-3 rounded-full hover:bg-foreground/10 transition-all active:scale-90"
           aria-label="Anterior"
         >
-          <SkipBack size={26} className="text-white" fill="white" />
+          <SkipBack size={26} className="text-foreground" fill="currentColor" />
         </button>
         <button
           onClick={togglePlay}
@@ -251,16 +296,16 @@ const PlayerScreen: React.FC = () => {
         </button>
         <button
           onClick={nextTrack}
-          className="p-3 rounded-full hover:bg-white/10 transition-all active:scale-90"
+          className="p-3 rounded-full hover:bg-foreground/10 transition-all active:scale-90"
           aria-label="Próxima"
         >
-          <SkipForward size={26} className="text-white" fill="white" />
+          <SkipForward size={26} className="text-foreground" fill="currentColor" />
         </button>
         <button
           onClick={cycleRepeatMode}
           className={cn(
             'p-2 transition-colors',
-            repeatMode !== 'off' ? 'text-[#FF8C42]' : 'text-white/40 hover:text-white/70'
+            repeatMode !== 'off' ? 'text-[#FF8C42]' : 'text-foreground/40 hover:text-foreground/70'
           )}
           aria-label={
             repeatMode === 'off' ? 'Ativar repetição' :
@@ -273,13 +318,13 @@ const PlayerScreen: React.FC = () => {
 
       {/* Comments section */}
       {showComments && (
-        <div className="border-t border-white/5 bg-[#0F1117] slide-up" style={{ maxHeight: '40vh' }}>
+        <div className="border-t border-foreground/10 bg-card slide-up" style={{ maxHeight: '40vh' }}>
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-white/80">Comentários ({trackComments.length})</h3>
+              <h3 className="text-sm font-semibold text-foreground/80">Comentários ({trackComments.length})</h3>
               <button
                 onClick={() => setShowComments(false)}
-                className="text-xs text-white/40 hover:text-white/60"
+                className="text-xs text-foreground/40 hover:text-foreground/60"
               >
                 Fechar
               </button>
@@ -288,27 +333,27 @@ const PlayerScreen: React.FC = () => {
             {/* Comments list */}
             <div className="space-y-3 mb-4 max-h-32 overflow-y-auto">
               {trackComments.length === 0 && (
-                <p className="text-center text-white/30 text-sm py-4">
+                <p className="text-center text-foreground/35 text-sm py-4">
                   Nenhum comentário ainda. Seja o primeiro!
                 </p>
               )}
               {trackComments.map((comment) => (
                 <div key={comment.id} className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#252840] flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-bold text-white/60">
+                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-foreground/60">
                       {comment.user?.name?.charAt(0) || '?'}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-semibold text-white">
+                      <span className="text-sm font-semibold text-foreground">
                         {comment.user?.name || 'Anônimo'}
                       </span>
-                      <span className="text-[10px] text-white/30">
+                      <span className="text-[10px] text-foreground/35">
                         {new Date(comment.created_at).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
-                    <p className="text-sm text-white/60 mt-0.5">{comment.content}</p>
+                    <p className="text-sm text-foreground/60 mt-0.5">{comment.content}</p>
                   </div>
                 </div>
               ))}

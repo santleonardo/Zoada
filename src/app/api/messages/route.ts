@@ -12,9 +12,11 @@ export async function GET(request: Request) {
     const conversationPartnerId = searchParams.get('conversation_id');
 
     if (!isNeonConfigured) {
-      return NextResponse.json({
-        ...(conversationPartnerId ? { messages: [] } : { conversations: [] }),
-      });
+      // No database configured — return empty data
+      if (conversationPartnerId) {
+        return NextResponse.json({ messages: [] });
+      }
+      return NextResponse.json({ conversations: [] });
     }
 
     const userId = await authenticateRequest(request);
@@ -138,7 +140,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     if (!isNeonConfigured) {
-      return NextResponse.json({ error: 'Banco de dados não configurado' }, { status: 503 });
+      return NextResponse.json(
+        { error: 'Banco de dados não configurado. Não é possível enviar mensagens.' },
+        { status: 503 }
+      );
     }
 
     const userId = await authenticateRequest(request);

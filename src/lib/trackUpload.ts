@@ -7,8 +7,6 @@ import { apiFetch, getAuthToken } from '@/lib/api';
 // o usuário logado.
 // ============================================================
 
-const MY_ARTIST_ID_KEY = 'zoada-my-artist-id';
-
 /**
  * DIAGNÓSTICO TEMPORÁRIO: sobe o arquivo passando pelo próprio servidor
  * (/api/storage/upload) em vez de ir direto pro R2. Serve pra descobrir
@@ -60,45 +58,54 @@ export function readAudioDuration(file: File): Promise<number> {
   });
 }
 
+export interface ArtistProfile {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  cover_url: string | null;
+  bio: string;
+  genre: string;
+}
+
 /**
- * Garante que existe um "artista" no banco representando o usuário logado
- * (reaproveita se já existir; cria se for a primeira vez) e guarda o id
- * em localStorage para não recriar a cada upload.
+ * Lista TODOS os artistas do usuário logado (uma conta pode ter vários —
+ * ex: alguém populando o catálogo com diferentes artistas fictícios).
  */
-export async function getOrCreateMyArtistId(userName: string): Promise<string> {
-  if (typeof window === 'undefined') throw new Error('Só funciona no navegador');
-
-  const cached = localStorage.getItem(MY_ARTIST_ID_KEY);
-  if (cached) return cached;
-
-  // Tenta achar um artista já existente com esse nome (ex: você já subiu música antes
-  // em outro navegador, ou o artista foi criado manualmente).
-  const listRes = await fetch('/api/artists');
-  if (listRes.ok) {
-    const data = await listRes.json();
-    const existing = (data.artists || []).find(
-      (a: { id: string; name: string }) => a.name === userName
-    );
-    if (existing) {
-      localStorage.setItem(MY_ARTIST_ID_KEY, existing.id);
-      return existing.id;
+export async function listMyArtists(): Promise<ArtistProfile[]> {
+  const res = await apiFetch('/api/artists?mine=1');
+  if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error('Você precisa estar logado com uma conta real para enviar músicas.');
     }
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Não foi possível carregar seus artistas');
   }
+  const data = await res.json();
+  return (data.artists || []) as ArtistProfile[];
+}
 
-  // Não existe ainda -> cria
-  const createRes = await apiFetch('/api/artists', {
+/**
+ * Cria um artista NOVO (sempre um registro novo — nunca reaproveita um já
+ * existente). É isso que garante que subir música como "Jamba Jô" não
+ * reescreve o "Rick Tropical" que você já tinha criado antes: cada nome
+ * novo vira seu próprio artista, com seu próprio id e foto.
+ */
+export async function createArtist(fields: {
+  nome: string;
+  genero?: string;
+  bio?: string;
+  avatarUrl?: string;
+  coverUrl?: string;
+}): Promise<ArtistProfile> {
+  const res = await apiFetch('/api/artists', {
     method: 'POST',
-    body: JSON.stringify({ nome: userName || 'Artista Zôada', genero: '' }),
+    body: JSON.stringify(fields),
   });
-
-  if (!createRes.ok) {
-    const err = await createRes.json().catch(() => ({}));
-    throw new Error(err.error || 'Não foi possível criar seu perfil de artista');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Não foi possível criar o artista');
   }
-
-  const artist = await createRes.json();
-  localStorage.setItem(MY_ARTIST_ID_KEY, artist.id);
-  return artist.id;
+  return (await res.json()) as ArtistProfile;
 }
 
 /**
@@ -183,19 +190,18 @@ export async function updateMyArtistProfile(artistaId: string, fields: ArtistPro
   }
 }
 
-/** Busca os dados atuais do artista (pra pré-preencher o formulário de perfil). */
-export async function getMyArtistProfile(artistaId: string): Promise<{
-  id: string;
-  name: string;
-  avatar_url: string | null;
-  cover_url: string | null;
-  bio: string;
-  genre: string;
-} | null> {
-  const res = await fetch('/api/artists');
-  if (!res.ok) return null;
-  const data = await res.json();
-  return (data.artists || []).find((a: { id: string }) => a.id === artistaId) || null;
+/**
+ * Apaga um artista inteiro (e, junto, todas as músicas dele — a exclusão
+ * cascateia no banco). Só o dono do artista pode apagar.
+ */
+export async function deleteArtistProfile(artistaId: string): Promise<void> {
+  const res = await apiFetch(`/api/artists?id=${encodeURIComponent(artistaId)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Falha ao apagar o artista');
+  }
 }
 
 /** Sobe um arquivo de áudio direto pro R2 e cria a faixa correspondente no banco. */

@@ -27,6 +27,7 @@ model Usuario {
   comentarios Comentario[]
   enviado     Mensagem[] @relation("Enviadas")
   recebido    Mensagem[] @relation("Recebidas")
+  artistas    Artista[]
 
   @@map("usuarios")
 }
@@ -34,6 +35,14 @@ model Usuario {
 // ---------- Artistas ----------
 model Artista {
   id             String   @id @default(cuid())
+  // Dono do perfil de artista (o usuário logado que fez o upload). Nullable
+  // pra não quebrar artistas antigos/seed que não têm dono. Uma conta pode
+  // ter VÁRIOS artistas (ex: alguém populando o catálogo com diferentes
+  // artistas fictícios) — por isso não é @unique: o que impede um artista
+  // de "virar" outro é o app sempre criar um registro novo para um nome
+  // novo, em vez de reaproveitar/reescrever um artista já existente.
+  usuarioId      String?  @map("usuario_id")
+  usuario        Usuario? @relation(fields: [usuarioId], references: [id])
   nome           String
   avatarUrl      String?  @map("avatar_url")
   coverUrl       String?  @map("cover_url")
