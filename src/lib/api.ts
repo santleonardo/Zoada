@@ -23,6 +23,11 @@ export const API_BASE = '';
 export const AUTH_TOKEN_KEY = 'zoada-auth-token';
 export const AUTH_USER_KEY = 'zoada-auth-user';
 
+// Sinaliza (via sessionStorage, sobrevive ao reload mas não à aba/janela)
+// que a sessão acabou de expirar, pra tela de login poder avisar o
+// usuário em vez de só devolvê-lo ao login sem explicação nenhuma.
+export const SESSION_EXPIRED_KEY = 'zoada-session-expired';
+
 // ---------- Helpers ----------
 
 // Get stored auth token
@@ -82,6 +87,12 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     // apiFetch deve tratar o erro 401 normalmente (ex: mostrando uma
     // mensagem pedindo pra criar uma conta real).
     clearAuth();
+    try {
+      sessionStorage.setItem(SESSION_EXPIRED_KEY, '1');
+    } catch {
+      // sessionStorage indisponível (ex: modo privado) — sem aviso na
+      // volta pro login, mas o logout em si continua acontecendo.
+    }
     window.location.reload();
   }
 

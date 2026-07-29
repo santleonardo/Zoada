@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, Zap, UserPlus } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { SESSION_EXPIRED_KEY } from '@/lib/api';
 import GradientButton from './GradientButton';
 import Equalizer from './Equalizer';
 
@@ -15,6 +16,20 @@ const LoginScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mode, setMode] = useState<'login' | 'register'>('login');
+
+  // Se apiFetch acabou de forçar um logout por sessão expirada/inválida,
+  // a flag fica gravada em sessionStorage antes do reload — sem isso, a
+  // pessoa só via a tela de login aparecer do nada, sem entender por quê.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(SESSION_EXPIRED_KEY)) {
+        sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+        setError('Sua sessão expirou. Faça login novamente.');
+      }
+    } catch {
+      // sessionStorage indisponível — sem aviso, mas não quebra a tela.
+    }
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
