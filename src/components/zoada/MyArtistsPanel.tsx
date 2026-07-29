@@ -36,8 +36,11 @@ const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDel
       const list = await listMyArtists();
       setArtists(list);
     } catch (err) {
-      // Modo demo (sem conta real) simplesmente não tem artistas próprios —
-      // não é um erro que precise aparecer na tela.
+      // "Não logado" é um estado vazio legítimo (ninguém tem artistas
+      // antes de entrar numa conta real) — não é um erro pra mostrar na
+      // tela. Qualquer OUTRA falha (rede, 500, etc.) é tratada como erro
+      // de verdade abaixo, pra não ficar indistinguível de "você
+      // simplesmente não tem artistas ainda".
       if (err instanceof Error && err.message.includes('logado')) {
         setArtists([]);
       } else {
@@ -81,10 +84,24 @@ const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDel
         Apagar um artista apaga também todas as músicas publicadas por ele. Essa ação não pode ser desfeita.
       </p>
 
-      {error && <p className="text-xs text-[#E84393] mb-3">{error}</p>}
+      {/* Erros de ação (ex: falha ao apagar) — só faz sentido junto com uma
+          lista que já carregou. Erros de carregamento têm seu próprio
+          bloco abaixo, pra não ficar parecendo "lista vazia normal". */}
+      {error && artists.length > 0 && <p className="text-xs text-[#E84393] mb-3">{error}</p>}
 
       {loading ? (
         <p className="text-xs text-white/40">Carregando...</p>
+      ) : artists.length === 0 && error ? (
+        <div className="rounded-xl bg-[#E84393]/10 p-6 text-center">
+          <Mic2 size={32} className="text-[#E84393]/40 mx-auto mb-2" />
+          <p className="text-[#E84393] text-sm mb-3">{error}</p>
+          <button
+            onClick={fetchArtists}
+            className="text-xs text-white underline underline-offset-2 hover:text-white/80"
+          >
+            Tentar novamente
+          </button>
+        </div>
       ) : artists.length === 0 ? (
         <div className="rounded-xl bg-white/5 p-6 text-center">
           <Mic2 size={32} className="text-white/10 mx-auto mb-2" />

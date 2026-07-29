@@ -31,7 +31,12 @@ const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ refreshKey }) => {
       const res = await apiFetch('/api/tracks?mine=1');
       if (!res.ok) {
         if (res.status === 401) {
+          // Sessão esperada mas não confirmada pelo servidor — isso é
+          // diferente de "você não tem músicas". Se deixarmos cair na
+          // tela vazia de sempre, um problema real de sessão/token fica
+          // parecendo normal, e ninguém percebe que algo quebrou.
           setTracks([]);
+          setError('Não foi possível confirmar sua sessão. Faça login novamente para ver suas músicas.');
           return;
         }
         const err = await res.json().catch(() => ({}));
@@ -78,10 +83,24 @@ const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ refreshKey }) => {
         Tudo que você já publicou, em todos os artistas da sua conta.
       </p>
 
-      {error && <p className="text-xs text-[#E84393] mb-3">{error}</p>}
+      {/* Erros de ação (ex: falha ao apagar) — só faz sentido junto com uma
+          lista que já carregou. Erros de carregamento têm seu próprio
+          bloco abaixo, pra não ficar parecendo "lista vazia normal". */}
+      {error && tracks.length > 0 && <p className="text-xs text-[#E84393] mb-3">{error}</p>}
 
       {loading ? (
         <p className="text-xs text-white/40">Carregando...</p>
+      ) : tracks.length === 0 && error ? (
+        <div className="rounded-xl bg-[#E84393]/10 p-6 text-center">
+          <Music2 size={32} className="text-[#E84393]/40 mx-auto mb-2" />
+          <p className="text-[#E84393] text-sm mb-3">{error}</p>
+          <button
+            onClick={fetchTracks}
+            className="text-xs text-white underline underline-offset-2 hover:text-white/80"
+          >
+            Tentar novamente
+          </button>
+        </div>
       ) : tracks.length === 0 ? (
         <div className="rounded-xl bg-white/5 p-6 text-center">
           <Music2 size={32} className="text-white/10 mx-auto mb-2" />
