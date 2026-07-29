@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, Like } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, apiFetch } from '@/lib/api';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay } from '@/lib/api';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -97,8 +97,7 @@ interface AppState {
 
   // Actions - Social
   setLikes: (likes: Like[]) => void;
-  loadLikes: () => Promise<void>;
-  toggleLike: (trackId: string) => Promise<void>;
+  toggleLike: (trackId: string) => void;
   setComments: (comments: Comment[]) => void;
   addComment: (comment: Comment) => void;
 
@@ -171,7 +170,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       queueIndex: 0,
       shuffleEnabled: false,
       repeatMode: 'off',
-      likes: [],
     });
   },
 
@@ -350,72 +348,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Social actions
   setLikes: (likes) => set({ likes }),
-
-  // Busca as curtidas do usuário logado no servidor. Chamado ao restaurar
-  // a sessão / logo após o login, pra sincronizar o estado local com o
-  // que está realmente salvo no banco (senão as curtidas "somem" a cada
-  // reload, já que antes só existiam em memória).
-  loadLikes: async () => {
-    const user = get().user;
-    if (!user) return;
-    try {
-      const res = await apiFetch(`/api/likes?user_id=${encodeURIComponent(user.id)}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (Array.isArray(data.likes)) set({ likes: data.likes });
-    } catch (err) {
-      console.warn('[loadLikes] falha ao buscar curtidas:', err);
+  toggleLike: (trackId) => set((state) => {
+    const exists = state.likes.some(l => l.track_id === trackId);
+    if (exists) {
+      return { likes: state.likes.filter(l => l.track_id !== trackId) };
     }
-  },
-
-  // Curte/descurte uma faixa. Atualiza o estado local imediatamente
-  // (otimista) pra UI responder na hora, mas agora persiste de verdade no
-  // servidor via /api/likes — antes isso só mexia no estado em memória e
-  // se perdia a cada reload/login.
-  toggleLike: async (trackId) => {
-    const state = get();
-    const existing = state.likes.find((l) => l.track_id === trackId);
-    const wasLiked = !!existing;
-
-    // Atualização otimista
-    if (wasLiked) {
-      set({ likes: state.likes.filter((l) => l.track_id !== trackId) });
-    } else {
-      set({
-        likes: [...state.likes, {
-          id: `pending-${Date.now()}`,
-          user_id: state.user?.id || '',
-          track_id: trackId,
-          created_at: new Date().toISOString(),
-        }],
-      });
-    }
-
-    try {
-      const res = await apiFetch('/api/likes', {
-        method: 'POST',
-        body: JSON.stringify({ track_id: trackId }),
-      });
-
-      if (!res.ok) throw new Error(`status ${res.status}`);
-
-      const data = await res.json();
-      // Confirma o estado com o que o servidor retornou (ex: troca o id
-      // temporário pela curtida de verdade vinda do banco).
-      if (data.liked && data.like) {
-        set((s) => ({
-          likes: s.likes.map((l) => (l.track_id === trackId ? data.like : l)),
-        }));
-      } else if (!data.liked) {
-        set((s) => ({ likes: s.likes.filter((l) => l.track_id !== trackId) }));
-      }
-    } catch (err) {
-      // Falhou: desfaz a atualização otimista pra não mostrar uma
-      // curtida que não foi salva de verdade.
-      console.warn('[toggleLike] falha ao salvar curtida no servidor:', err);
-      set({ likes: state.likes });
-    }
-  },
+    return {
+      likes: [...state.likes, {
+        id: `like-${Date.now()}`,
+        user_id: state.user?.id || '',
+        track_id: trackId,
+        created_at: new Date().toISOString(),
+      }],
+    };
+  }),
   setComments: (comments) => set({ comments }),
   addComment: (comment) => set((state) => ({
     comments: [...state.comments, comment],
