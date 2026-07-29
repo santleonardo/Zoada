@@ -153,12 +153,6 @@ const LoginScreen: React.FC = () => {
               className="w-48 h-48 object-contain drop-shadow-2xl"
             />
           </div>
-          <h1 className="text-2xl font-bold gradient-text mb-2">
-            MÚSICA. SEM RÓTULOS.
-          </h1>
-          <p className="text-black/40 text-sm">
-            {mode === 'login' ? 'Entre na sua conta' : 'Crie sua conta'}
-          </p>
         </div>
 
         {/* Form */}
