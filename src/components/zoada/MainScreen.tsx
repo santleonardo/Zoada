@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, TrendingUp, Play, Music2, Star } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
+import { DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
 import type { Track, Artist } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -12,9 +12,20 @@ import { cn, formatNumber } from '@/lib/utils';
 type Tab = 'tracks' | 'artists' | 'favorites';
 
 const MainScreen: React.FC = () => {
-  const { playTrack, player, selectArtist, mainTab: activeTab, setMainTab: setActiveTab, favorites, toggleFavorite, lastCountedPlay } = useAppStore();
+  const {
+    playTrack,
+    player,
+    selectArtist,
+    mainTab: activeTab,
+    setMainTab: setActiveTab,
+    favorites,
+    toggleFavorite,
+    lastCountedPlay,
+    tracks,
+    setTracks,
+    loadTracks,
+  } = useAppStore();
   const [search, setSearch] = useState('');
-  const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
   const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
 
   // Mantém o número de reproduções exibido em sincronia assim que uma
@@ -22,21 +33,16 @@ const MainScreen: React.FC = () => {
   // precisar recarregar a lista inteira da API.
   useEffect(() => {
     if (!lastCountedPlay) return;
-    setTracks((prev) =>
-      prev.map((t) => (t.id === lastCountedPlay.trackId ? { ...t, plays_count: t.plays_count + 1 } : t))
+    setTracks(
+      tracks.map((t) => (t.id === lastCountedPlay.trackId ? { ...t, plays_count: t.plays_count + 1 } : t))
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastCountedPlay]);
 
-  // Busca faixas e artistas reais da API
+  // Busca faixas (agora no store global, compartilhadas com o perfil) e
+  // artistas reais da API.
   useEffect(() => {
-    fetch('/api/tracks')
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.tracks) && data.tracks.length > 0) setTracks(data.tracks);
-      })
-      .catch(() => {
-        // mantém os dados demo se a API falhar
-      });
+    loadTracks();
 
     fetch('/api/artists')
       .then((res) => res.json())

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Settings,
   LogOut,
@@ -11,7 +11,6 @@ import {
   Edit3,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { DEMO_TRACKS } from '@/lib/demo-data';
 import GradientButton from './GradientButton';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -20,15 +19,26 @@ import MyTracksPanel from './MyTracksPanel';
 import MyArtistsPanel from './MyArtistsPanel';
 
 const ProfileScreen: React.FC = () => {
-  const { user, logout, navigate, likes } = useAppStore();
+  const { user, logout, navigate, likes, tracks, loadTracks } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
   const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
 
+  // Garante que as faixas reais estejam carregadas mesmo se essa tela for
+  // aberta antes da MainScreen (ex: acesso direto). O store cuida de não
+  // sobrescrever com dados demo caso a API falhe.
+  useEffect(() => {
+    loadTracks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!user) return null;
 
-  const likedTracks = DEMO_TRACKS.filter((t) => likes.some((l) => l.track_id === t.id));
+  // Usa a lista real de faixas (compartilhada via store), não mais o
+  // DEMO_TRACKS fixo — antes as curtidas de faixas reais nunca apareciam
+  // aqui porque seus IDs não existiam nos dados de demonstração.
+  const likedTracks = tracks.filter((t) => likes.some((l) => l.track_id === t.id));
   const initials = user.name
     .split(' ')
     .map((n) => n[0])
