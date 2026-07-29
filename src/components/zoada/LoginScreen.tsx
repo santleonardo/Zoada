@@ -115,16 +115,6 @@ const LoginScreen: React.FC = () => {
     }
   };
 
-  const handleDemoLogin = () => {
-    setEmail('demo@zoada.com');
-    setPassword('demo123');
-    setLoading(true);
-    setTimeout(() => {
-      setUser(DEMO_USER, null);
-      setLoading(false);
-    }, 500);
-  };
-
   const handleSubmit = () => {
     if (mode === 'login') handleLogin();
     else handleRegister();
@@ -226,13 +216,6 @@ const LoginScreen: React.FC = () => {
           className="w-full text-center text-foreground/40 text-sm hover:text-foreground/70 transition-colors py-1"
         >
           {mode === 'login' ? 'Não tem conta? Criar conta' : 'Já tem conta? Fazer login'}
-        </button>
-
-        <button
-          onClick={handleDemoLogin}
-          className="w-full text-center text-foreground/30 text-xs hover:text-foreground/40 transition-colors py-1 mt-1"
-        >
-          Entrar como demo
         </button>
 
         {/* Equalizer decoration */}
