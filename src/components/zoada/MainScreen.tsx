@@ -391,9 +391,6 @@ const MainScreen: React.FC = () => {
               <TrendingUp size={11} className="text-white" />
             </div>
             <h2 className="text-xs font-bold text-white uppercase tracking-wide">Mais tocadas</h2>
-            <span className="text-[9px] font-semibold uppercase tracking-wide text-white/40 bg-white/5 px-1.5 py-0.5 rounded-full">
-              Em alta
-            </span>
           </div>
           {renderMostPlayedBento()}
         </div>
@@ -401,9 +398,14 @@ const MainScreen: React.FC = () => {
 
       {/* Tracks Grid */}
       {activeTab === 'tracks' && (
-        <div className="grid grid-cols-2 gap-3">
-          {filteredTracks.map((track) => renderTrackCard(track, filteredTracks))}
-        </div>
+        <>
+          {!search && (
+            <h2 className="text-xs font-bold text-white/70 uppercase tracking-wide mb-3">Em alta</h2>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            {filteredTracks.map((track) => renderTrackCard(track, filteredTracks))}
+          </div>
+        </>
       )}
 
       {/* Favorites Grid */}
