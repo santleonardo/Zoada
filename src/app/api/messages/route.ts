@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
+import { DEMO_CONVERSATIONS, DEMO_MESSAGES } from '@/lib/demo-data';
 import type { Message, Conversation } from '@/types';
 
 // GET /api/messages?conversation_id=xxx
@@ -12,11 +13,11 @@ export async function GET(request: Request) {
     const conversationPartnerId = searchParams.get('conversation_id');
 
     if (!isNeonConfigured) {
-      // No database configured — return empty data
       if (conversationPartnerId) {
-        return NextResponse.json({ messages: [] });
+        const messages = DEMO_MESSAGES[conversationPartnerId] || [];
+        return NextResponse.json({ messages });
       }
-      return NextResponse.json({ conversations: [] });
+      return NextResponse.json({ conversations: DEMO_CONVERSATIONS });
     }
 
     const userId = await authenticateRequest(request);
@@ -139,13 +140,6 @@ export async function GET(request: Request) {
 // POST /api/messages — Send a message (authenticated)
 export async function POST(request: Request) {
   try {
-    if (!isNeonConfigured) {
-      return NextResponse.json(
-        { error: 'Banco de dados não configurado. Não é possível enviar mensagens.' },
-        { status: 503 }
-      );
-    }
-
     const userId = await authenticateRequest(request);
     if (!userId) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
@@ -157,6 +151,10 @@ export async function POST(request: Request) {
         { error: 'receiver_id e content são obrigatórios' },
         { status: 400 }
       );
+    }
+
+    if (!isNeonConfigured) {
+      return NextResponse.json({ message: 'Neon não configurado' }, { status: 503 });
     }
 
     const mensagem = await db.mensagem.create({
