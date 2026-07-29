@@ -36,6 +36,17 @@ const MiniPlayer: React.FC = () => {
     audioEngine.seek(newProgress);
   }, [duration]);
 
+  // Mesmo comportamento do PlayerScreen: reinicia a faixa atual se ela já
+  // passou de alguns segundos; só pula pra faixa anterior se apertado logo
+  // no começo (ou de novo em seguida, já que aí o progresso está perto de 0).
+  const handlePrevious = useCallback(() => {
+    if (progress > 3) {
+      audioEngine.seek(0);
+    } else {
+      prevTrack();
+    }
+  }, [progress, prevTrack]);
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging.current) handleProgressInteraction(e.clientX);
@@ -149,7 +160,7 @@ const MiniPlayer: React.FC = () => {
           </button>
 
           <button
-            onClick={prevTrack}
+            onClick={handlePrevious}
             className="p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label="Anterior"
           >

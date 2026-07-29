@@ -51,6 +51,17 @@ const PlayerScreen: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Comportamento padrão de players de música: se a faixa já passou de
+  // alguns segundos, "anterior" reinicia ela do zero; só volta pra faixa
+  // de fato anterior se apertado logo no começo (ou de novo em seguida).
+  const handlePrevious = useCallback(() => {
+    if (progress > 3) {
+      audioEngine.seek(0);
+    } else {
+      prevTrack();
+    }
+  }, [progress, prevTrack]);
+
   const handleProgressInteraction = useCallback(
     (clientX: number) => {
       if (!progressRef.current || duration <= 0) return;
@@ -233,7 +244,7 @@ const PlayerScreen: React.FC = () => {
           <Shuffle size={20} />
         </button>
         <button
-          onClick={prevTrack}
+          onClick={handlePrevious}
           className="p-3 rounded-full hover:bg-white/10 transition-all active:scale-90"
           aria-label="Anterior"
         >
