@@ -156,7 +156,7 @@ const LoginScreen: React.FC = () => {
           <h1 className="text-2xl font-bold gradient-text mb-2">
             MÚSICA. SEM RÓTULOS.
           </h1>
-          <p className="text-white/40 text-sm">
+          <p className="text-foreground/40 text-sm">
             {mode === 'login' ? 'Entre na sua conta' : 'Crie sua conta'}
           </p>
         </div>
@@ -165,7 +165,7 @@ const LoginScreen: React.FC = () => {
         <div className="space-y-4 mb-6">
           {mode === 'register' && (
             <div className="relative">
-              <UserPlus size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+              <UserPlus size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
               <input
                 type="text"
                 placeholder="Seu nome"
@@ -177,7 +177,7 @@ const LoginScreen: React.FC = () => {
             </div>
           )}
           <div className="relative">
-            <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+            <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
             <input
               type="email"
               placeholder="Seu email"
@@ -188,7 +188,7 @@ const LoginScreen: React.FC = () => {
             />
           </div>
           <div className="relative">
-            <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+            <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="Sua senha"
@@ -200,7 +200,7 @@ const LoginScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition-colors"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -223,14 +223,14 @@ const LoginScreen: React.FC = () => {
         {/* Toggle mode */}
         <button
           onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}
-          className="w-full text-center text-white/40 text-sm hover:text-white/60 transition-colors py-1"
+          className="w-full text-center text-foreground/40 text-sm hover:text-foreground/70 transition-colors py-1"
         >
           {mode === 'login' ? 'Não tem conta? Criar conta' : 'Já tem conta? Fazer login'}
         </button>
 
         <button
           onClick={handleDemoLogin}
-          className="w-full text-center text-white/25 text-xs hover:text-white/40 transition-colors py-1 mt-1"
+          className="w-full text-center text-foreground/30 text-xs hover:text-foreground/40 transition-colors py-1 mt-1"
         >
           Entrar como demo
         </button>

@@ -43,7 +43,7 @@ const ProfileScreen: React.FC = () => {
         <h1 className="text-2xl font-bold gradient-text">Perfil</h1>
         <button
           onClick={logout}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/60 hover:text-white/80 text-sm"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-foreground/5 hover:bg-foreground/10 transition-colors text-foreground/60 hover:text-foreground/80 text-sm"
         >
           <LogOut size={16} />
           Sair
@@ -51,7 +51,7 @@ const ProfileScreen: React.FC = () => {
       </div>
 
       {/* Profile Card */}
-      <div className="rounded-2xl bg-[#1E2030] p-6 mb-6 text-center relative overflow-hidden">
+      <div className="rounded-2xl bg-card p-6 mb-6 text-center relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl"
@@ -70,13 +70,13 @@ const ProfileScreen: React.FC = () => {
             </div>
             <button
               onClick={() => setIsEditing(!isEditing)}
-              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#252840] border-2 border-[#1E2030] flex items-center justify-center hover:bg-[#353850] transition-colors"
+              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-secondary border-2 border-card flex items-center justify-center hover:bg-secondary/70 transition-colors"
               aria-label="Editar perfil"
             >
               {isEditing ? (
-                <Check size={14} className="text-white" />
+                <Check size={14} className="text-foreground" />
               ) : (
-                <Camera size={14} className="text-white/60" />
+                <Camera size={14} className="text-foreground/60" />
               )}
             </button>
           </div>
@@ -92,26 +92,26 @@ const ProfileScreen: React.FC = () => {
               />
             </div>
           ) : (
-            <h2 className="text-xl font-bold text-white mb-1">{user.name}</h2>
+            <h2 className="text-xl font-bold text-foreground mb-1">{user.name}</h2>
           )}
 
-          <p className="text-white/40 text-sm">{user.email}</p>
+          <p className="text-foreground/40 text-sm">{user.email}</p>
 
           {/* Stats */}
           <div className="flex items-center justify-center gap-6 mt-5">
             <div className="text-center">
-              <p className="text-lg font-bold text-white">{likedTracks.length}</p>
-              <p className="text-xs text-white/40">Curtidas</p>
+              <p className="text-lg font-bold text-foreground">{likedTracks.length}</p>
+              <p className="text-xs text-foreground/40">Curtidas</p>
             </div>
-            <div className="w-px h-8 bg-white/10" />
+            <div className="w-px h-8 bg-foreground/10" />
             <div className="text-center">
-              <p className="text-lg font-bold text-white">12</p>
-              <p className="text-xs text-white/40">Playlists</p>
+              <p className="text-lg font-bold text-foreground">12</p>
+              <p className="text-xs text-foreground/40">Playlists</p>
             </div>
-            <div className="w-px h-8 bg-white/10" />
+            <div className="w-px h-8 bg-foreground/10" />
             <div className="text-center">
-              <p className="text-lg font-bold text-white">48</p>
-              <p className="text-xs text-white/40">Seguindo</p>
+              <p className="text-lg font-bold text-foreground">48</p>
+              <p className="text-xs text-foreground/40">Seguindo</p>
             </div>
           </div>
         </div>
@@ -122,15 +122,15 @@ const ProfileScreen: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Heart size={18} className="text-[#E84393]" fill="#E84393" />
-            <h3 className="text-lg font-semibold text-white">Músicas Curtidas</h3>
+            <h3 className="text-lg font-semibold text-foreground">Músicas Curtidas</h3>
           </div>
-          <span className="text-sm text-white/40">{likedTracks.length} faixas</span>
+          <span className="text-sm text-foreground/40">{likedTracks.length} faixas</span>
         </div>
 
         {likedTracks.length === 0 ? (
-          <div className="rounded-2xl bg-[#1E2030] p-8 text-center">
-            <Heart size={40} className="text-white/10 mx-auto mb-3" />
-            <p className="text-white/40 text-sm">Nenhuma curtida ainda</p>
+          <div className="rounded-2xl bg-card p-8 text-center">
+            <Heart size={40} className="text-foreground/15 mx-auto mb-3" />
+            <p className="text-foreground/40 text-sm">Nenhuma curtida ainda</p>
             <button
               onClick={() => navigate('main')}
               className="mt-3 text-sm text-[#FF8C42] hover:text-[#FFB074] transition-colors"
@@ -143,7 +143,7 @@ const ProfileScreen: React.FC = () => {
             {likedTracks.map((track) => (
               <div
                 key={track.id}
-                className="flex items-center gap-3 p-3 rounded-xl bg-[#1E2030] hover:bg-[#252840] transition-colors cursor-pointer group"
+                className="flex items-center gap-3 p-3 rounded-xl bg-card hover:bg-secondary transition-colors cursor-pointer group"
               >
                 <CoverArt
                   title={track.title}
@@ -153,10 +153,10 @@ const ProfileScreen: React.FC = () => {
                   className="!w-12 !h-12 !max-w-none !rounded-lg flex-shrink-0"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{track.title}</p>
-                  <p className="text-xs text-white/40 truncate">{track.artist_name}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{track.title}</p>
+                  <p className="text-xs text-foreground/40 truncate">{track.artist_name}</p>
                 </div>
-                <Music2 size={16} className="text-white/20 group-hover:text-white/40 transition-colors" />
+                <Music2 size={16} className="text-foreground/25 group-hover:text-foreground/40 transition-colors" />
               </div>
             ))}
           </div>
@@ -186,7 +186,7 @@ const ProfileScreen: React.FC = () => {
 
       {/* Settings */}
       <div className="space-y-2 mb-6">
-        <h3 className="text-lg font-semibold text-white mb-3">Configurações</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Configurações</h3>
         {[
           { icon: <Settings size={18} />, label: 'Notificações' },
           { icon: <Music2 size={18} />, label: 'Qualidade de áudio' },
@@ -194,13 +194,13 @@ const ProfileScreen: React.FC = () => {
         ].map((item) => (
           <button
             key={item.label}
-            className="flex items-center justify-between w-full p-3 rounded-xl bg-[#1E2030] hover:bg-[#252840] transition-colors"
+            className="flex items-center justify-between w-full p-3 rounded-xl bg-card hover:bg-secondary transition-colors"
           >
             <div className="flex items-center gap-3">
-              <span className="text-white/50">{item.icon}</span>
-              <span className="text-sm text-white">{item.label}</span>
+              <span className="text-foreground/50">{item.icon}</span>
+              <span className="text-sm text-foreground">{item.label}</span>
             </div>
-            <ChevronRight size={16} className="text-white/20" />
+            <ChevronRight size={16} className="text-foreground/25" />
           </button>
         ))}
       </div>

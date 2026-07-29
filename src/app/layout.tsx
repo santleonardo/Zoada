@@ -19,7 +19,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0F1117",
+  themeColor: "#F7F7FB",
 };
 
 export const metadata: Metadata = {
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "Zôada",
   },
 };
@@ -64,13 +64,13 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/zoada-logo.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{
-          backgroundColor: '#0F1117',
-          color: '#FFFFFF',
+          backgroundColor: '#F7F7FB',
+          color: '#16181F',
           minHeight: '100vh',
           minHeight: '100dvh',
           WebkitOverflowScrolling: 'touch',

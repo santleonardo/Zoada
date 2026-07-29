@@ -19,15 +19,15 @@ const ChatScreen: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold gradient-text">Mensagens</h1>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/5">
           <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-xs text-white/50">Online</span>
+          <span className="text-xs text-foreground/50">Online</span>
         </div>
       </div>
 
       {/* Search */}
       <div className="relative mb-5">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/35" />
         <input type="text" placeholder="Buscar conversas..." className="!pl-11" />
       </div>
 
@@ -37,26 +37,26 @@ const ChatScreen: React.FC = () => {
           <button
             key={conv.id}
             onClick={() => selectConversation(conv.id, conv.other_user.name)}
-            className="flex items-center gap-3 p-3 rounded-2xl bg-[#1E2030] hover:bg-[#252840] transition-colors w-full text-left active:scale-[0.98]"
+            className="flex items-center gap-3 p-3 rounded-2xl bg-card hover:bg-secondary transition-colors w-full text-left active:scale-[0.98] shadow-sm"
           >
             {/* Avatar */}
-            <div className="w-12 h-12 rounded-full bg-[#252840] flex items-center justify-center flex-shrink-0 relative">
-              <span className="text-lg font-bold text-white/60">
+            <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 relative">
+              <span className="text-lg font-bold text-foreground/60">
                 {conv.other_user.name.charAt(0)}
               </span>
-              <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-[#1E2030]" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-card" />
             </div>
 
             {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <p className="font-semibold text-white text-sm">{conv.other_user.name}</p>
-                <span className="text-[10px] text-white/30">
+                <p className="font-semibold text-foreground text-sm">{conv.other_user.name}</p>
+                <span className="text-[10px] text-foreground/35">
                   {formatTimeAgo(conv.last_message.created_at)}
                 </span>
               </div>
               <div className="flex items-center justify-between mt-0.5">
-                <p className="text-sm text-white/40 truncate pr-2">
+                <p className="text-sm text-foreground/40 truncate pr-2">
                   {conv.last_message.sender_id === user?.id ? 'Você: ' : ''}
                   {conv.last_message.content}
                 </p>
@@ -124,24 +124,24 @@ const ChatConversation: React.FC = () => {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 glass safe-top">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-foreground/10 glass safe-top">
         <button
           onClick={() => {
             goBack();
           }}
-          className="p-2 rounded-full hover:bg-white/10 transition-colors"
+          className="p-2 rounded-full hover:bg-foreground/10 transition-colors"
           aria-label="Voltar"
         >
-          <ArrowLeft size={20} className="text-white/80" />
+          <ArrowLeft size={20} className="text-foreground/70" />
         </button>
-        <div className="w-9 h-9 rounded-full bg-[#252840] flex items-center justify-center">
-          <span className="text-sm font-bold text-white/60">{otherInitials}</span>
+        <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
+          <span className="text-sm font-bold text-foreground/60">{otherInitials}</span>
         </div>
         <div className="flex-1">
-          <p className="text-sm font-semibold text-white">{selectedConversationName}</p>
+          <p className="text-sm font-semibold text-foreground">{selectedConversationName}</p>
           <p className="text-[10px] text-green-400">Online agora</p>
         </div>
-        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/5">
+        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-foreground/5">
           <Equalizer barCount={3} height={12} barWidth={2} gap={1} />
         </div>
       </div>
@@ -160,14 +160,14 @@ const ChatConversation: React.FC = () => {
                   'max-w-[80%] rounded-2xl px-4 py-2.5',
                   isMe
                     ? 'gradient-bg text-white rounded-br-md'
-                    : 'bg-[#1E2030] text-white rounded-bl-md'
+                    : 'bg-card text-foreground rounded-bl-md shadow-sm'
                 )}
               >
                 <p className="text-sm">{msg.content}</p>
                 <p
                   className={cn(
                     'text-[10px] mt-1',
-                    isMe ? 'text-white/50' : 'text-white/30'
+                    isMe ? 'text-white/70' : 'text-foreground/40'
                   )}
                 >
                   {formatMessageTime(msg.created_at)}
@@ -180,7 +180,7 @@ const ChatConversation: React.FC = () => {
       </div>
 
       {/* Input */}
-      <div className="px-4 py-3 border-t border-white/5 glass safe-bottom">
+      <div className="px-4 py-3 border-t border-foreground/10 glass safe-bottom">
         <div className="flex items-center gap-2">
           <input
             ref={inputRef}
