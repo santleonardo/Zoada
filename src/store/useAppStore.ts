@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, Like } from '@/types';
 import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, apiFetch } from '@/lib/api';
-import { DEMO_TRACKS } from '@/lib/demo-data';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -65,12 +64,6 @@ interface AppState {
   // Favorites
   favorites: string[]; // track IDs
 
-  // Tracks (lista real de faixas, compartilhada entre MainScreen,
-  // ProfileScreen, etc. — antes cada tela guardava sua própria cópia
-  // local começando em DEMO_TRACKS, o que fazia telas que nunca buscavam
-  // a API (como o perfil) nunca verem as faixas reais).
-  tracks: Track[];
-
   // Actions - Auth
   setUser: (user: User | null, token?: string | null) => void;
   logout: () => void;
@@ -113,10 +106,6 @@ interface AppState {
   toggleFavorite: (trackId: string) => void;
   isFavorite: (trackId: string) => boolean;
   initFavorites: () => void;
-
-  // Actions - Tracks
-  setTracks: (tracks: Track[]) => void;
-  loadTracks: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -133,7 +122,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   likes: [],
   comments: [],
   favorites: [],
-  tracks: DEMO_TRACKS,
 
   player: {
     currentTrack: null,
@@ -445,25 +433,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   }),
   isFavorite: (trackId) => {
     return get().favorites.includes(trackId);
-  },
-
-  // Tracks actions
-  setTracks: (tracks) => set({ tracks }),
-
-  // Busca as faixas reais da API e substitui os dados demo. Chamado tanto
-  // pelo MainScreen quanto pelo ProfileScreen (e qualquer outra tela que
-  // precise da lista completa), ja que agora vivem no store global -- antes
-  // so o MainScreen buscava, e outras telas ficavam presas ao DEMO_TRACKS.
-  loadTracks: async () => {
-    try {
-      const res = await fetch('/api/tracks');
-      const data = await res.json();
-      if (Array.isArray(data.tracks) && data.tracks.length > 0) {
-        set({ tracks: data.tracks });
-      }
-    } catch (err) {
-      // mantem os dados demo/atuais se a API falhar
-      console.warn('[loadTracks] falha ao buscar faixas:', err);
-    }
   },
 }));
