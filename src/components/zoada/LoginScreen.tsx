@@ -133,7 +133,7 @@ const LoginScreen: React.FC = () => {
         style={{ background: 'radial-gradient(circle, #6C5CE7, transparent)' }}
       />
 
-      <div className="w-full max-w-sm z-10 fade-in">
+      <div className="w-full max-w-sm z-10 fade-in mt-16">
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center mb-6">
