@@ -173,7 +173,7 @@ const MainScreen: React.FC = () => {
           className={cn(
             'absolute top-2 left-2.5 font-extrabold drop-shadow-lg leading-none',
             rankColor,
-            variant === 'hero' ? 'text-3xl' : variant === 'medium' ? 'text-2xl' : 'text-base'
+            variant === 'hero' ? 'text-3xl' : variant === 'medium' ? 'text-xl' : 'text-base'
           )}
         >
           {rank}
@@ -203,18 +203,20 @@ const MainScreen: React.FC = () => {
         )}
 
         {/* Texto */}
-        <div className={cn('absolute bottom-0 left-0 right-0', variant === 'small' ? 'p-2' : 'p-3')}>
+        <div className={cn('absolute bottom-0 left-0 right-0', variant === 'small' ? 'p-2' : variant === 'medium' ? 'p-2.5' : 'p-3')}>
           <p
             className={cn(
               'font-semibold text-white leading-tight',
-              variant === 'hero' ? 'text-base' : variant === 'medium' ? 'text-sm' : 'text-xs',
+              variant === 'hero' ? 'text-base' : variant === 'medium' ? 'text-[11px]' : 'text-[10px]',
               variant === 'small' ? 'line-clamp-1' : 'line-clamp-2'
             )}
           >
             {track.title}
           </p>
           {variant !== 'small' && (
-            <p className="text-xs text-white/50 truncate mt-0.5">{track.artist_name}</p>
+            <p className={cn('text-white/50 truncate mt-0.5', variant === 'medium' ? 'text-[10px]' : 'text-xs')}>
+              {track.artist_name}
+            </p>
           )}
           {variant === 'hero' && (
             <div className="flex items-center gap-1 mt-1.5">
@@ -223,9 +225,9 @@ const MainScreen: React.FC = () => {
             </div>
           )}
           {variant === 'medium' && (
-            <div className="flex items-center gap-1 mt-1">
-              <TrendingUp size={10} className="text-[#FF8C42]" />
-              <span className="text-[11px] font-medium text-white/50">{formatNumber(track.plays_count)}</span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <TrendingUp size={9} className="text-[#FF8C42]" />
+              <span className="text-[9px] font-medium text-white/45">{formatNumber(track.plays_count)}</span>
             </div>
           )}
         </div>
