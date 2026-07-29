@@ -181,59 +181,6 @@ const MainScreen: React.FC = () => {
         )}
       </div>
 
-      {/* Mais tocadas: vitrine fixa no topo, só na aba de faixas e fora de
-          uma busca (é destaque, não resultado filtrado). */}
-      {activeTab === 'tracks' && !search && topTracks.length > 0 && (
-        <div className="mb-6 -mx-4">
-          <div className="flex items-center gap-2 px-4 mb-3">
-            <TrendingUp size={16} className="text-[#FF8C42]" />
-            <h2 className="text-base font-bold text-white">Mais tocadas</h2>
-          </div>
-          <div className="flex gap-3 overflow-x-auto px-4 pb-1 no-scrollbar snap-x snap-mandatory">
-            {topTracks.map((track, index) => {
-              const isCurrentTrack = player.currentTrack?.id === track.id;
-              return (
-                <button
-                  key={track.id}
-                  onClick={() => playTrack(track, topTracks)}
-                  className={cn(
-                    'relative flex items-center gap-3 flex-shrink-0 w-56 p-2.5 rounded-2xl bg-[#1E2030] hover:bg-[#252840] transition-colors text-left snap-start',
-                    isCurrentTrack && 'ring-2 ring-[#FF8C42]'
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'w-6 text-center text-lg font-extrabold flex-shrink-0',
-                      index === 0 ? 'text-[#FFD700]' : index === 1 ? 'text-white/70' : index === 2 ? 'text-[#FF8C42]' : 'text-white/25'
-                    )}
-                  >
-                    {index + 1}
-                  </span>
-                  <CoverArt
-                    title={track.title}
-                    artistName={track.artist_name}
-                    coverUrl={track.cover_url}
-                    size="sm"
-                    className="!w-12 !h-12 !max-w-none !rounded-lg flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{track.title}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <span className="text-xs text-white/40 truncate">{track.artist_name}</span>
-                      <span className="text-white/20">·</span>
-                      <span className="text-xs text-white/30 flex-shrink-0">{formatNumber(track.plays_count)}</span>
-                    </div>
-                  </div>
-                  {isCurrentTrack && player.isPlaying && (
-                    <Equalizer barCount={3} height={12} barWidth={2} gap={1} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Search */}
       <div className="relative mb-5">
         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
@@ -263,6 +210,71 @@ const MainScreen: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {/* Mais tocadas: vitrine de destaque, com cartão maior e fundo em
+          gradiente pra chamar mais atenção que o resto da lista. Só na aba
+          de faixas e fora de uma busca (é destaque, não resultado
+          filtrado). */}
+      {activeTab === 'tracks' && !search && topTracks.length > 0 && (
+        <div
+          className="mb-6 -mx-4 px-4 py-4 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, rgba(232,67,147,0.15), rgba(108,92,231,0.1) 60%, transparent)' }}
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-7 h-7 rounded-lg gradient-bg flex items-center justify-center flex-shrink-0">
+              <TrendingUp size={15} className="text-white" />
+            </div>
+            <h2 className="text-lg font-bold text-white">Mais tocadas</h2>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-white/40 bg-white/5 px-2 py-0.5 rounded-full">
+              Em alta
+            </span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory">
+            {topTracks.map((track, index) => {
+              const isCurrentTrack = player.currentTrack?.id === track.id;
+              return (
+                <button
+                  key={track.id}
+                  onClick={() => playTrack(track, topTracks)}
+                  className={cn(
+                    'relative flex items-center gap-3 flex-shrink-0 w-64 p-3 rounded-2xl bg-[#1E2030]/90 backdrop-blur-sm border border-white/5 hover:bg-[#252840] transition-all duration-200 text-left snap-start active:scale-[0.97]',
+                    isCurrentTrack ? 'ring-2 ring-[#FF8C42] shadow-lg shadow-[#FF8C42]/20' : 'shadow-md shadow-black/20'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'w-7 text-center text-2xl font-extrabold flex-shrink-0 drop-shadow',
+                      index === 0 ? 'text-[#FFD700]' : index === 1 ? 'text-white/80' : index === 2 ? 'text-[#FF8C42]' : 'text-white/25'
+                    )}
+                  >
+                    {index + 1}
+                  </span>
+                  <CoverArt
+                    title={track.title}
+                    artistName={track.artist_name}
+                    coverUrl={track.cover_url}
+                    size="sm"
+                    className="!w-14 !h-14 !max-w-none !rounded-xl flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{track.title}</p>
+                    <p className="text-xs text-white/40 truncate">{track.artist_name}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <TrendingUp size={10} className="text-[#FF8C42]" />
+                      <span className="text-xs font-medium text-white/50">{formatNumber(track.plays_count)} reproduções</span>
+                    </div>
+                  </div>
+                  {isCurrentTrack && player.isPlaying && (
+                    <div className="absolute top-2 right-2">
+                      <Equalizer barCount={3} height={12} barWidth={2} gap={1} />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Tracks Grid */}
       {activeTab === 'tracks' && (
