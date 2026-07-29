@@ -115,19 +115,16 @@ const MainScreen: React.FC = () => {
     );
   };
 
-  // Cartão individual do bento. `rank` define a posição no ranking,
-  // `variant` controla o quanto de informação/tamanho de fonte cabe em
-  // cada tamanho de cartão (hero > medium > small).
+  // Cartão individual do bento. `variant` controla o quanto de
+  // informação/tamanho de fonte cabe em cada tamanho de cartão
+  // (hero > medium > small).
   const renderBentoTile = (
     track: Track,
-    rank: number,
     variant: 'hero' | 'medium' | 'small',
     style: React.CSSProperties
   ) => {
     const isCurrentTrack = player.currentTrack?.id === track.id;
     const isFav = favorites.includes(track.id);
-    const rankColor =
-      rank === 1 ? 'text-[#FFD700]' : rank === 2 ? 'text-white/90' : rank === 3 ? 'text-[#FF8C42]' : 'text-white/70';
 
     return (
       <button
@@ -167,17 +164,6 @@ const MainScreen: React.FC = () => {
             />
           </div>
         </div>
-
-        {/* Rank */}
-        <span
-          className={cn(
-            'absolute top-2.5 left-3 font-extrabold drop-shadow-lg leading-none',
-            rankColor,
-            variant === 'hero' ? 'text-4xl' : variant === 'medium' ? 'text-2xl' : 'text-lg'
-          )}
-        >
-          {rank}
-        </span>
 
         {/* Favoritar */}
         {variant !== 'small' && (
@@ -251,18 +237,18 @@ const MainScreen: React.FC = () => {
         className="grid gap-3.5"
         style={{ gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: rowTemplate }}
       >
-        {renderBentoTile(heroTrack, 1, 'hero', {
+        {renderBentoTile(heroTrack, 'hero', {
           gridColumn: mediumTracks.length > 0 ? '1 / 3' : '1 / 5',
           gridRow: '1 / 3',
         })}
         {mediumTracks.map((track, i) =>
-          renderBentoTile(track, i + 2, 'medium', {
+          renderBentoTile(track, 'medium', {
             gridColumn: '3 / 5',
             gridRow: mediumTracks.length === 1 ? '1 / 3' : `${i + 1} / ${i + 2}`,
           })
         )}
-        {smallTracks.map((track, i) =>
-          renderBentoTile(track, i + 2 + mediumTracks.length, 'small', {
+        {smallTracks.map((track) =>
+          renderBentoTile(track, 'small', {
             gridRow: '3 / 4',
           })
         )}
