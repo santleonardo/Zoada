@@ -248,3 +248,13 @@ input[type="text"]::placeholder,
 textarea::placeholder {
   color: rgba(139, 143, 163, 0.7);
 }
+
+/* Esconde a barra de rolagem em listas horizontais (ex: "Mais tocadas"),
+   sem desativar a rolagem em si — só o indicador visual. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

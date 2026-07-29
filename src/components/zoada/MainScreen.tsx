@@ -74,6 +74,14 @@ const MainScreen: React.FC = () => {
     return artists.filter((a) => a.name.toLowerCase().includes(q));
   }, [search, artists]);
 
+  // Top 10 por número de reproduções — só faz sentido mostrar na aba de
+  // faixas, sem busca ativa (é uma vitrine fixa, não um resultado filtrado).
+  const topTracks = useMemo(() => {
+    return [...tracks]
+      .sort((a, b) => b.plays_count - a.plays_count)
+      .slice(0, 10);
+  }, [tracks]);
+
   const handlePlayTrack = (track: Track) => {
     playTrack(track, activeTab === 'favorites' ? favoriteTracks : filteredTracks);
   };
@@ -172,6 +180,59 @@ const MainScreen: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Mais tocadas: vitrine fixa no topo, só na aba de faixas e fora de
+          uma busca (é destaque, não resultado filtrado). */}
+      {activeTab === 'tracks' && !search && topTracks.length > 0 && (
+        <div className="mb-6 -mx-4">
+          <div className="flex items-center gap-2 px-4 mb-3">
+            <TrendingUp size={16} className="text-[#FF8C42]" />
+            <h2 className="text-base font-bold text-white">Mais tocadas</h2>
+          </div>
+          <div className="flex gap-3 overflow-x-auto px-4 pb-1 no-scrollbar snap-x snap-mandatory">
+            {topTracks.map((track, index) => {
+              const isCurrentTrack = player.currentTrack?.id === track.id;
+              return (
+                <button
+                  key={track.id}
+                  onClick={() => playTrack(track, topTracks)}
+                  className={cn(
+                    'relative flex items-center gap-3 flex-shrink-0 w-56 p-2.5 rounded-2xl bg-[#1E2030] hover:bg-[#252840] transition-colors text-left snap-start',
+                    isCurrentTrack && 'ring-2 ring-[#FF8C42]'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'w-6 text-center text-lg font-extrabold flex-shrink-0',
+                      index === 0 ? 'text-[#FFD700]' : index === 1 ? 'text-white/70' : index === 2 ? 'text-[#FF8C42]' : 'text-white/25'
+                    )}
+                  >
+                    {index + 1}
+                  </span>
+                  <CoverArt
+                    title={track.title}
+                    artistName={track.artist_name}
+                    coverUrl={track.cover_url}
+                    size="sm"
+                    className="!w-12 !h-12 !max-w-none !rounded-lg flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{track.title}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="text-xs text-white/40 truncate">{track.artist_name}</span>
+                      <span className="text-white/20">·</span>
+                      <span className="text-xs text-white/30 flex-shrink-0">{formatNumber(track.plays_count)}</span>
+                    </div>
+                  </div>
+                  {isCurrentTrack && player.isPlaying && (
+                    <Equalizer barCount={3} height={12} barWidth={2} gap={1} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-5">
