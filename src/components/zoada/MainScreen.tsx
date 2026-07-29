@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, TrendingUp, Play, Music2, Star } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { DEMO_TRACKS, DEMO_ARTISTS } from '@/lib/demo-data';
+import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
 import type { Track, Artist } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -92,6 +92,181 @@ const MainScreen: React.FC = () => {
   };
 
 
+
+  // Capa que preenche 100% do cartão bento (sem os tamanhos fixos do
+  // CoverArt), com fallback em gradiente igual ao resto do app.
+  const renderBentoCover = (track: Track) => {
+    const hash = track.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const colors = COVER_COLORS[hash % COVER_COLORS.length];
+    return (
+      <div
+        className="absolute inset-0"
+        style={{ background: `linear-gradient(135deg, ${colors[0]}dd, ${colors[1]}dd)` }}
+      >
+        {track.cover_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={track.cover_url}
+            alt={`Capa de ${track.title}`}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+      </div>
+    );
+  };
+
+  // Cartão individual do bento. `rank` define a posição no ranking,
+  // `variant` controla o quanto de informação/tamanho de fonte cabe em
+  // cada tamanho de cartão (hero > medium > small).
+  const renderBentoTile = (
+    track: Track,
+    rank: number,
+    variant: 'hero' | 'medium' | 'small',
+    style: React.CSSProperties
+  ) => {
+    const isCurrentTrack = player.currentTrack?.id === track.id;
+    const isFav = favorites.includes(track.id);
+    const rankColor =
+      rank === 1 ? 'text-[#FFD700]' : rank === 2 ? 'text-white/90' : rank === 3 ? 'text-[#FF8C42]' : 'text-white/70';
+
+    return (
+      <button
+        key={track.id}
+        onClick={() => playTrack(track, topTracks)}
+        style={style}
+        className={cn(
+          'group relative rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform duration-200',
+          isCurrentTrack && 'ring-2 ring-[#FF8C42] shadow-lg shadow-[#FF8C42]/30'
+        )}
+      >
+        {renderBentoCover(track)}
+
+        {/* Overlay escuro pra garantir legibilidade do texto sobre a capa */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              variant === 'small'
+                ? 'linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.75) 100%)'
+                : 'linear-gradient(180deg, rgba(15,17,23,0.05) 40%, rgba(15,17,23,0.92) 100%)',
+          }}
+        />
+
+        {/* Play overlay no hover */}
+        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div
+            className={cn(
+              'rounded-full gradient-bg flex items-center justify-center shadow-xl',
+              variant === 'hero' ? 'w-12 h-12' : variant === 'medium' ? 'w-10 h-10' : 'w-8 h-8'
+            )}
+          >
+            <Play
+              size={variant === 'small' ? 14 : variant === 'medium' ? 18 : 22}
+              className="text-white ml-0.5"
+              fill="white"
+            />
+          </div>
+        </div>
+
+        {/* Rank */}
+        <span
+          className={cn(
+            'absolute top-2 left-2.5 font-extrabold drop-shadow-lg leading-none',
+            rankColor,
+            variant === 'hero' ? 'text-3xl' : variant === 'medium' ? 'text-2xl' : 'text-base'
+          )}
+        >
+          {rank}
+        </span>
+
+        {/* Favoritar */}
+        {variant !== 'small' && (
+          <button
+            onClick={(e) => handleToggleFavorite(e, track.id)}
+            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors z-10"
+            aria-label={isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+          >
+            <Star
+              size={14}
+              className={cn('transition-all duration-200', isFav ? 'fill-[#FFD700] text-[#FFD700]' : 'text-white/70')}
+            />
+          </button>
+        )}
+
+        {/* Tocando agora */}
+        {isCurrentTrack && player.isPlaying && (
+          <div className={cn('absolute z-10', variant === 'small' ? 'top-1.5 right-1.5' : 'top-2 right-2')}>
+            <div className="flex items-center gap-1 px-1.5 py-1 rounded-full glass">
+              <Equalizer barCount={3} height={variant === 'small' ? 8 : 10} barWidth={2} gap={1} />
+            </div>
+          </div>
+        )}
+
+        {/* Texto */}
+        <div className={cn('absolute bottom-0 left-0 right-0', variant === 'small' ? 'p-2' : 'p-3')}>
+          <p
+            className={cn(
+              'font-semibold text-white leading-tight',
+              variant === 'hero' ? 'text-base' : variant === 'medium' ? 'text-sm' : 'text-xs',
+              variant === 'small' ? 'line-clamp-1' : 'line-clamp-2'
+            )}
+          >
+            {track.title}
+          </p>
+          {variant !== 'small' && (
+            <p className="text-xs text-white/50 truncate mt-0.5">{track.artist_name}</p>
+          )}
+          {variant === 'hero' && (
+            <div className="flex items-center gap-1 mt-1.5">
+              <TrendingUp size={11} className="text-[#FF8C42]" />
+              <span className="text-xs font-medium text-white/60">{formatNumber(track.plays_count)} reproduções</span>
+            </div>
+          )}
+          {variant === 'medium' && (
+            <div className="flex items-center gap-1 mt-1">
+              <TrendingUp size={10} className="text-[#FF8C42]" />
+              <span className="text-[11px] font-medium text-white/50">{formatNumber(track.plays_count)}</span>
+            </div>
+          )}
+        </div>
+      </button>
+    );
+  };
+
+  // Monta o grid bento com as faixas mais tocadas: 1 cartão hero em
+  // destaque, até 2 cartões médios ao lado e uma fileira de cartões
+  // pequenos abaixo — dá muito mais peso visual do que uma lista.
+  const renderMostPlayedBento = () => {
+    const heroTrack = topTracks[0];
+    const mediumTracks = topTracks.slice(1, 3);
+    const smallTracks = topTracks.slice(3, 7);
+    if (!heroTrack) return null;
+
+    const rowTemplate = smallTracks.length > 0 ? '116px 116px 92px' : '132px 132px';
+
+    return (
+      <div
+        className="grid gap-3"
+        style={{ gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: rowTemplate }}
+      >
+        {renderBentoTile(heroTrack, 1, 'hero', {
+          gridColumn: mediumTracks.length > 0 ? '1 / 3' : '1 / 5',
+          gridRow: '1 / 3',
+        })}
+        {mediumTracks.map((track, i) =>
+          renderBentoTile(track, i + 2, 'medium', {
+            gridColumn: '3 / 5',
+            gridRow: mediumTracks.length === 1 ? '1 / 3' : `${i + 1} / ${i + 2}`,
+          })
+        )}
+        {smallTracks.map((track, i) =>
+          renderBentoTile(track, i + 2 + mediumTracks.length, 'small', {
+            gridRow: '3 / 4',
+          })
+        )}
+      </div>
+    );
+  };
 
   const renderTrackCard = (track: Track, displayTracks: Track[]) => {
     const isCurrentTrack = player.currentTrack?.id === track.id;
@@ -211,10 +386,10 @@ const MainScreen: React.FC = () => {
         ))}
       </div>
 
-      {/* Mais tocadas: vitrine de destaque, com cartão maior e fundo em
-          gradiente pra chamar mais atenção que o resto da lista. Só na aba
-          de faixas e fora de uma busca (é destaque, não resultado
-          filtrado). */}
+      {/* Mais tocadas: vitrine em destaque no topo da tela inicial, em
+          formato bento (cartões de tamanhos variados) pra dar bem mais
+          peso visual do que uma lista horizontal comum. Só na aba de
+          faixas e fora de uma busca (é destaque, não resultado filtrado). */}
       {activeTab === 'tracks' && !search && topTracks.length > 0 && (
         <div
           className="mb-6 -mx-4 px-4 py-4 relative overflow-hidden"
@@ -229,50 +404,7 @@ const MainScreen: React.FC = () => {
               Em alta
             </span>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory">
-            {topTracks.map((track, index) => {
-              const isCurrentTrack = player.currentTrack?.id === track.id;
-              return (
-                <button
-                  key={track.id}
-                  onClick={() => playTrack(track, topTracks)}
-                  className={cn(
-                    'relative flex items-center gap-3 flex-shrink-0 w-64 p-3 rounded-2xl bg-[#1E2030]/90 backdrop-blur-sm border border-white/5 hover:bg-[#252840] transition-all duration-200 text-left snap-start active:scale-[0.97]',
-                    isCurrentTrack ? 'ring-2 ring-[#FF8C42] shadow-lg shadow-[#FF8C42]/20' : 'shadow-md shadow-black/20'
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'w-7 text-center text-2xl font-extrabold flex-shrink-0 drop-shadow',
-                      index === 0 ? 'text-[#FFD700]' : index === 1 ? 'text-white/80' : index === 2 ? 'text-[#FF8C42]' : 'text-white/25'
-                    )}
-                  >
-                    {index + 1}
-                  </span>
-                  <CoverArt
-                    title={track.title}
-                    artistName={track.artist_name}
-                    coverUrl={track.cover_url}
-                    size="sm"
-                    className="!w-14 !h-14 !max-w-none !rounded-xl flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{track.title}</p>
-                    <p className="text-xs text-white/40 truncate">{track.artist_name}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <TrendingUp size={10} className="text-[#FF8C42]" />
-                      <span className="text-xs font-medium text-white/50">{formatNumber(track.plays_count)} reproduções</span>
-                    </div>
-                  </div>
-                  {isCurrentTrack && player.isPlaying && (
-                    <div className="absolute top-2 right-2">
-                      <Equalizer barCount={3} height={12} barWidth={2} gap={1} />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {renderMostPlayedBento()}
         </div>
       )}
 
