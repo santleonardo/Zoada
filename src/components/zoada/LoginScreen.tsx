@@ -140,7 +140,7 @@ const LoginScreen: React.FC = () => {
             <img
               src="/zoada-logo.png"
               alt="Zôada Logo"
-              className="w-48 h-48 object-contain drop-shadow-2xl"
+              className="w-64 h-64 object-contain drop-shadow-2xl"
             />
           </div>
           <p className="text-foreground/40 text-sm">
