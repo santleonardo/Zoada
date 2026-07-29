@@ -116,7 +116,7 @@ export default function Home() {
   const showMiniPlayer = isAuthenticated && currentScreen !== 'login' && currentScreen !== 'player';
 
   return (
-    <main className="min-h-screen bg-[#0F1117] relative overflow-x-hidden">
+    <main className="min-h-screen bg-[#F7F7FB] relative overflow-x-hidden">
       {/* Screen content */}
       <div className={showNav && !showMiniPlayer ? 'pb-20' : showMiniPlayer ? 'pb-36' : ''}>
         {renderScreen()}

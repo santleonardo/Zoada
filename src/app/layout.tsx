@@ -19,7 +19,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0F1117",
+  themeColor: "#F7F7FB",
 };
 
 export const metadata: Metadata = {
@@ -69,8 +69,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{
-          backgroundColor: '#0F1117',
-          color: '#FFFFFF',
+          backgroundColor: '#F7F7FB',
+          color: '#1A1B25',
           minHeight: '100vh',
           minHeight: '100dvh',
           WebkitOverflowScrolling: 'touch',

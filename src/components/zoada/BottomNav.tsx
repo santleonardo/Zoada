@@ -28,7 +28,7 @@ const BottomNav: React.FC = () => {
     <nav
       className={cn(
         'fixed bottom-0 left-0 right-0 z-50 glass',
-        'border-t border-white/5',
+        'border-t border-black/5',
         'safe-bottom',
         hasActiveTrack && 'pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]'
       )}
@@ -53,8 +53,8 @@ const BottomNav: React.FC = () => {
               className={cn(
                 'flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200 no-select',
                 isActive
-                  ? 'text-white'
-                  : 'text-white/40 hover:text-white/70'
+                  ? 'text-[#FF8C42]'
+                  : 'text-black/35 hover:text-black/65'
               )}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}

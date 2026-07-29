@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, Zap, UserPlus } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { SESSION_EXPIRED_KEY } from '@/lib/api';
+import { DEMO_USER } from '@/lib/demo-data';
 import GradientButton from './GradientButton';
 import Equalizer from './Equalizer';
 
@@ -16,20 +16,6 @@ const LoginScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mode, setMode] = useState<'login' | 'register'>('login');
-
-  // Se apiFetch acabou de forçar um logout por sessão expirada/inválida,
-  // a flag fica gravada em sessionStorage antes do reload — sem isso, a
-  // pessoa só via a tela de login aparecer do nada, sem entender por quê.
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem(SESSION_EXPIRED_KEY)) {
-        sessionStorage.removeItem(SESSION_EXPIRED_KEY);
-        setError('Sua sessão expirou. Faça login novamente.');
-      }
-    } catch {
-      // sessionStorage indisponível — sem aviso, mas não quebra a tela.
-    }
-  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -48,10 +34,21 @@ const LoginScreen: React.FC = () => {
 
       const data = await res.json();
 
-      if (!res.ok || data.error || data.demo) {
-        // Erro de verdade (ex: senha incorreta, ou backend sem Neon
-        // configurado) — mostra pro usuário. Não existe mais fallback pra
-        // modo demo: sem conta real, sem login.
+      if (data.demo) {
+        // Backend disse explicitamente que o Neon não está configurado —
+        // aí sim faz sentido cair em modo demo (sem token real).
+        await new Promise(resolve => setTimeout(resolve, 400));
+        setUser({
+          ...DEMO_USER,
+          email,
+          name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        }, null);
+        return;
+      }
+
+      if (!res.ok || data.error) {
+        // Erro de verdade (ex: senha incorreta) — mostra pro usuário,
+        // NÃO loga como demo, senão ele acaba "logado" sem token real.
         setError(data.error || 'Não foi possível entrar. Tente novamente.');
         return;
       }
@@ -64,8 +61,9 @@ const LoginScreen: React.FC = () => {
         created_at: data.created_at,
       }, data.token);
     } catch {
-      // Erro de rede de verdade (backend inacessível).
-      setError('Não foi possível conectar ao servidor. Tente novamente em instantes.');
+      // Erro de rede de verdade (backend inacessível) — aqui sim faz
+      // sentido oferecer o modo demo, mas avisando o usuário.
+      setError('Não foi possível conectar ao servidor. Tente novamente ou use o modo demo.');
     } finally {
       setLoading(false);
     }
@@ -117,6 +115,16 @@ const LoginScreen: React.FC = () => {
     }
   };
 
+  const handleDemoLogin = () => {
+    setEmail('demo@zoada.com');
+    setPassword('demo123');
+    setLoading(true);
+    setTimeout(() => {
+      setUser(DEMO_USER, null);
+      setLoading(false);
+    }, 500);
+  };
+
   const handleSubmit = () => {
     if (mode === 'login') handleLogin();
     else handleRegister();
@@ -148,7 +156,7 @@ const LoginScreen: React.FC = () => {
           <h1 className="text-2xl font-bold gradient-text mb-2">
             MÚSICA. SEM RÓTULOS.
           </h1>
-          <p className="text-white/40 text-sm">
+          <p className="text-black/40 text-sm">
             {mode === 'login' ? 'Entre na sua conta' : 'Crie sua conta'}
           </p>
         </div>
@@ -157,7 +165,7 @@ const LoginScreen: React.FC = () => {
         <div className="space-y-4 mb-6">
           {mode === 'register' && (
             <div className="relative">
-              <UserPlus size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+              <UserPlus size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30" />
               <input
                 type="text"
                 placeholder="Seu nome"
@@ -169,7 +177,7 @@ const LoginScreen: React.FC = () => {
             </div>
           )}
           <div className="relative">
-            <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+            <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30" />
             <input
               type="email"
               placeholder="Seu email"
@@ -180,7 +188,7 @@ const LoginScreen: React.FC = () => {
             />
           </div>
           <div className="relative">
-            <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+            <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30" />
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="Sua senha"
@@ -192,7 +200,7 @@ const LoginScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/30 hover:text-black/60 transition-colors"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -215,9 +223,16 @@ const LoginScreen: React.FC = () => {
         {/* Toggle mode */}
         <button
           onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}
-          className="w-full text-center text-white/40 text-sm hover:text-white/60 transition-colors py-1"
+          className="w-full text-center text-black/40 text-sm hover:text-black/60 transition-colors py-1"
         >
           {mode === 'login' ? 'Não tem conta? Criar conta' : 'Já tem conta? Fazer login'}
+        </button>
+
+        <button
+          onClick={handleDemoLogin}
+          className="w-full text-center text-black/25 text-xs hover:text-black/40 transition-colors py-1 mt-1"
+        >
+          Entrar como demo
         </button>
 
         {/* Equalizer decoration */}
