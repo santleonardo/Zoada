@@ -273,12 +273,12 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
   const hasPendingWork = items.some((i) => i.status === 'pending' || i.status === 'uploading');
 
   return (
-    <div className="rounded-2xl bg-card p-5 mb-6">
+    <div className="rounded-2xl bg-[#1E2030] p-5 mb-6">
       <div className="flex items-center gap-2 mb-1">
         <UploadCloud size={18} className="text-[#FF8C42]" />
-        <h3 className="text-lg font-semibold text-foreground">Enviar Músicas</h3>
+        <h3 className="text-lg font-semibold text-white">Enviar Músicas</h3>
       </div>
-      <p className="text-foreground/40 text-sm mb-4">
+      <p className="text-white/40 text-sm mb-4">
         Áudio: MP3 ou WAV (o que o navegador tocar melhor é MP3). Capas: JPG, PNG ou WEBP.
       </p>
 
@@ -293,12 +293,12 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
           registro separado, sem mexer nos outros). */}
       {!loadingArtists && artists.length > 0 && (
         <div className="mb-3">
-          <label className="block text-xs text-foreground/40 mb-1.5">Enviar como</label>
+          <label className="block text-xs text-white/40 mb-1.5">Enviar como</label>
           <select
             value={selectedArtistId}
             onChange={(e) => handleSelectArtist(e.target.value)}
             disabled={isRunning}
-            className="w-full rounded-xl bg-secondary border border-foreground/10 px-3 py-2 text-sm text-foreground outline-none focus:border-[#FF8C42]/50"
+            className="w-full rounded-xl bg-[#252840] border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-[#FF8C42]/50"
           >
             {artists.map((a) => (
               <option key={a.id} value={a.id}>
@@ -311,34 +311,34 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
       )}
 
       {/* Perfil do artista */}
-      <div className="rounded-xl bg-foreground/5 p-4 mb-4">
-        <p className="text-sm font-semibold text-foreground/80 mb-3">
+      <div className="rounded-xl bg-white/5 p-4 mb-4">
+        <p className="text-sm font-semibold text-white/80 mb-3">
           {selectedArtistId === NEW_ARTIST ? 'Novo artista' : 'Perfil de artista'}
         </p>
 
         <div className="flex items-center gap-3 mb-3">
           <button
             onClick={() => avatarInputRef.current?.click()}
-            className="w-14 h-14 rounded-full bg-secondary overflow-hidden flex-shrink-0 flex items-center justify-center"
+            className="w-14 h-14 rounded-full bg-[#252840] overflow-hidden flex-shrink-0 flex items-center justify-center"
             aria-label="Escolher avatar"
           >
             {avatarPreview ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
-              <ImagePlus size={18} className="text-foreground/40" />
+              <ImagePlus size={18} className="text-white/40" />
             )}
           </button>
           <button
             onClick={() => coverInputRef.current?.click()}
-            className="flex-1 h-14 rounded-xl bg-secondary overflow-hidden flex items-center justify-center"
+            className="flex-1 h-14 rounded-xl bg-[#252840] overflow-hidden flex items-center justify-center"
             aria-label="Escolher capa do artista"
           >
             {coverPreview ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={coverPreview} alt="Capa" className="w-full h-full object-cover" />
             ) : (
-              <span className="text-xs text-foreground/40 flex items-center gap-1">
+              <span className="text-xs text-white/40 flex items-center gap-1">
                 <ImagePlus size={14} /> Capa do perfil
               </span>
             )}
@@ -378,7 +378,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           rows={2}
-          className="w-full rounded-xl bg-secondary border border-foreground/10 px-3 py-2 text-sm text-foreground placeholder:text-foreground/35 outline-none focus:border-[#FF8C42]/50 resize-none"
+          className="w-full rounded-xl bg-[#252840] border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#FF8C42]/50 resize-none"
         />
       </div>
 
@@ -408,10 +408,10 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
       {items.length > 0 && (
         <div className="space-y-2 mb-3">
           {items.map((item, idx) => (
-            <div key={`${item.file.name}-${idx}`} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-foreground/5">
+            <div key={`${item.file.name}-${idx}`} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5">
               <button
                 onClick={() => document.getElementById(`track-cover-${idx}`)?.click()}
-                className="w-10 h-10 rounded-lg bg-secondary overflow-hidden flex-shrink-0 flex items-center justify-center"
+                className="w-10 h-10 rounded-lg bg-[#252840] overflow-hidden flex-shrink-0 flex items-center justify-center"
                 aria-label="Capa da faixa"
                 disabled={item.status !== 'pending'}
               >
@@ -419,7 +419,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={item.coverPreview} alt="Capa" className="w-full h-full object-cover" />
                 ) : (
-                  <ImagePlus size={14} className="text-foreground/35" />
+                  <ImagePlus size={14} className="text-white/30" />
                 )}
               </button>
               <input
@@ -439,7 +439,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
               />
 
               {item.status === 'pending' && (
-                <button onClick={() => removeItem(idx)} aria-label="Remover" className="text-foreground/35 hover:text-foreground/60">
+                <button onClick={() => removeItem(idx)} aria-label="Remover" className="text-white/30 hover:text-white/60">
                   <X size={16} />
                 </button>
               )}
@@ -474,7 +474,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
 
       {!hasPendingWork && errorCount > 0 && (
         <div className="pt-1">
-          <p className="text-xs text-foreground/40 mb-2">
+          <p className="text-xs text-white/40 mb-2">
             {errorCount} música{errorCount === 1 ? '' : 's'} com erro no envio. Remova ou tente adicionar de novo.
           </p>
           <GradientButton

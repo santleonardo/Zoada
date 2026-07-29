@@ -69,42 +69,42 @@ const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDel
   };
 
   return (
-    <div className="rounded-2xl bg-card p-5 mb-6">
+    <div className="rounded-2xl bg-[#1E2030] p-5 mb-6">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <Users size={18} className="text-[#E84393]" />
-          <h3 className="text-lg font-semibold text-foreground">Seus Artistas</h3>
+          <h3 className="text-lg font-semibold text-white">Seus Artistas</h3>
         </div>
-        {!loading && <span className="text-sm text-foreground/40">{artists.length} artista{artists.length === 1 ? '' : 's'}</span>}
+        {!loading && <span className="text-sm text-white/40">{artists.length} artista{artists.length === 1 ? '' : 's'}</span>}
       </div>
-      <p className="text-foreground/40 text-sm mb-4">
+      <p className="text-white/40 text-sm mb-4">
         Apagar um artista apaga também todas as músicas publicadas por ele. Essa ação não pode ser desfeita.
       </p>
 
       {error && <p className="text-xs text-[#E84393] mb-3">{error}</p>}
 
       {loading ? (
-        <p className="text-xs text-foreground/40">Carregando...</p>
+        <p className="text-xs text-white/40">Carregando...</p>
       ) : artists.length === 0 ? (
-        <div className="rounded-xl bg-foreground/5 p-6 text-center">
-          <Mic2 size={32} className="text-foreground/15 mx-auto mb-2" />
-          <p className="text-foreground/40 text-sm">Você ainda não criou nenhum artista</p>
+        <div className="rounded-xl bg-white/5 p-6 text-center">
+          <Mic2 size={32} className="text-white/10 mx-auto mb-2" />
+          <p className="text-white/40 text-sm">Você ainda não criou nenhum artista</p>
         </div>
       ) : (
         <div className="space-y-2">
           {artists.map((artist) => (
-            <div key={artist.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-foreground/5">
-              <div className="w-10 h-10 rounded-full bg-secondary overflow-hidden flex-shrink-0 flex items-center justify-center">
+            <div key={artist.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5">
+              <div className="w-10 h-10 rounded-full bg-[#252840] overflow-hidden flex-shrink-0 flex items-center justify-center">
                 {artist.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={artist.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <Mic2 size={14} className="text-foreground/35" />
+                  <Mic2 size={14} className="text-white/30" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground truncate">{artist.name}</p>
-                <p className="text-xs text-foreground/40 truncate">{artist.genre || 'Sem gênero definido'}</p>
+                <p className="text-sm text-white truncate">{artist.name}</p>
+                <p className="text-xs text-white/40 truncate">{artist.genre || 'Sem gênero definido'}</p>
               </div>
 
               {confirmDeleteId === artist.id ? (
@@ -113,7 +113,7 @@ const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDel
                     <Loader2 size={16} className="text-[#FF8C42] animate-spin" />
                   ) : (
                     <>
-                      <span className="text-[11px] text-foreground/40 mr-1">Apagar artista e músicas?</span>
+                      <span className="text-[11px] text-white/40 mr-1">Apagar artista e músicas?</span>
                       <button
                         onClick={() => handleDelete(artist.id)}
                         aria-label={`Confirmar exclusão de "${artist.name}"`}
@@ -124,7 +124,7 @@ const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDel
                       <button
                         onClick={() => setConfirmDeleteId(null)}
                         aria-label="Cancelar"
-                        className="p-1 rounded-full bg-foreground/5 text-foreground/50 hover:bg-foreground/10"
+                        className="p-1 rounded-full bg-white/5 text-white/50 hover:bg-white/10"
                       >
                         <X size={14} />
                       </button>
@@ -135,7 +135,7 @@ const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDel
                 <button
                   onClick={() => setConfirmDeleteId(artist.id)}
                   aria-label={`Apagar artista "${artist.name}"`}
-                  className="p-1.5 rounded-full text-foreground/35 hover:text-[#E84393] hover:bg-[#E84393]/10 flex-shrink-0"
+                  className="p-1.5 rounded-full text-white/30 hover:text-[#E84393] hover:bg-[#E84393]/10 flex-shrink-0"
                 >
                   <Trash2 size={16} />
                 </button>

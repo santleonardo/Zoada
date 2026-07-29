@@ -304,14 +304,14 @@ const MainScreen: React.FC = () => {
         </button>
         {/* Info bar */}
         <div className="p-3 pt-0 -mt-3 relative">
-          <div className="bg-card rounded-b-2xl px-3 py-2.5 shadow-sm">
-            <p className="text-sm font-semibold text-foreground truncate">{track.title}</p>
+          <div className="bg-[#1E2030] rounded-b-2xl px-3 py-2.5">
+            <p className="text-sm font-semibold text-white truncate">{track.title}</p>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-foreground/40">{track.artist_name}</span>
-              <span className="text-foreground/20">·</span>
+              <span className="text-xs text-white/40">{track.artist_name}</span>
+              <span className="text-white/20">·</span>
               <div className="flex items-center gap-1">
-                <TrendingUp size={10} className="text-foreground/35" />
-                <span className="text-xs text-foreground/35">{formatNumber(track.plays_count)}</span>
+                <TrendingUp size={10} className="text-white/30" />
+                <span className="text-xs text-white/30">{formatNumber(track.plays_count)}</span>
               </div>
             </div>
           </div>
@@ -331,16 +331,16 @@ const MainScreen: React.FC = () => {
             <h1 className="text-2xl font-bold gradient-text">
               {activeTab === 'favorites' ? 'Favoritos' : 'Explorar'}
             </h1>
-            <p className="text-foreground/40 text-sm mt-0.5">
+            <p className="text-white/40 text-sm mt-0.5">
               {activeTab === 'favorites'
                 ? `${favoriteTracks.length} música${favoriteTracks.length !== 1 ? 's' : ''} salva${favoriteTracks.length !== 1 ? 's' : ''}`
                 : 'Descubra novos artistas'}
             </p>
           </div>
           {player.isPlaying && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/5">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5">
               <Equalizer barCount={3} height={16} barWidth={2} gap={1} />
-              <span className="text-xs text-foreground/60">Tocando</span>
+              <span className="text-xs text-white/60">Tocando</span>
             </div>
           )}
         </div>
@@ -349,7 +349,7 @@ const MainScreen: React.FC = () => {
       {/* Search: mais discreta/compacta pra não competir com a vitrine de
           mais tocadas. */}
       <div className={cn('relative', activeTab === 'tracks' ? 'mt-1 mb-2.5' : 'mb-3')}>
-        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/35" />
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
         <input
           type="text"
           placeholder="Buscar músicas, artistas..."
@@ -369,7 +369,7 @@ const MainScreen: React.FC = () => {
               'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-200 no-select',
               activeTab === tab
                 ? 'gradient-bg text-white shadow-md'
-                : 'bg-foreground/5 text-foreground/40 hover:bg-foreground/10 hover:text-foreground/60'
+                : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
             )}
           >
             {tab === 'tracks' ? '🎵 Faixas' : tab === 'favorites' ? '⭐ Favoritos' : '🎤 Artistas'}
@@ -390,7 +390,7 @@ const MainScreen: React.FC = () => {
             <div className="w-5 h-5 rounded-md gradient-bg flex items-center justify-center flex-shrink-0">
               <TrendingUp size={11} className="text-white" />
             </div>
-            <h2 className="text-xs font-bold text-foreground uppercase tracking-wide">Mais tocadas</h2>
+            <h2 className="text-xs font-bold text-white uppercase tracking-wide">Mais tocadas</h2>
           </div>
           {renderMostPlayedBento()}
         </div>
@@ -400,7 +400,7 @@ const MainScreen: React.FC = () => {
       {activeTab === 'tracks' && (
         <>
           {!search && (
-            <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide mb-3">Em alta</h2>
+            <h2 className="text-xs font-bold text-white/70 uppercase tracking-wide mb-3">Em alta</h2>
           )}
           <div className="grid grid-cols-2 gap-3">
             {filteredTracks.map((track) => renderTrackCard(track, filteredTracks))}
@@ -413,11 +413,11 @@ const MainScreen: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
           {filteredFavoriteTracks.length === 0 && (
             <div className="col-span-2 flex flex-col items-center justify-center py-16">
-              <div className="w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center mb-4">
-                <Star size={28} className="text-foreground/25" />
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                <Star size={28} className="text-white/20" />
               </div>
-              <p className="text-foreground/40 text-sm font-medium">Nenhuma música favoritada</p>
-              <p className="text-foreground/30 text-xs mt-1">Toque na estrela para salvar suas músicas favoritas</p>
+              <p className="text-white/40 text-sm font-medium">Nenhuma música favoritada</p>
+              <p className="text-white/25 text-xs mt-1">Toque na estrela para salvar suas músicas favoritas</p>
             </div>
           )}
           {filteredFavoriteTracks.map((track) => renderTrackCard(track, filteredFavoriteTracks))}
@@ -431,7 +431,7 @@ const MainScreen: React.FC = () => {
             <button
               key={artist.id}
               onClick={() => selectArtist(artist.id)}
-              className="w-full flex items-center gap-4 p-3 rounded-2xl bg-card hover:bg-secondary transition-colors text-left shadow-sm"
+              className="w-full flex items-center gap-4 p-3 rounded-2xl bg-[#1E2030] hover:bg-[#252840] transition-colors text-left"
             >
               <CoverArt
                 title={artist.name}
@@ -441,18 +441,18 @@ const MainScreen: React.FC = () => {
                 className="!w-14 !h-14 !max-w-none !rounded-xl flex-shrink-0"
               />
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground truncate">{artist.name}</p>
-                <p className="text-sm text-foreground/40">{artist.genre}</p>
+                <p className="font-semibold text-white truncate">{artist.name}</p>
+                <p className="text-sm text-white/40">{artist.genre}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-foreground/50">{formatNumber(artist.followers_count)}</p>
-                <p className="text-[10px] text-foreground/35">seguidores</p>
+                <p className="text-xs text-white/50">{formatNumber(artist.followers_count)}</p>
+                <p className="text-[10px] text-white/30">seguidores</p>
               </div>
               <div
-                className="p-2 rounded-full bg-foreground/5"
+                className="p-2 rounded-full bg-white/5"
                 aria-label="Ver perfil do artista"
               >
-                <Music2 size={16} className="text-foreground/60" />
+                <Music2 size={16} className="text-white/60" />
               </div>
             </button>
           ))}
