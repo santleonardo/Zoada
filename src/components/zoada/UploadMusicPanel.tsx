@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { UploadCloud, Music2, CheckCircle2, XCircle, Loader2, ImagePlus, X, Trash2, Check } from 'lucide-react';
+import { UploadCloud, Music2, CheckCircle2, XCircle, Loader2, ImagePlus, X } from 'lucide-react';
 import {
   listMyArtists,
   createArtist,
   updateMyArtistProfile,
-  deleteArtistProfile,
   uploadImageFile,
   uploadTrackFile,
   type ArtistProfile,
@@ -27,12 +26,16 @@ interface UploadMusicPanelProps {
   /** Chamado sempre que um envio termina (com sucesso ou erro), pra quem
    * estiver de fora (ex: a lista de "músicas enviadas") poder se atualizar. */
   onUploaded?: () => void;
+  /** Muda toda vez que a lista de artistas precisa ser recarregada de fora
+   * (ex: depois de apagar um artista no painel "Seus artistas"), pra esse
+   * seletor não continuar mostrando um artista que já foi apagado. */
+  refreshKey?: number;
 }
 
 /** Valor especial usado no seletor pra representar "vou criar um artista novo". */
 const NEW_ARTIST = '__new__';
 
-const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploaded }) => {
+const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploaded, refreshKey }) => {
   // Lista de artistas que essa conta já criou. Uma conta pode ter vários —
   // por exemplo, alguém populando o catálogo com diferentes artistas
   // fictícios — então em vez de "o meu artista", o app deixa escolher com
@@ -54,10 +57,6 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Apagar o artista selecionado (e todas as músicas dele junto).
-  const [confirmDeleteArtist, setConfirmDeleteArtist] = useState(false);
-  const [deletingArtist, setDeletingArtist] = useState(false);
 
   const audioInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -99,43 +98,16 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
       .catch((err) => setGlobalError(err instanceof Error ? err.message : 'Erro ao carregar seus artistas'))
       .finally(() => setLoadingArtists(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshKey]);
 
   const handleSelectArtist = (value: string) => {
     setSelectedArtistId(value);
-    setConfirmDeleteArtist(false);
     if (value === NEW_ARTIST) {
       resetFormForNewArtist();
       return;
     }
     const found = artists.find((a) => a.id === value);
     if (found) applyArtistToForm(found);
-  };
-
-  /** Apaga o artista selecionado e todas as músicas dele, e volta o
-   * formulário pro modo "criar novo artista" (ou seleciona o próximo
-   * artista da lista, se ainda sobrar algum). */
-  const handleDeleteArtist = async () => {
-    if (selectedArtistId === NEW_ARTIST) return;
-    setDeletingArtist(true);
-    setGlobalError(null);
-    try {
-      await deleteArtistProfile(selectedArtistId);
-      const remaining = artists.filter((a) => a.id !== selectedArtistId);
-      setArtists(remaining);
-      if (remaining.length > 0) {
-        setSelectedArtistId(remaining[0].id);
-        applyArtistToForm(remaining[0]);
-      } else {
-        setSelectedArtistId(NEW_ARTIST);
-        resetFormForNewArtist();
-      }
-    } catch (err) {
-      setGlobalError(err instanceof Error ? err.message : 'Erro ao apagar artista');
-    } finally {
-      setDeletingArtist(false);
-      setConfirmDeleteArtist(false);
-    }
   };
 
   const handlePickAudio = (fileList: FileList | null) => {
@@ -340,50 +312,9 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
 
       {/* Perfil do artista */}
       <div className="rounded-xl bg-white/5 p-4 mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-white/80">
-            {selectedArtistId === NEW_ARTIST ? 'Novo artista' : 'Perfil de artista'}
-          </p>
-
-          {/* Apagar artista: só faz sentido pra um artista já existente,
-              nunca pro modo "criar novo". */}
-          {selectedArtistId !== NEW_ARTIST && (
-            confirmDeleteArtist ? (
-              <div className="flex items-center gap-1.5">
-                {deletingArtist ? (
-                  <Loader2 size={16} className="text-[#FF8C42] animate-spin" />
-                ) : (
-                  <>
-                    <span className="text-[11px] text-white/40 mr-1">Apagar artista e músicas?</span>
-                    <button
-                      onClick={handleDeleteArtist}
-                      aria-label="Confirmar exclusão do artista"
-                      className="p-1 rounded-full bg-[#E84393]/20 text-[#E84393] hover:bg-[#E84393]/30"
-                    >
-                      <Check size={14} />
-                    </button>
-                    <button
-                      onClick={() => setConfirmDeleteArtist(false)}
-                      aria-label="Cancelar"
-                      className="p-1 rounded-full bg-white/5 text-white/50 hover:bg-white/10"
-                    >
-                      <X size={14} />
-                    </button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => setConfirmDeleteArtist(true)}
-                disabled={isRunning}
-                aria-label={`Apagar artista "${artistName}"`}
-                className="p-1.5 rounded-full text-white/30 hover:text-[#E84393] hover:bg-[#E84393]/10"
-              >
-                <Trash2 size={16} />
-              </button>
-            )
-          )}
-        </div>
+        <p className="text-sm font-semibold text-white/80 mb-3">
+          {selectedArtistId === NEW_ARTIST ? 'Novo artista' : 'Perfil de artista'}
+        </p>
 
         <div className="flex items-center gap-3 mb-3">
           <button

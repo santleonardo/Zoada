@@ -17,12 +17,14 @@ import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import UploadMusicPanel from './UploadMusicPanel';
 import MyTracksPanel from './MyTracksPanel';
+import MyArtistsPanel from './MyArtistsPanel';
 
 const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, likes } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
+  const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
 
   if (!user) return null;
 
@@ -168,6 +170,18 @@ const ProfileScreen: React.FC = () => {
       <UploadMusicPanel
         userName={user.name}
         onUploaded={() => setTracksRefreshKey((k) => k + 1)}
+        refreshKey={artistsRefreshKey}
+      />
+
+      {/* Seus artistas: seção própria, separada do envio/edição, só para
+          apagar artista(s) — ação destrutiva que não deve ficar misturada
+          com o formulário de upload. */}
+      <MyArtistsPanel
+        refreshKey={artistsRefreshKey}
+        onArtistDeleted={() => {
+          setArtistsRefreshKey((k) => k + 1);
+          setTracksRefreshKey((k) => k + 1);
+        }}
       />
 
       {/* Settings */}
