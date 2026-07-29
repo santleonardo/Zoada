@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, Zap, UserPlus } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { DEMO_USER } from '@/lib/demo-data';
 import GradientButton from './GradientButton';
 import Equalizer from './Equalizer';
 
@@ -34,21 +33,10 @@ const LoginScreen: React.FC = () => {
 
       const data = await res.json();
 
-      if (data.demo) {
-        // Backend disse explicitamente que o Neon não está configurado —
-        // aí sim faz sentido cair em modo demo (sem token real).
-        await new Promise(resolve => setTimeout(resolve, 400));
-        setUser({
-          ...DEMO_USER,
-          email,
-          name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        }, null);
-        return;
-      }
-
-      if (!res.ok || data.error) {
-        // Erro de verdade (ex: senha incorreta) — mostra pro usuário,
-        // NÃO loga como demo, senão ele acaba "logado" sem token real.
+      if (!res.ok || data.error || data.demo) {
+        // Erro de verdade (ex: senha incorreta, ou backend sem Neon
+        // configurado) — mostra pro usuário. Não existe mais fallback pra
+        // modo demo: sem conta real, sem login.
         setError(data.error || 'Não foi possível entrar. Tente novamente.');
         return;
       }
@@ -61,9 +49,8 @@ const LoginScreen: React.FC = () => {
         created_at: data.created_at,
       }, data.token);
     } catch {
-      // Erro de rede de verdade (backend inacessível) — aqui sim faz
-      // sentido oferecer o modo demo, mas avisando o usuário.
-      setError('Não foi possível conectar ao servidor. Tente novamente ou use o modo demo.');
+      // Erro de rede de verdade (backend inacessível).
+      setError('Não foi possível conectar ao servidor. Tente novamente em instantes.');
     } finally {
       setLoading(false);
     }
@@ -113,16 +100,6 @@ const LoginScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoLogin = () => {
-    setEmail('demo@zoada.com');
-    setPassword('demo123');
-    setLoading(true);
-    setTimeout(() => {
-      setUser(DEMO_USER, null);
-      setLoading(false);
-    }, 500);
   };
 
   const handleSubmit = () => {
@@ -226,13 +203,6 @@ const LoginScreen: React.FC = () => {
           className="w-full text-center text-white/40 text-sm hover:text-white/60 transition-colors py-1"
         >
           {mode === 'login' ? 'Não tem conta? Criar conta' : 'Já tem conta? Fazer login'}
-        </button>
-
-        <button
-          onClick={handleDemoLogin}
-          className="w-full text-center text-white/25 text-xs hover:text-white/40 transition-colors py-1 mt-1"
-        >
-          Entrar como demo
         </button>
 
         {/* Equalizer decoration */}
