@@ -61,9 +61,8 @@ const LoginScreen: React.FC = () => {
         created_at: data.created_at,
       }, data.token);
     } catch {
-      // Erro de rede de verdade (backend inacessível) — aqui sim faz
-      // sentido oferecer o modo demo, mas avisando o usuário.
-      setError('Não foi possível conectar ao servidor. Tente novamente ou use o modo demo.');
+      // Erro de rede de verdade (backend inacessível).
+      setError('Não foi possível conectar ao servidor. Tente novamente mais tarde.');
     } finally {
       setLoading(false);
     }
@@ -113,16 +112,6 @@ const LoginScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoLogin = () => {
-    setEmail('demo@zoada.com');
-    setPassword('demo123');
-    setLoading(true);
-    setTimeout(() => {
-      setUser(DEMO_USER, null);
-      setLoading(false);
-    }, 500);
   };
 
   const handleSubmit = () => {
@@ -220,13 +209,6 @@ const LoginScreen: React.FC = () => {
           className="w-full text-center text-black/40 text-sm hover:text-black/60 transition-colors py-1"
         >
           {mode === 'login' ? 'Não tem conta? Criar conta' : 'Já tem conta? Fazer login'}
-        </button>
-
-        <button
-          onClick={handleDemoLogin}
-          className="w-full text-center text-black/25 text-xs hover:text-black/40 transition-colors py-1 mt-1"
-        >
-          Entrar como demo
         </button>
 
         {/* Equalizer decoration */}
