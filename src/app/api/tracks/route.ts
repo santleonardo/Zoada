@@ -118,6 +118,41 @@ export async function POST(request: Request) {
   }
 }
 
+// PATCH /api/tracks?id=xxx — Registra UMA reprodução, incrementando
+// plays_count. Não exige login: quantas vezes uma faixa foi ouvida é uma
+// métrica pública (como em qualquer serviço de streaming), não um dado do
+// usuário. O client só chama isso depois que a faixa tocou de verdade por
+// um tempo mínimo (ver audioEngine.ts), pra não contar cliques acidentais
+// ou pulos rápidos entre músicas como reprodução.
+export async function PATCH(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+
+    if (!isNeonConfigured) {
+      // Modo demo: não há banco pra persistir a contagem — responde OK
+      // mesmo assim pra não gerar erros no player.
+      return NextResponse.json({ plays_count: null });
+    }
+
+    const faixa = await db.faixa.update({
+      where: { id },
+      data: { playsCount: { increment: 1 } },
+      select: { playsCount: true },
+    });
+
+    return NextResponse.json({ plays_count: faixa.playsCount });
+  } catch (error) {
+    // Provavelmente a faixa foi apagada entre o carregamento e o fim da
+    // contagem (Prisma P2025) — não é grave, é só uma reprodução perdida.
+    console.error('[TRACKS PATCH play]', error);
+    return NextResponse.json({ error: 'Erro ao registrar reprodução' }, { status: 500 });
+  }
+}
+
 // DELETE /api/tracks?id=xxx — Remove uma faixa (autenticado, só o dono)
 export async function DELETE(request: Request) {
   try {

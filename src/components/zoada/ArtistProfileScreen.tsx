@@ -7,18 +7,23 @@ import { DEMO_ARTISTS, DEMO_TRACKS } from '@/lib/demo-data';
 import type { Artist, Track } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
-import { cn } from '@/lib/utils';
-
-const formatNumber = (n: number) => {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return n.toString();
-};
+import { cn, formatNumber } from '@/lib/utils';
 
 const ArtistProfileScreen: React.FC = () => {
-  const { selectedArtistId, goBack, playTrack, player } = useAppStore();
+  const { selectedArtistId, goBack, playTrack, player, lastCountedPlay } = useAppStore();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Mantém o número de reproduções exibido em sincronia assim que uma
+  // reprodução é contabilizada de verdade (ver audioEngine.ts), sem
+  // precisar recarregar a lista inteira da API.
+  useEffect(() => {
+    if (!lastCountedPlay) return;
+    setTracks((prev) =>
+      prev.map((t) => (t.id === lastCountedPlay.trackId ? { ...t, plays_count: t.plays_count + 1 } : t))
+    );
+  }, [lastCountedPlay]);
 
   useEffect(() => {
     if (!selectedArtistId) return;

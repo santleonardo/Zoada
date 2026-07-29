@@ -22,7 +22,7 @@ import { audioEngine } from '@/lib/audioEngine';
 import { DEMO_COMMENTS } from '@/lib/demo-data';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber } from '@/lib/utils';
 import type { Comment } from '@/types';
 
 const PlayerScreen: React.FC = () => {
@@ -144,6 +144,7 @@ const PlayerScreen: React.FC = () => {
           <div className="flex-1 min-w-0 mr-4">
             <h2 className="text-xl font-bold text-white truncate">{currentTrack.title}</h2>
             <p className="text-white/50 text-sm">{currentTrack.artist_name}</p>
+            <p className="text-white/30 text-xs mt-0.5">{formatNumber(currentTrack.plays_count)} reproduções</p>
           </div>
           <div className="flex items-center gap-2">
             <button

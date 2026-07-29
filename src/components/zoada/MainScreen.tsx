@@ -7,15 +7,25 @@ import { DEMO_TRACKS, DEMO_ARTISTS } from '@/lib/demo-data';
 import type { Track, Artist } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber } from '@/lib/utils';
 
 type Tab = 'tracks' | 'artists' | 'favorites';
 
 const MainScreen: React.FC = () => {
-  const { playTrack, player, selectArtist, mainTab: activeTab, setMainTab: setActiveTab, favorites, toggleFavorite } = useAppStore();
+  const { playTrack, player, selectArtist, mainTab: activeTab, setMainTab: setActiveTab, favorites, toggleFavorite, lastCountedPlay } = useAppStore();
   const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
   const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
+
+  // Mantém o número de reproduções exibido em sincronia assim que uma
+  // reprodução é contabilizada de verdade (ver audioEngine.ts), sem
+  // precisar recarregar a lista inteira da API.
+  useEffect(() => {
+    if (!lastCountedPlay) return;
+    setTracks((prev) =>
+      prev.map((t) => (t.id === lastCountedPlay.trackId ? { ...t, plays_count: t.plays_count + 1 } : t))
+    );
+  }, [lastCountedPlay]);
 
   // Busca faixas e artistas reais da API
   useEffect(() => {
@@ -73,10 +83,7 @@ const MainScreen: React.FC = () => {
     toggleFavorite(trackId);
   };
 
-  const formatNumber = (n: number) => {
-    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-    return n.toString();
-  };
+
 
   const renderTrackCard = (track: Track, displayTracks: Track[]) => {
     const isCurrentTrack = player.currentTrack?.id === track.id;

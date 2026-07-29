@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, Like } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth } from '@/lib/api';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay } from '@/lib/api';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -44,6 +44,11 @@ interface AppState {
   queueIndex: number;
   shuffleEnabled: boolean;
   repeatMode: 'off' | 'all' | 'one';
+  // Última reprodução contabilizada de verdade (ver audioEngine.ts): outras
+  // telas que mantêm sua própria lista local de faixas (MainScreen,
+  // ArtistProfileScreen) observam isso pra atualizar o número exibido sem
+  // precisar recarregar a página.
+  lastCountedPlay: { trackId: string; nonce: number } | null;
 
   // Chat
   selectedConversationId: string | null;
@@ -79,6 +84,10 @@ interface AppState {
   setVolume: (volume: number) => void;
   toggleShuffle: () => void;
   cycleRepeatMode: () => void;
+  // Contabiliza uma reprodução real (chamado pelo audioEngine depois que a
+  // faixa tocou por um tempo mínimo): atualiza o contador otimisticamente
+  // na tela e envia pro servidor persistir.
+  registerPlay: (trackId: string) => void;
 
   // Actions - Chat
   selectConversation: (id: string, name: string) => void;
@@ -125,8 +134,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   queueIndex: 0,
   shuffleEnabled: false,
   repeatMode: 'off',
-
-  // Auth actions
+  lastCountedPlay: null,
   setUser: (user, token) => {
     if (token !== null && token !== undefined) {
       if (user && token) {
@@ -288,6 +296,36 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
 
   toggleShuffle: () => set((state) => ({ shuffleEnabled: !state.shuffleEnabled })),
+
+  registerPlay: (trackId) => {
+    const state = get();
+
+    // Atualiza o contador na hora, na tela (otimista): tanto na faixa
+    // tocando agora quanto na fila, se ela estiver lá — pra quem está
+    // olhando o player veja o número subir no mesmo instante em que a
+    // reprodução foi contabilizada, sem esperar um recarregamento.
+    set({
+      player:
+        state.player.currentTrack?.id === trackId
+          ? {
+              ...state.player,
+              currentTrack: {
+                ...state.player.currentTrack,
+                plays_count: state.player.currentTrack.plays_count + 1,
+              },
+            }
+          : state.player,
+      queue: state.queue.map((t) =>
+        t.id === trackId ? { ...t, plays_count: t.plays_count + 1 } : t
+      ),
+      // nonce garante que o efeito dispara mesmo se a mesma faixa for
+      // contada de novo em seguida (ex: repetir uma música)
+      lastCountedPlay: { trackId, nonce: Date.now() + Math.random() },
+    });
+
+    // Persiste no servidor — não precisa aguardar nem travar a UI por isso.
+    registerTrackPlay(trackId);
+  },
 
   cycleRepeatMode: () => set((state) => ({
     repeatMode:
