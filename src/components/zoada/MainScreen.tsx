@@ -334,51 +334,54 @@ const MainScreen: React.FC = () => {
 
   return (
     <div className="px-4 pt-4 pb-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold gradient-text">
-            {activeTab === 'tracks' ? 'Início' : activeTab === 'favorites' ? 'Favoritos' : 'Explorar'}
-          </h1>
-          <p className="text-white/40 text-sm mt-0.5">
-            {activeTab === 'tracks'
-              ? 'Suas faixas em alta'
-              : activeTab === 'favorites'
+      {/* Header: na aba de faixas o título "Início" some pra dar mais
+          espaço/destaque à vitrine de mais tocadas logo abaixo. Nas
+          outras abas o cabeçalho continua normal. */}
+      {activeTab !== 'tracks' && (
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold gradient-text">
+              {activeTab === 'favorites' ? 'Favoritos' : 'Explorar'}
+            </h1>
+            <p className="text-white/40 text-sm mt-0.5">
+              {activeTab === 'favorites'
                 ? `${favoriteTracks.length} música${favoriteTracks.length !== 1 ? 's' : ''} salva${favoriteTracks.length !== 1 ? 's' : ''}`
                 : 'Descubra novos artistas'}
-          </p>
-        </div>
-        {player.isPlaying && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5">
-            <Equalizer barCount={3} height={16} barWidth={2} gap={1} />
-            <span className="text-xs text-white/60">Tocando</span>
+            </p>
           </div>
-        )}
-      </div>
+          {player.isPlaying && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5">
+              <Equalizer barCount={3} height={16} barWidth={2} gap={1} />
+              <span className="text-xs text-white/60">Tocando</span>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+      {/* Search: mais discreta/compacta pra não competir com a vitrine de
+          mais tocadas. */}
+      <div className={cn('relative', activeTab === 'tracks' ? 'mt-1 mb-2.5' : 'mb-3')}>
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
         <input
           type="text"
           placeholder="Buscar músicas, artistas..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="!pl-9 !py-2.5 !text-sm"
+          className="!pl-8 !py-1.5 !text-xs"
         />
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1.5 mb-4">
+      {/* Tabs: também reduzidas, só pra navegação, sem chamar atenção. */}
+      <div className="flex gap-1 mb-3">
         {(['tracks', 'favorites', 'artists'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 no-select',
+              'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-200 no-select',
               activeTab === tab
-                ? 'gradient-bg text-white shadow-lg'
-                : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70'
+                ? 'gradient-bg text-white shadow-md'
+                : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
             )}
           >
             {tab === 'tracks' ? '🎵 Faixas' : tab === 'favorites' ? '⭐ Favoritos' : '🎤 Artistas'}
@@ -395,12 +398,12 @@ const MainScreen: React.FC = () => {
           className="mb-6 -mx-4 px-4 py-4 relative overflow-hidden"
           style={{ background: 'linear-gradient(135deg, rgba(232,67,147,0.15), rgba(108,92,231,0.1) 60%, transparent)' }}
         >
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-7 h-7 rounded-lg gradient-bg flex items-center justify-center flex-shrink-0">
-              <TrendingUp size={15} className="text-white" />
+          <div className="flex items-center gap-1.5 mb-3">
+            <div className="w-5 h-5 rounded-md gradient-bg flex items-center justify-center flex-shrink-0">
+              <TrendingUp size={11} className="text-white" />
             </div>
-            <h2 className="text-lg font-bold text-white">Mais tocadas</h2>
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-white/40 bg-white/5 px-2 py-0.5 rounded-full">
+            <h2 className="text-xs font-bold text-white uppercase tracking-wide">Mais tocadas</h2>
+            <span className="text-[9px] font-semibold uppercase tracking-wide text-white/40 bg-white/5 px-1.5 py-0.5 rounded-full">
               Em alta
             </span>
           </div>
