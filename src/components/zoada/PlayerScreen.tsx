@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
+import { toast } from 'sonner';
 import { DEMO_COMMENTS } from '@/lib/demo-data';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -61,6 +62,34 @@ const PlayerScreen: React.FC = () => {
       prevTrack();
     }
   }, [progress, prevTrack]);
+
+  // Compartilha a faixa atual: usa o share nativo do dispositivo quando
+  // disponível (mobile/PWA) e cai para copiar o link no clipboard em
+  // navegadores desktop que não suportam a Web Share API.
+  const handleShare = useCallback(async () => {
+    if (!currentTrack) return;
+
+    const shareText = `Ouça "${currentTrack.title}" de ${currentTrack.artist_name} no Zôada`;
+    const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ title: currentTrack.title, text: shareText, url: shareUrl });
+        return;
+      }
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(`${shareText} — ${shareUrl}`);
+        toast.success('Link copiado para a área de transferência');
+        return;
+      }
+      toast.error('Compartilhamento não é suportado neste navegador');
+    } catch (err) {
+      // Usuário cancelando o share nativo não é um erro de verdade.
+      if ((err as Error)?.name !== 'AbortError') {
+        toast.error('Não foi possível compartilhar');
+      }
+    }
+  }, [currentTrack]);
 
   const handleProgressInteraction = useCallback(
     (clientX: number) => {
@@ -196,7 +225,11 @@ const PlayerScreen: React.FC = () => {
                 </span>
               )}
             </button>
-            <button className="p-2.5 rounded-full hover:bg-white/10 transition-colors" aria-label="Compartilhar">
+            <button
+              onClick={handleShare}
+              className="p-2.5 rounded-full hover:bg-white/10 transition-colors active:scale-90"
+              aria-label="Compartilhar"
+            >
               <Share2 size={22} className="text-white/50" />
             </button>
           </div>
