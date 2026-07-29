@@ -87,19 +87,3 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
 
   return response;
 }
-
-// Registra uma reprodução de faixa (incrementa plays_count no servidor).
-// Fire-and-forget: quem chama não precisa esperar nem tratar erro — se a
-// contagem falhar (ex: rede caiu), simplesmente perdemos essa reprodução,
-// o que não deve travar o player de jeito nenhum.
-export async function registerTrackPlay(trackId: string): Promise<number | null> {
-  try {
-    const res = await apiFetch(`/api/tracks?id=${encodeURIComponent(trackId)}`, { method: 'PATCH' });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return typeof data.plays_count === 'number' ? data.plays_count : null;
-  } catch (err) {
-    console.warn('[registerTrackPlay] falha ao contabilizar reprodução:', err);
-    return null;
-  }
-}

@@ -15,10 +15,6 @@ class AudioEngine {
   private audio: HTMLAudioElement | null = null;
   private loadedTrackId: string | null = null;
   private initialized = false;
-  // true quando a reprodução ATUAL da faixa carregada já foi contabilizada
-  // no servidor. Zerado sempre que uma faixa nova é carregada (ou quando
-  // "repetir uma" reinicia a mesma faixa do zero).
-  private playCounted = false;
 
   init() {
     if (this.initialized || typeof window === 'undefined') return;
@@ -30,7 +26,6 @@ class AudioEngine {
 
     audio.addEventListener('timeupdate', () => {
       useAppStore.getState().setProgress(audio.currentTime);
-      this.maybeCountPlay(audio.currentTime, audio.duration);
     });
 
     audio.addEventListener('loadedmetadata', () => {
@@ -43,9 +38,6 @@ class AudioEngine {
       const { repeatMode } = useAppStore.getState();
       if (repeatMode === 'one') {
         // Repetir uma: volta pro início e toca de novo, em vez de pular.
-        // Isso é uma nova "escuta" da mesma faixa, então zera o contador
-        // pra ela poder ser contabilizada de novo ao passar do limiar.
-        this.playCounted = false;
         audio.currentTime = 0;
         useAppStore.getState().setProgress(0);
         audio.play().catch((err) => console.warn('[audioEngine] play() falhou:', err));
@@ -71,26 +63,6 @@ class AudioEngine {
     });
   }
 
-  /**
-   * Conta uma reprodução só depois que a faixa tocou de verdade por um
-   * tempo mínimo — nunca no clique inicial. Isso evita inflar o número
-   * com gente pulando rápido entre músicas ou cliques acidentais, do
-   * mesmo jeito que serviços de streaming reais fazem. O limiar é 30s ou
-   * metade da faixa, o que vier primeiro (com um piso de 15s caso a
-   * duração ainda não tenha sido carregada).
-   */
-  private maybeCountPlay(currentTime: number, duration: number) {
-    if (this.playCounted) return;
-    const trackId = useAppStore.getState().player.currentTrack?.id;
-    if (!trackId) return;
-
-    const threshold = isFinite(duration) && duration > 0 ? Math.min(30, duration / 2) : 15;
-    if (currentTime >= threshold) {
-      this.playCounted = true;
-      useAppStore.getState().registerPlay(trackId);
-    }
-  }
-
   private sync(player: PlayerState, prev: PlayerState) {
     const audio = this.audio;
     if (!audio) return;
@@ -98,9 +70,6 @@ class AudioEngine {
     // Trocou de faixa -> carrega nova fonte
     if (player.currentTrack?.id !== this.loadedTrackId) {
       this.loadedTrackId = player.currentTrack?.id ?? null;
-      // Faixa nova (ou a mesma sendo recarregada do zero, ex: tocada de
-      // novo depois de ter saído da fila) começa sem contagem registrada.
-      this.playCounted = false;
 
       if (player.currentTrack?.audio_url) {
         audio.src = player.currentTrack.audio_url;

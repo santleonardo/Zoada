@@ -14,7 +14,7 @@ import BottomNav from '@/components/zoada/BottomNav';
 import MiniPlayer from '@/components/zoada/MiniPlayer';
 
 export default function Home() {
-  const { currentScreen, isAuthenticated, setComments, restoreSession, initFavorites, loadLikes } = useAppStore();
+  const { currentScreen, isAuthenticated, setComments, restoreSession, initFavorites } = useAppStore();
 
   // Restore auth session from localStorage on mount
   useEffect(() => {
@@ -25,13 +25,6 @@ export default function Home() {
   useEffect(() => {
     initFavorites();
   }, [initFavorites]);
-
-  // Busca as curtidas reais do usuário no servidor assim que ele está
-  // autenticado (login novo ou sessão restaurada), pra sincronizar com o
-  // que está salvo no banco em vez de partir de um estado vazio.
-  useEffect(() => {
-    if (isAuthenticated) loadLikes();
-  }, [isAuthenticated, loadLikes]);
 
   // Load demo comments on mount
   useEffect(() => {
@@ -123,7 +116,7 @@ export default function Home() {
   const showMiniPlayer = isAuthenticated && currentScreen !== 'login' && currentScreen !== 'player';
 
   return (
-    <main className="min-h-screen bg-[#F7F7FB] relative overflow-x-hidden">
+    <main className="min-h-screen bg-[#0F1117] relative overflow-x-hidden">
       {/* Screen content */}
       <div className={showNav && !showMiniPlayer ? 'pb-20' : showMiniPlayer ? 'pb-36' : ''}>
         {renderScreen()}

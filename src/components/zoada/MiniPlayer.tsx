@@ -36,17 +36,6 @@ const MiniPlayer: React.FC = () => {
     audioEngine.seek(newProgress);
   }, [duration]);
 
-  // Mesmo comportamento do PlayerScreen: reinicia a faixa atual se ela já
-  // passou de alguns segundos; só pula pra faixa anterior se apertado logo
-  // no começo (ou de novo em seguida, já que aí o progresso está perto de 0).
-  const handlePrevious = useCallback(() => {
-    if (progress > 3) {
-      audioEngine.seek(0);
-    } else {
-      prevTrack();
-    }
-  }, [progress, prevTrack]);
-
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging.current) handleProgressInteraction(e.clientX);
@@ -73,13 +62,13 @@ const MiniPlayer: React.FC = () => {
 
   return (
     <div
-      className="fixed bottom-[4rem] left-0 right-0 z-40 glass border-t border-foreground/10 no-select"
+      className="fixed bottom-[4rem] left-0 right-0 z-40 glass border-t border-white/5 no-select"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       {/* Progress bar at top */}
       <div
         ref={progressRef}
-        className="w-full h-[2px] bg-foreground/10 cursor-pointer group"
+        className="w-full h-[2px] bg-white/10 cursor-pointer group"
         onMouseDown={(e) => {
           isDragging.current = true;
           handleProgressInteraction(e.clientX);
@@ -131,40 +120,40 @@ const MiniPlayer: React.FC = () => {
 
         {/* Track info */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate">{currentTrack.title}</p>
-          <p className="text-xs text-foreground/50 truncate">{currentTrack.artist_name}</p>
+          <p className="text-sm font-semibold text-white truncate">{currentTrack.title}</p>
+          <p className="text-xs text-white/50 truncate">{currentTrack.artist_name}</p>
         </div>
 
         {/* Controls */}
         <div className="flex items-center gap-1">
           <button
             onClick={() => toggleFavorite(currentTrack.id)}
-            className="p-2 rounded-full hover:bg-foreground/10 transition-colors"
+            className="p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label={isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
           >
             <Star
               size={18}
-              className={isFav ? 'fill-[#FFD700] text-[#FFD700]' : 'text-foreground/50'}
+              className={isFav ? 'fill-[#FFD700] text-[#FFD700]' : 'text-white/60'}
             />
           </button>
 
           <button
             onClick={() => toggleLike(currentTrack.id)}
-            className="p-2 rounded-full hover:bg-foreground/10 transition-colors"
+            className="p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label={isLiked ? 'Descurtir' : 'Curtir'}
           >
             <Heart
               size={18}
-              className={isLiked ? 'fill-[#E84393] text-[#E84393]' : 'text-foreground/50'}
+              className={isLiked ? 'fill-[#E84393] text-[#E84393]' : 'text-white/60'}
             />
           </button>
 
           <button
-            onClick={handlePrevious}
-            className="p-2 rounded-full hover:bg-foreground/10 transition-colors"
+            onClick={prevTrack}
+            className="p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label="Anterior"
           >
-            <SkipBack size={18} className="text-foreground/70" />
+            <SkipBack size={18} className="text-white/80" />
           </button>
 
           <button
@@ -181,18 +170,18 @@ const MiniPlayer: React.FC = () => {
 
           <button
             onClick={nextTrack}
-            className="p-2 rounded-full hover:bg-foreground/10 transition-colors"
+            className="p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label="Próxima"
           >
-            <SkipForward size={18} className="text-foreground/70" />
+            <SkipForward size={18} className="text-white/80" />
           </button>
 
           <button
             onClick={() => navigate('player')}
-            className="p-2 rounded-full hover:bg-foreground/10 transition-colors"
+            className="p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label="Expandir player"
           >
-            <ChevronUp size={18} className="text-foreground/50" />
+            <ChevronUp size={18} className="text-white/60" />
           </button>
         </div>
       </div>
