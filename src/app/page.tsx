@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
+import { registerServiceWorker } from '@/lib/registerServiceWorker';
 import { DEMO_COMMENTS } from '@/lib/demo-data';
 import LoginScreen from '@/components/zoada/LoginScreen';
 import MainScreen from '@/components/zoada/MainScreen';
@@ -31,13 +32,10 @@ export default function Home() {
     setComments(DEMO_COMMENTS);
   }, [setComments]);
 
-  // Register service worker
+  // Registra o service worker e ativa o fluxo de aviso de atualização
+  // (ver src/lib/registerServiceWorker.ts).
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {
-        // Service worker registration failed (expected in dev)
-      });
-    }
+    registerServiceWorker();
   }, []);
 
   // Media Session API setup

@@ -11,13 +11,16 @@ const STATIC_ASSETS = [
 ];
 
 // Install: cache app shell
+// (Não chama self.skipWaiting() aqui de propósito: a nova versão fica
+// "esperando" até a pessoa confirmar a atualização pelo aviso mostrado
+// no app — ver src/lib/registerServiceWorker.ts. Isso evita trocar o
+// app debaixo dos pés de quem está usando, ex: no meio de uma música.)
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  self.skipWaiting();
 });
 
 // Activate: clean old caches
