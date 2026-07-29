@@ -157,11 +157,11 @@ const MainScreen: React.FC = () => {
           <div
             className={cn(
               'rounded-full gradient-bg flex items-center justify-center shadow-xl',
-              variant === 'hero' ? 'w-12 h-12' : variant === 'medium' ? 'w-10 h-10' : 'w-8 h-8'
+              variant === 'hero' ? 'w-14 h-14' : variant === 'medium' ? 'w-11 h-11' : 'w-9 h-9'
             )}
           >
             <Play
-              size={variant === 'small' ? 14 : variant === 'medium' ? 18 : 22}
+              size={variant === 'small' ? 16 : variant === 'medium' ? 20 : 26}
               className="text-white ml-0.5"
               fill="white"
             />
@@ -171,9 +171,9 @@ const MainScreen: React.FC = () => {
         {/* Rank */}
         <span
           className={cn(
-            'absolute top-2 left-2.5 font-extrabold drop-shadow-lg leading-none',
+            'absolute top-2.5 left-3 font-extrabold drop-shadow-lg leading-none',
             rankColor,
-            variant === 'hero' ? 'text-3xl' : variant === 'medium' ? 'text-xl' : 'text-base'
+            variant === 'hero' ? 'text-4xl' : variant === 'medium' ? 'text-2xl' : 'text-lg'
           )}
         >
           {rank}
@@ -183,11 +183,11 @@ const MainScreen: React.FC = () => {
         {variant !== 'small' && (
           <button
             onClick={(e) => handleToggleFavorite(e, track.id)}
-            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors z-10"
+            className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors z-10"
             aria-label={isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
           >
             <Star
-              size={14}
+              size={16}
               className={cn('transition-all duration-200', isFav ? 'fill-[#FFD700] text-[#FFD700]' : 'text-white/70')}
             />
           </button>
@@ -195,33 +195,33 @@ const MainScreen: React.FC = () => {
 
         {/* Tocando agora */}
         {isCurrentTrack && player.isPlaying && (
-          <div className={cn('absolute z-10', variant === 'small' ? 'top-1.5 right-1.5' : 'top-2 right-2')}>
+          <div className={cn('absolute z-10', variant === 'small' ? 'top-2 right-2' : 'top-2.5 right-2.5')}>
             <div className="flex items-center gap-1 px-1.5 py-1 rounded-full glass">
-              <Equalizer barCount={3} height={variant === 'small' ? 8 : 10} barWidth={2} gap={1} />
+              <Equalizer barCount={3} height={variant === 'small' ? 9 : 11} barWidth={2} gap={1} />
             </div>
           </div>
         )}
 
         {/* Texto */}
-        <div className={cn('absolute bottom-0 left-0 right-0', variant === 'small' ? 'p-2' : variant === 'medium' ? 'p-2.5' : 'p-3')}>
+        <div className={cn('absolute bottom-0 left-0 right-0', variant === 'small' ? 'p-2.5' : variant === 'medium' ? 'p-3' : 'p-3.5')}>
           <p
             className={cn(
               'font-semibold text-white leading-tight',
-              variant === 'hero' ? 'text-base' : variant === 'medium' ? 'text-[11px]' : 'text-[10px]',
+              variant === 'hero' ? 'text-lg' : variant === 'medium' ? 'text-[11px]' : 'text-[10px]',
               variant === 'small' ? 'line-clamp-1' : 'line-clamp-2'
             )}
           >
             {track.title}
           </p>
           {variant !== 'small' && (
-            <p className={cn('text-white/50 truncate mt-0.5', variant === 'medium' ? 'text-[10px]' : 'text-xs')}>
+            <p className={cn('text-white/50 truncate mt-0.5', variant === 'medium' ? 'text-[10px]' : 'text-sm')}>
               {track.artist_name}
             </p>
           )}
           {variant === 'hero' && (
-            <div className="flex items-center gap-1 mt-1.5">
-              <TrendingUp size={11} className="text-[#FF8C42]" />
-              <span className="text-xs font-medium text-white/60">{formatNumber(track.plays_count)} reproduções</span>
+            <div className="flex items-center gap-1 mt-2">
+              <TrendingUp size={12} className="text-[#FF8C42]" />
+              <span className="text-sm font-medium text-white/60">{formatNumber(track.plays_count)} reproduções</span>
             </div>
           )}
           {variant === 'medium' && (
@@ -244,11 +244,11 @@ const MainScreen: React.FC = () => {
     const smallTracks = topTracks.slice(3, 7);
     if (!heroTrack) return null;
 
-    const rowTemplate = smallTracks.length > 0 ? '116px 116px 92px' : '132px 132px';
+    const rowTemplate = smallTracks.length > 0 ? '156px 156px 122px' : '196px 196px';
 
     return (
       <div
-        className="grid gap-3"
+        className="grid gap-3.5"
         style={{ gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: rowTemplate }}
       >
         {renderBentoTile(heroTrack, 1, 'hero', {
