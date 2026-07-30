@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, Like, Follow } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchUserFollows, toggleArtistFollow } from '@/lib/api';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchUserFollows, toggleArtistFollow, updateUserProfile } from '@/lib/api';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -130,6 +130,9 @@ interface AppState {
   toggleFavorite: (trackId: string) => void;
   isFavorite: (trackId: string) => boolean;
   initFavorites: () => void;
+
+  // Actions - Profile
+  updateProfile: (data: { name?: string; avatar_url?: string | null }) => Promise<boolean>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -555,5 +558,58 @@ export const useAppStore = create<AppState>((set, get) => ({
   }),
   isFavorite: (trackId) => {
     return get().favorites.includes(trackId);
+  },
+
+  // Atualiza o perfil do usuário logado (nome e/ou avatar).
+  // Se houver token real, persiste no servidor. Senão, atualiza só localmente.
+  updateProfile: async (data) => {
+    const user = get().user;
+    if (!user) return false;
+    const token = get().authToken;
+
+    // Atualização otimista
+    const previousUser = user;
+    const optimisticUser: User = {
+      ...user,
+      ...(data.name !== undefined ? { name: data.name } : {}),
+      ...(data.avatar_url !== undefined ? { avatar_url: data.avatar_url } : {}),
+    };
+    set({ user: optimisticUser });
+
+    // Salva no localStorage (funciona mesmo sem token real)
+    if (token) {
+      saveAuth(token, {
+        id: optimisticUser.id,
+        email: optimisticUser.email,
+        name: optimisticUser.name,
+        avatar_url: optimisticUser.avatar_url,
+      });
+    } else {
+      // Modo demo: salva só os dados do usuário sem token
+      saveAuth('demo', {
+        id: optimisticUser.id,
+        email: optimisticUser.email,
+        name: optimisticUser.name,
+        avatar_url: optimisticUser.avatar_url,
+      });
+    }
+
+    // Se não tem token real, não tenta persistir no servidor (modo demo)
+    if (!token) return true;
+
+    const result = await updateUserProfile(data);
+    if (!result) {
+      // Falhou — reverte
+      set({ user: previousUser });
+      saveAuth(token, {
+        id: previousUser.id,
+        email: previousUser.email,
+        name: previousUser.name,
+        avatar_url: previousUser.avatar_url,
+      });
+      return false;
+    }
+
+    return true;
   },
 }));

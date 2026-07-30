@@ -5,9 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Formata contagens grandes de forma compacta (ex: 1500 -> "1.5k"), usado
- * para número de reproduções, seguidores, etc. */
-export function formatNumber(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return n.toString();
+export function formatNumber(num: number): string {
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  return String(num);
 }
