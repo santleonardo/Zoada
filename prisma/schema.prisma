@@ -1,5 +1,5 @@
 // ============================================================
-// ZÔADA — Prisma Schema for Neon (Postgres)
+// ZÔADA — Prisma Schema (SQLite)
 // ============================================================
 
 generator client {
@@ -7,24 +7,23 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DATABASE_URL_UNPOOLED")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // ---------- Usuários ----------
 model Usuario {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  name              String    @default("")
-  avatarUrl         String?
-  bio               String?
-  passwordHash      String?   @map("password_hash")
-  lastSeenAt        DateTime? @map("last_seen_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  seguidoresCount   Int       @default(0) @map("seguidores_count")
-  seguindoCount     Int       @default(0) @map("seguindo_count")
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String   @default("")
+  avatarUrl       String?
+  bio             String?
+  passwordHash    String?
+  lastSeenAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  seguidoresCount Int      @default(0)
+  seguindoCount   Int      @default(0)
 
   curtidas     Curtida[]
   comentarios  Comentario[]
@@ -42,24 +41,18 @@ model Usuario {
 // ---------- Artistas ----------
 model Artista {
   id             String   @id @default(cuid())
-  // Dono do perfil de artista (o usuário logado que fez o upload). Nullable
-  // pra não quebrar artistas antigos/seed que não têm dono. Uma conta pode
-  // ter VÁRIOS artistas (ex: alguém populando o catálogo com diferentes
-  // artistas fictícios) — por isso não é @unique: o que impede um artista
-  // de "virar" outro é o app sempre criar um registro novo para um nome
-  // novo, em vez de reaproveitar/reescrever um artista já existente.
-  usuarioId      String?  @map("usuario_id")
+  usuarioId      String?
   usuario        Usuario? @relation(fields: [usuarioId], references: [id])
   nome           String
-  avatarUrl      String?  @map("avatar_url")
-  coverUrl       String?  @map("cover_url")
+  avatarUrl      String?
+  coverUrl       String?
   bio            String   @default("")
-  genero         String   @default("") @map("genero")
-  seguidoresCount Int      @default(0) @map("seguidores_count")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  genero         String   @default("")
+  seguidoresCount Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  faixas   Faixa[]
+  faixas      Faixa[]
   seguidores Seguindo[]
 
   @@map("artistas")
@@ -67,20 +60,20 @@ model Artista {
 
 // ---------- Faixas (músicas) ----------
 model Faixa {
-  id          String   @id @default(cuid())
-  titulo      String
-  artistaId   String   @map("artista_id")
-  coverUrl    String?  @map("cover_url")
-  audioUrl    String?  @map("audio_url")
-  duracao     Int      @default(0) @map("duracao") // segundos
-  playsCount  Int      @default(0) @map("plays_count")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(cuid())
+  titulo     String
+  artistaId  String
+  coverUrl   String?
+  audioUrl   String?
+  duracao    Int      @default(0)
+  playsCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  artista    Artista     @relation(fields: [artistaId], references: [id], onDelete: Cascade)
-  curtidas   Curtida[]
+  artista     Artista     @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+  curtidas    Curtida[]
   comentarios Comentario[]
-  mensagens  Mensagem[]
+  mensagens   Mensagem[]
   reproducoes Reproducao[]
 
   @@map("faixas")
@@ -89,9 +82,9 @@ model Faixa {
 // ---------- Curtidas ----------
 model Curtida {
   id        String   @id @default(cuid())
-  usuarioId String   @map("usuario_id")
-  faixaId   String   @map("faixa_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  usuarioId String
+  faixaId   String
+  createdAt DateTime @default(now())
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   faixa   Faixa   @relation(fields: [faixaId], references: [id], onDelete: Cascade)
@@ -100,17 +93,14 @@ model Curtida {
   @@map("curtidas")
 }
 
-// ---------- Reproduções (quantas vezes CADA usuário ouviu CADA faixa) ----------
-// Diferente de faixas.playsCount (contagem global, pública, de qualquer
-// ouvinte), esta tabela guarda um contador por par usuário+faixa, usado
-// para montar o "Mais ouvidas" no perfil de cada pessoa.
+// ---------- Reproduções ----------
 model Reproducao {
   id        String   @id @default(cuid())
-  usuarioId String   @map("usuario_id")
-  faixaId   String   @map("faixa_id")
-  vezes     Int      @default(0) @map("vezes")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  usuarioId String
+  faixaId   String
+  vezes     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   faixa   Faixa   @relation(fields: [faixaId], references: [id], onDelete: Cascade)
@@ -122,9 +112,9 @@ model Reproducao {
 // ---------- Seguindo (usuário segue artista) ----------
 model Seguindo {
   id        String   @id @default(cuid())
-  usuarioId String   @map("usuario_id")
-  artistaId String   @map("artista_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  usuarioId String
+  artistaId String
+  createdAt DateTime @default(now())
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   artista Artista @relation(fields: [artistaId], references: [id], onDelete: Cascade)
@@ -133,28 +123,27 @@ model Seguindo {
   @@map("seguindo")
 }
 
-// ---------- Seguir Usuário (usuário segue outro usuário) ----------
+// ---------- Seguir Usuário ----------
 model SeguirUsuario {
-  id              String   @id @default(cuid())
-  seguidorId      String   @map("seguidor_id")
-  seguidoId       String   @map("seguido_id")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id         String   @id @default(cuid())
+  seguidorId String
+  seguidoId  String
+  createdAt  DateTime @default(now())
 
   seguidor Usuario @relation("Seguindo", fields: [seguidorId], references: [id], onDelete: Cascade)
   seguido  Usuario @relation("Seguidos", fields: [seguidoId], references: [id], onDelete: Cascade)
 
   @@unique([seguidorId, seguidoId])
-  @@index([seguidoId])
   @@map("seguir_usuarios")
 }
 
 // ---------- Comentários ----------
 model Comentario {
   id        String   @id @default(cuid())
-  usuarioId String   @map("usuario_id")
-  faixaId   String   @map("faixa_id")
+  usuarioId String
+  faixaId   String
   conteudo  String
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now())
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   faixa   Faixa   @relation(fields: [faixaId], references: [id], onDelete: Cascade)
@@ -164,25 +153,17 @@ model Comentario {
 
 // ---------- Mensagens (chat) ----------
 model Mensagem {
-  id           String   @id @default(cuid())
-  remetenteId  String   @map("remetente_id")
-  destinatarioId String  @map("destinatario_id")
-  conteudo      String
-  // Faixa compartilhada nessa mensagem (opcional). Quando preenchida, o
-  // chat renderiza um "cartão de música" tocável em vez de um balão de
-  // texto comum. onDelete SetNull: se a faixa original for apagada, a
-  // mensagem continua existindo (só perde o link tocável).
-  faixaId       String?  @map("faixa_id")
-  lida          Boolean  @default(false)
-  createdAt     DateTime @default(now()) @map("created_at")
+  id             String   @id @default(cuid())
+  remetenteId    String
+  destinatarioId String
+  conteudo       String
+  faixaId        String?
+  lida           Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
-  remetente  Usuario @relation("Enviadas", fields: [remetenteId], references: [id], onDelete: Cascade)
+  remetente   Usuario @relation("Enviadas", fields: [remetenteId], references: [id], onDelete: Cascade)
   destinatario Usuario @relation("Recebidas", fields: [destinatarioId], references: [id], onDelete: Cascade)
-  faixa      Faixa?  @relation(fields: [faixaId], references: [id], onDelete: SetNull)
+  faixa       Faixa?   @relation(fields: [faixaId], references: [id], onDelete: SetNull)
 
-  @@index([remetenteId])
-  @@index([destinatarioId])
-  @@index([createdAt])
-  @@index([faixaId])
   @@map("mensagens")
 }
