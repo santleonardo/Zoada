@@ -124,6 +124,12 @@ export async function POST(request: Request) {
 // usuário. O client só chama isso depois que a faixa tocou de verdade por
 // um tempo mínimo (ver audioEngine.ts), pra não contar cliques acidentais
 // ou pulos rápidos entre músicas como reprodução.
+//
+// Além da contagem global, se a requisição vier autenticada, também
+// incrementamos o contador pessoal (usuário+faixa) em "reproducoes" — é
+// esse contador pessoal que alimenta a lista de "Mais ouvidas" no perfil.
+// Sem login, essa parte simplesmente não roda (a contagem global continua
+// normal), já que não há de quem guardar o hábito de escuta.
 export async function PATCH(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -138,11 +144,26 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ plays_count: null });
     }
 
+    const userId = await authenticateRequest(request);
+
     const faixa = await db.faixa.update({
       where: { id },
       data: { playsCount: { increment: 1 } },
       select: { playsCount: true },
     });
+
+    if (userId) {
+      // Best-effort: se essa parte falhar (ex: faixa apagada bem no meio
+      // do caminho), a contagem global acima já foi salva, então só
+      // registramos o erro sem derrubar a resposta.
+      await db.reproducao
+        .upsert({
+          where: { usuarioId_faixaId: { usuarioId: userId, faixaId: id } },
+          update: { vezes: { increment: 1 } },
+          create: { usuarioId: userId, faixaId: id, vezes: 1 },
+        })
+        .catch((err) => console.warn('[TRACKS PATCH play] falha ao registrar reprodução pessoal:', err));
+    }
 
     return NextResponse.json({ plays_count: faixa.playsCount });
   } catch (error) {

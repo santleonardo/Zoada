@@ -16,7 +16,7 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
-import type { Message, Track } from '@/types';
+import type { Message, Track, TopListenedTrack } from '@/types';
 
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
@@ -99,6 +99,20 @@ export async function fetchUserLikes(userId: string): Promise<Array<{ id: string
     return Array.isArray(data.likes) ? data.likes : [];
   } catch (err) {
     console.warn('[fetchUserLikes] falha ao buscar curtidas:', err);
+    return [];
+  }
+}
+
+// Busca as músicas que o usuário logado mais ouviu (contador pessoal,
+// não a contagem global da faixa), já ordenadas da mais pra menos ouvida.
+export async function fetchTopListenedTracks(limit = 10): Promise<TopListenedTrack[]> {
+  try {
+    const res = await apiFetch(`/api/plays?limit=${limit}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.tracks) ? data.tracks : [];
+  } catch (err) {
+    console.warn('[fetchTopListenedTracks] falha ao buscar mais ouvidas:', err);
     return [];
   }
 }

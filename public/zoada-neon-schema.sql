@@ -57,6 +57,17 @@ CREATE TABLE IF NOT EXISTS curtidas (
   UNIQUE("usuarioId", "faixaId")
 );
 
+-- Tabela de reproduções (contagem por usuário+faixa, usada no "Mais ouvidas" do perfil)
+CREATE TABLE IF NOT EXISTS reproducoes (
+  id TEXT PRIMARY KEY,
+  "usuarioId" TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  "faixaId" TEXT NOT NULL REFERENCES faixas(id) ON DELETE CASCADE,
+  vezes INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE("usuarioId", "faixaId")
+);
+
 -- Tabela de seguindo (usuário segue artista)
 CREATE TABLE IF NOT EXISTS seguindo (
   id TEXT PRIMARY KEY,
@@ -94,6 +105,8 @@ CREATE TABLE IF NOT EXISTS mensagens (
 CREATE INDEX IF NOT EXISTS idx_faixas_artistaId ON faixas("artistaId");
 CREATE INDEX IF NOT EXISTS idx_curtidas_usuarioId ON curtidas("usuarioId");
 CREATE INDEX IF NOT EXISTS idx_curtidas_faixaId ON curtidas("faixaId");
+CREATE INDEX IF NOT EXISTS idx_reproducoes_usuarioId ON reproducoes("usuarioId");
+CREATE INDEX IF NOT EXISTS idx_reproducoes_faixaId ON reproducoes("faixaId");
 CREATE INDEX IF NOT EXISTS idx_seguindo_usuarioId ON seguindo("usuarioId");
 CREATE INDEX IF NOT EXISTS idx_seguindo_artistaId ON seguindo("artistaId");
 CREATE INDEX IF NOT EXISTS idx_comentarios_faixaId ON comentarios("faixaId");

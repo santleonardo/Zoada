@@ -30,6 +30,7 @@ model Usuario {
   recebido    Mensagem[] @relation("Recebidas")
   artistas    Artista[]
   seguindo    Seguindo[]
+  reproducoes Reproducao[]
 
   @@map("usuarios")
 }
@@ -76,6 +77,7 @@ model Faixa {
   curtidas   Curtida[]
   comentarios Comentario[]
   mensagens  Mensagem[]
+  reproducoes Reproducao[]
 
   @@map("faixas")
 }
@@ -92,6 +94,25 @@ model Curtida {
 
   @@unique([usuarioId, faixaId])
   @@map("curtidas")
+}
+
+// ---------- Reproduções (quantas vezes CADA usuário ouviu CADA faixa) ----------
+// Diferente de faixas.playsCount (contagem global, pública, de qualquer
+// ouvinte), esta tabela guarda um contador por par usuário+faixa, usado
+// para montar o "Mais ouvidas" no perfil de cada pessoa.
+model Reproducao {
+  id        String   @id @default(cuid())
+  usuarioId String   @map("usuario_id")
+  faixaId   String   @map("faixa_id")
+  vezes     Int      @default(0) @map("vezes")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  faixa   Faixa   @relation(fields: [faixaId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, faixaId])
+  @@map("reproducoes")
 }
 
 // ---------- Seguindo (usuário segue artista) ----------

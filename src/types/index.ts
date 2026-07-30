@@ -33,6 +33,13 @@ export interface Track {
   created_at: string;
 }
 
+// Faixa mais ouvida PELO USUÁRIO LOGADO (usado no "Mais ouvidas" do
+// perfil). listen_count é o contador pessoal, diferente de plays_count
+// (que é a contagem global/pública da faixa).
+export interface TopListenedTrack extends Track {
+  listen_count: number;
+}
+
 export interface Like {
   id: string;
   user_id: string;

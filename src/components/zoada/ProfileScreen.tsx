@@ -5,13 +5,14 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-  Heart,
+  Flame,
   Music2,
   Camera,
   Edit3,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import type { Track } from '@/types';
+import type { TopListenedTrack } from '@/types';
+import { fetchTopListenedTracks } from '@/lib/api';
 import GradientButton from './GradientButton';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -20,29 +21,21 @@ import MyTracksPanel from './MyTracksPanel';
 import MyArtistsPanel from './MyArtistsPanel';
 
 const ProfileScreen: React.FC = () => {
-  const { user, logout, navigate, likes } = useAppStore();
+  const { user, logout, navigate } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
   const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
-  const [allTracks, setAllTracks] = useState<Track[]>([]);
+  const [topTracks, setTopTracks] = useState<TopListenedTrack[]>([]);
 
-  // Busca as faixas reais da API pra poder mostrar as músicas curtidas
-  // de verdade (antes isso usava só os dados demo, que agora nem existem).
+  // Busca as músicas que o usuário mais repetiu (contador pessoal de
+  // reproduções), já ordenadas da mais ouvida pra menos ouvida.
   useEffect(() => {
-    fetch('/api/tracks')
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.tracks)) setAllTracks(data.tracks);
-      })
-      .catch(() => {
-        // sem tracks reais disponíveis; a lista de curtidas fica vazia
-      });
+    fetchTopListenedTracks(10).then(setTopTracks);
   }, []);
 
   if (!user) return null;
 
-  const likedTracks = allTracks.filter((t) => likes.some((l) => l.track_id === t.id));
   const initials = user.name
     .split(' ')
     .map((n) => n[0])
@@ -110,31 +103,24 @@ const ProfileScreen: React.FC = () => {
           )}
 
           <p className="text-black/40 text-sm">{user.email}</p>
-
-          {/* Stats */}
-          <div className="flex items-center justify-center gap-6 mt-5">
-            <div className="text-center">
-              <p className="text-lg font-bold text-[#1A1B25]">{likedTracks.length}</p>
-              <p className="text-xs text-black/40">Curtidas</p>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Liked Songs */}
+      {/* Mais ouvidas: top 10 músicas que o usuário mais repetiu, da mais
+          pra menos ouvida (ex: 15x aparece antes de uma ouvida 10x). */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Heart size={18} className="text-[#E84393]" fill="#E84393" />
-            <h3 className="text-lg font-semibold text-[#1A1B25]">Músicas Curtidas</h3>
+            <Flame size={18} className="text-[#FF8C42]" fill="#FF8C42" />
+            <h3 className="text-lg font-semibold text-[#1A1B25]">Mais Ouvidas</h3>
           </div>
-          <span className="text-sm text-black/40">{likedTracks.length} faixas</span>
+          <span className="text-sm text-black/40">{topTracks.length} faixas</span>
         </div>
 
-        {likedTracks.length === 0 ? (
+        {topTracks.length === 0 ? (
           <div className="rounded-2xl bg-white shadow-sm p-8 text-center">
-            <Heart size={40} className="text-black/15 mx-auto mb-3" />
-            <p className="text-black/40 text-sm">Nenhuma curtida ainda</p>
+            <Music2 size={40} className="text-black/15 mx-auto mb-3" />
+            <p className="text-black/40 text-sm">Nenhuma música ouvida repetidamente ainda</p>
             <button
               onClick={() => navigate('main')}
               className="mt-3 text-sm text-[#FF8C42] hover:text-[#FFB074] transition-colors"
@@ -144,11 +130,14 @@ const ProfileScreen: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-2">
-            {likedTracks.map((track) => (
+            {topTracks.map((track, index) => (
               <div
                 key={track.id}
                 className="flex items-center gap-3 p-3 rounded-xl bg-white shadow-sm hover:bg-[#F2F2F8] transition-colors cursor-pointer group"
               >
+                <span className="w-5 text-center text-sm font-bold text-black/25 flex-shrink-0">
+                  {index + 1}
+                </span>
                 <CoverArt
                   title={track.title}
                   artistName={track.artist_name}
@@ -160,7 +149,9 @@ const ProfileScreen: React.FC = () => {
                   <p className="text-sm font-semibold text-[#1A1B25] truncate">{track.title}</p>
                   <p className="text-xs text-black/40 truncate">{track.artist_name}</p>
                 </div>
-                <Music2 size={16} className="text-black/20 group-hover:text-black/40 transition-colors" />
+                <span className="text-xs text-black/40 flex-shrink-0">
+                  {track.listen_count}x
+                </span>
               </div>
             ))}
           </div>
