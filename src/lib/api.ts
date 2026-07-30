@@ -120,6 +120,67 @@ export async function toggleTrackLike(trackId: string): Promise<{
   }
 }
 
+// Busca a lista real de conversas do usuário logado.
+export async function fetchConversations(): Promise<Array<{
+  id: string;
+  user_id: string;
+  other_user: { id: string; email: string; name: string; avatar_url: string | null; created_at: string };
+  last_message: { id: string; sender_id: string; receiver_id: string; content: string; read: boolean; created_at: string };
+  unread_count: number;
+}>> {
+  try {
+    const res = await apiFetch('/api/messages');
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.conversations) ? data.conversations : [];
+  } catch (err) {
+    console.warn('[fetchConversations] falha ao buscar conversas:', err);
+    return [];
+  }
+}
+
+// Busca as mensagens reais trocadas com um usuário específico.
+export async function fetchMessages(partnerId: string): Promise<Array<{
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  read: boolean;
+  created_at: string;
+}>> {
+  try {
+    const res = await apiFetch(`/api/messages?conversation_id=${encodeURIComponent(partnerId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.messages) ? data.messages : [];
+  } catch (err) {
+    console.warn('[fetchMessages] falha ao buscar mensagens:', err);
+    return [];
+  }
+}
+
+// Envia uma mensagem de verdade (persistida no banco).
+export async function sendMessageApi(receiverId: string, content: string): Promise<{
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  read: boolean;
+  created_at: string;
+} | null> {
+  try {
+    const res = await apiFetch('/api/messages', {
+      method: 'POST',
+      body: JSON.stringify({ receiver_id: receiverId, content }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[sendMessageApi] falha ao enviar mensagem:', err);
+    return null;
+  }
+}
+
 // Registra uma reprodução de faixa (incrementa plays_count no servidor).
 // Fire-and-forget: quem chama não precisa esperar nem tratar erro — se a
 // contagem falhar (ex: rede caiu), simplesmente perdemos essa reprodução,

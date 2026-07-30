@@ -1,14 +1,28 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, ChevronLeft, Send, ArrowLeft } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Send, ArrowLeft, MessageCircle } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { DEMO_CONVERSATIONS, DEMO_MESSAGES } from '@/lib/demo-data';
-import Equalizer from './Equalizer';
-import type { Message } from '@/types';
+import { fetchConversations, fetchMessages, sendMessageApi } from '@/lib/api';
+import type { Message, Conversation } from '@/types';
 
 const ChatScreen: React.FC = () => {
-  const { navigate, selectedConversationId, selectedConversationName, selectConversation, user, goBack } = useAppStore();
+  const { selectedConversationId, selectConversation, user } = useAppStore();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Busca as conversas reais do usuário logado (nada de dados fake aqui).
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchConversations().then((convs) => {
+      if (!cancelled) {
+        setConversations(convs);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   if (selectedConversationId) {
     return <ChatConversation />;
@@ -32,44 +46,56 @@ const ChatScreen: React.FC = () => {
       </div>
 
       {/* Conversations list */}
-      <div className="space-y-2">
-        {DEMO_CONVERSATIONS.map((conv) => (
-          <button
-            key={conv.id}
-            onClick={() => selectConversation(conv.id, conv.other_user.name)}
-            className="flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors w-full text-left active:scale-[0.98]"
-          >
-            {/* Avatar */}
-            <div className="w-12 h-12 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0 relative">
-              <span className="text-lg font-bold text-black/60">
-                {conv.other_user.name.charAt(0)}
-              </span>
-              <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-white" />
-            </div>
-
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <p className="font-semibold text-[#1A1B25] text-sm">{conv.other_user.name}</p>
-                <span className="text-[10px] text-black/30">
-                  {formatTimeAgo(conv.last_message.created_at)}
+      {loading ? (
+        <div className="rounded-2xl bg-white shadow-sm p-8 text-center">
+          <p className="text-black/40 text-sm">Carregando conversas...</p>
+        </div>
+      ) : conversations.length === 0 ? (
+        <div className="rounded-2xl bg-white shadow-sm p-8 text-center">
+          <MessageCircle size={40} className="text-black/15 mx-auto mb-3" />
+          <p className="text-black/40 text-sm">Nenhuma conversa ainda</p>
+          <p className="text-black/30 text-xs mt-1">Suas conversas com outros usuários aparecerão aqui</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {conversations.map((conv) => (
+            <button
+              key={conv.id}
+              onClick={() => selectConversation(conv.id, conv.other_user.name)}
+              className="flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors w-full text-left active:scale-[0.98]"
+            >
+              {/* Avatar */}
+              <div className="w-12 h-12 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0 relative">
+                <span className="text-lg font-bold text-black/60">
+                  {conv.other_user.name.charAt(0)}
                 </span>
+                <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-white" />
               </div>
-              <div className="flex items-center justify-between mt-0.5">
-                <p className="text-sm text-black/40 truncate pr-2">
-                  {conv.last_message.sender_id === user?.id ? 'Você: ' : ''}
-                  {conv.last_message.content}
-                </p>
-                {conv.unread_count > 0 && (
-                  <div className="flex-shrink-0 w-5 h-5 rounded-full gradient-bg flex items-center justify-center">
-                    <span className="text-[10px] font-bold text-white">{conv.unread_count}</span>
-                  </div>
-                )}
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-[#1A1B25] text-sm">{conv.other_user.name}</p>
+                  <span className="text-[10px] text-black/30">
+                    {formatTimeAgo(conv.last_message.created_at)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-0.5">
+                  <p className="text-sm text-black/40 truncate pr-2">
+                    {conv.last_message.sender_id === user?.id ? 'Você: ' : ''}
+                    {conv.last_message.content}
+                  </p>
+                  {conv.unread_count > 0 && (
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full gradient-bg flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-white">{conv.unread_count}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </button>
-        ))}
-      </div>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Bottom spacing */}
       <div className="h-32" />
@@ -79,37 +105,49 @@ const ChatScreen: React.FC = () => {
 
 const ChatConversation: React.FC = () => {
   const { selectedConversationId, selectedConversationName, goBack, user } = useAppStore();
-  const [sentMessages, setSentMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const baseMessages = useMemo(() => {
-    if (selectedConversationId && DEMO_MESSAGES[selectedConversationId]) {
-      return DEMO_MESSAGES[selectedConversationId];
-    }
-    return [];
+  // Busca o histórico real da conversa com esse usuário.
+  useEffect(() => {
+    if (!selectedConversationId) return;
+    let cancelled = false;
+    setLoading(true);
+    fetchMessages(selectedConversationId).then((msgs) => {
+      if (!cancelled) {
+        setMessages(msgs);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
   }, [selectedConversationId]);
-
-  const messages = [...baseMessages, ...sentMessages];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = () => {
-    if (!newMessage.trim() || !selectedConversationId) return;
-    const msg: Message = {
-      id: `msg-${Date.now()}`,
-      sender_id: user?.id || '',
-      receiver_id: selectedConversationId.replace('conv-', 'user-'),
-      content: newMessage.trim(),
-      read: true,
-      created_at: new Date().toISOString(),
-    };
-    setSentMessages((prev) => [...prev, msg]);
+  const handleSend = async () => {
+    const content = newMessage.trim();
+    if (!content || !selectedConversationId || sending) return;
+
+    setSending(true);
     setNewMessage('');
+    const sent = await sendMessageApi(selectedConversationId, content);
+    setSending(false);
     inputRef.current?.focus();
+
+    if (!sent) {
+      // Falhou de verdade (rede caiu, sessão expirou, etc.) — devolve o
+      // texto pro campo pra não perder o que o usuário escreveu.
+      setNewMessage(content);
+      return;
+    }
+
+    setMessages((prev) => [...prev, sent]);
   };
 
   if (!selectedConversationId) return null;
@@ -139,43 +177,45 @@ const ChatConversation: React.FC = () => {
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold text-[#1A1B25]">{selectedConversationName}</p>
-          <p className="text-[10px] text-green-500">Online agora</p>
-        </div>
-        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-black/5">
-          <Equalizer barCount={3} height={12} barWidth={2} gap={1} />
         </div>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {messages.map((msg) => {
-          const isMe = msg.sender_id === user?.id;
-          return (
-            <div
-              key={msg.id}
-              className={cn('flex', isMe ? 'justify-end' : 'justify-start')}
-            >
+        {loading ? (
+          <p className="text-center text-sm text-black/30 mt-4">Carregando mensagens...</p>
+        ) : messages.length === 0 ? (
+          <p className="text-center text-sm text-black/30 mt-4">Diga oi 👋</p>
+        ) : (
+          messages.map((msg) => {
+            const isMe = msg.sender_id === user?.id;
+            return (
               <div
-                className={cn(
-                  'max-w-[80%] rounded-2xl px-4 py-2.5',
-                  isMe
-                    ? 'gradient-bg text-white rounded-br-md'
-                    : 'bg-white text-[#1A1B25] shadow-sm rounded-bl-md'
-                )}
+                key={msg.id}
+                className={cn('flex', isMe ? 'justify-end' : 'justify-start')}
               >
-                <p className="text-sm">{msg.content}</p>
-                <p
+                <div
                   className={cn(
-                    'text-[10px] mt-1',
-                    isMe ? 'text-white/60' : 'text-black/30'
+                    'max-w-[80%] rounded-2xl px-4 py-2.5',
+                    isMe
+                      ? 'gradient-bg text-white rounded-br-md'
+                      : 'bg-white text-[#1A1B25] shadow-sm rounded-bl-md'
                   )}
                 >
-                  {formatMessageTime(msg.created_at)}
-                </p>
+                  <p className="text-sm">{msg.content}</p>
+                  <p
+                    className={cn(
+                      'text-[10px] mt-1',
+                      isMe ? 'text-white/60' : 'text-black/30'
+                    )}
+                  >
+                    {formatMessageTime(msg.created_at)}
+                  </p>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -189,11 +229,12 @@ const ChatConversation: React.FC = () => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            disabled={sending}
             className="flex-1 !py-3 !text-sm"
           />
           <button
             onClick={handleSend}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || sending}
             className="p-3 rounded-xl gradient-bg flex-shrink-0 disabled:opacity-30 active:scale-90 transition-all"
             aria-label="Enviar"
           >
