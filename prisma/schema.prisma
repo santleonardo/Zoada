@@ -14,23 +14,27 @@ datasource db {
 
 // ---------- Usuários ----------
 model Usuario {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String    @default("")
-  avatarUrl    String?
-  bio          String?
-  passwordHash String?   @map("password_hash")
-  lastSeenAt   DateTime? @map("last_seen_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id                String    @id @default(cuid())
+  email             String    @unique
+  name              String    @default("")
+  avatarUrl         String?
+  bio               String?
+  passwordHash      String?   @map("password_hash")
+  lastSeenAt        DateTime? @map("last_seen_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  seguidoresCount   Int       @default(0) @map("seguidores_count")
+  seguindoCount     Int       @default(0) @map("seguindo_count")
 
-  curtidas    Curtida[]
-  comentarios Comentario[]
-  enviado     Mensagem[] @relation("Enviadas")
-  recebido    Mensagem[] @relation("Recebidas")
-  artistas    Artista[]
-  seguindo    Seguindo[]
-  reproducoes Reproducao[]
+  curtidas     Curtida[]
+  comentarios  Comentario[]
+  enviado      Mensagem[] @relation("Enviadas")
+  recebido     Mensagem[] @relation("Recebidas")
+  artistas     Artista[]
+  seguindo     Seguindo[]
+  reproducoes  Reproducao[]
+  seguidores   SeguirUsuario[] @relation("Seguindo")
+  seguidos     SeguirUsuario[] @relation("Seguidos")
 
   @@map("usuarios")
 }
@@ -127,6 +131,21 @@ model Seguindo {
 
   @@unique([usuarioId, artistaId])
   @@map("seguindo")
+}
+
+// ---------- Seguir Usuário (usuário segue outro usuário) ----------
+model SeguirUsuario {
+  id              String   @id @default(cuid())
+  seguidorId      String   @map("seguidor_id")
+  seguidoId       String   @map("seguido_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  seguidor Usuario @relation("Seguindo", fields: [seguidorId], references: [id], onDelete: Cascade)
+  seguido  Usuario @relation("Seguidos", fields: [seguidoId], references: [id], onDelete: Cascade)
+
+  @@unique([seguidorId, seguidoId])
+  @@index([seguidoId])
+  @@map("seguir_usuarios")
 }
 
 // ---------- Comentários ----------

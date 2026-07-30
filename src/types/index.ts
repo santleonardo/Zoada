@@ -16,6 +16,10 @@ export interface PublicUserProfile {
   avatar_url: string | null;
   last_seen_at?: string | null;
   created_at: string;
+  followers_count: number;
+  following_count: number;
+  // Se o usuário logado está seguindo esse usuário (null quando não autenticado).
+  is_following: boolean | null;
   // Artistas (perfis/catálogos) criados por esse usuário.
   artists: Artist[];
 }
@@ -65,6 +69,13 @@ export interface Follow {
   id: string;
   user_id: string;
   artist_id: string;
+  created_at: string;
+}
+
+export interface UserFollow {
+  id: string;
+  follower_id: string;
+  followed_id: string;
   created_at: string;
 }
 

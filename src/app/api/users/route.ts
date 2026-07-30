@@ -4,12 +4,12 @@ import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
 
 // GET /api/users?id=xxx       -> perfil público de UM usuário (nome, foto,
-//                                 artistas que ele criou). Não exige login:
-//                                 é uma vitrine pública, igual ao perfil de
-//                                 um artista.
+//                                 artistas que ele criou, seguidores/seguindo).
+//                                 Não exige login: é uma vitrine pública.
+//                                 Se houver token de autenticação, retorna
+//                                 também `is_following` (se o viewer segue
+//                                 esse usuário).
 // GET /api/users?search=xxx   -> Busca usuários por nome/email (autenticado).
-// Usado na tela de "nova conversa": sem essa rota não há como descobrir o
-// id de outra pessoa pra começar a primeira mensagem com ela.
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -28,6 +28,8 @@ export async function GET(request: Request) {
           avatarUrl: true,
           lastSeenAt: true,
           createdAt: true,
+          seguidoresCount: true,
+          seguindoCount: true,
           artistas: {
             orderBy: { createdAt: 'desc' },
             select: {
@@ -47,6 +49,23 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
       }
 
+      // Verifica se quem está vendo o perfil segue esse usuário
+      // (tenta pegar o token sem obrigar autenticação — se não tiver,
+      // is_following será null, indicando "não verificado / não logado").
+      let isFollowing: boolean | null = null;
+      const viewerId = await authenticateRequest(request);
+      if (viewerId && viewerId !== id) {
+        const relation = await db.seguirUsuario.findUnique({
+          where: {
+            seguidorId_seguidoId: {
+              seguidorId: viewerId,
+              seguidoId: id,
+            },
+          },
+        });
+        isFollowing = !!relation;
+      }
+
       return NextResponse.json({
         user: {
           id: usuario.id,
@@ -54,6 +73,9 @@ export async function GET(request: Request) {
           avatar_url: usuario.avatarUrl,
           last_seen_at: usuario.lastSeenAt?.toISOString() ?? null,
           created_at: usuario.createdAt.toISOString(),
+          followers_count: usuario.seguidoresCount,
+          following_count: usuario.seguindoCount,
+          is_following: isFollowing,
           artists: usuario.artistas.map((a) => ({
             id: a.id,
             user_id: id,

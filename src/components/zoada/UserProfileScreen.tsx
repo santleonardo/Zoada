@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { ChevronLeft, Flame, MessageCircle, Music2, Users } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { ChevronLeft, Flame, MessageCircle, Music2, Users, UserPlus, UserCheck } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchPublicUserProfile, fetchTopListenedTracks } from '@/lib/api';
+import { fetchPublicUserProfile, fetchTopListenedTracks, toggleUserFollow } from '@/lib/api';
 import { isOnline, formatLastSeen } from '@/lib/presence';
 import { formatNumber } from '@/lib/utils';
 import type { PublicUserProfile, TopListenedTrack } from '@/types';
@@ -21,6 +21,16 @@ const UserProfileScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [topTracks, setTopTracks] = useState<TopListenedTrack[]>([]);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  // Estado local otimista de seguir (para atualizar a tela na hora
+  // sem depender de um re-fetch do perfil inteiro).
+  const [localIsFollowing, setLocalIsFollowing] = useState<boolean | null>(null);
+  const [localFollowersCount, setLocalFollowersCount] = useState<number | null>(null);
+
+  const isFollowing = localIsFollowing ?? profile?.is_following ?? false;
+  const followersCount = localFollowersCount ?? profile?.followers_count ?? 0;
+  const followingCount = profile?.following_count ?? 0;
 
   useEffect(() => {
     if (!selectedUserId) return;
@@ -28,6 +38,8 @@ const UserProfileScreen: React.FC = () => {
     setIsLoading(true);
     setNotFound(false);
     setTopTracks([]);
+    setLocalIsFollowing(null);
+    setLocalFollowersCount(null);
 
     fetchPublicUserProfile(selectedUserId).then((data) => {
       if (cancelled) return;
@@ -49,6 +61,44 @@ const UserProfileScreen: React.FC = () => {
       cancelled = true;
     };
   }, [selectedUserId]);
+
+  const handleToggleFollow = useCallback(async () => {
+    if (!selectedUserId || isFollowLoading) return;
+
+    // Sem autenticação, não pode seguir
+    if (!user) return;
+
+    const before = isFollowing;
+    const beforeCount = followersCount;
+
+    // Atualização otimista
+    setLocalIsFollowing(!before);
+    setLocalFollowersCount(before ? Math.max(0, beforeCount - 1) : beforeCount + 1);
+
+    setIsFollowLoading(true);
+    const result = await toggleUserFollow(selectedUserId);
+    setIsFollowLoading(false);
+
+    if (!result) {
+      // Falhou — desfaz
+      setLocalIsFollowing(before);
+      setLocalFollowersCount(beforeCount);
+      return;
+    }
+
+    // Sincroniza com o servidor
+    setLocalIsFollowing(result.following);
+    setLocalFollowersCount(result.followers_count);
+
+    // Atualiza também o perfil base (se houver re-render sem estado local)
+    if (profile) {
+      setProfile({
+        ...profile,
+        is_following: result.following,
+        followers_count: result.followers_count,
+      });
+    }
+  }, [selectedUserId, isFollowLoading, user, isFollowing, followersCount, profile]);
 
   if (!selectedUserId) return null;
 
@@ -113,19 +163,56 @@ const UserProfileScreen: React.FC = () => {
                 {isOnline(profile.last_seen_at) ? 'Online agora' : formatLastSeen(profile.last_seen_at)}
               </p>
 
-              {/* Mensagem — não aparece no próprio perfil (não faz sentido
-                  mandar mensagem pra si mesmo). */}
+              {/* Seguidores / Seguindo */}
+              <div className="flex items-center gap-6 mb-5">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-[#1A1B25]">{formatNumber(followersCount)}</p>
+                  <p className="text-xs text-black/40">Seguidores</p>
+                </div>
+                <div className="w-px h-8 bg-black/10" />
+                <div className="text-center">
+                  <p className="text-lg font-bold text-[#1A1B25]">{formatNumber(followingCount)}</p>
+                  <p className="text-xs text-black/40">Seguindo</p>
+                </div>
+              </div>
+
+              {/* Ações — Seguir e Mensagem (não aparecem no próprio perfil) */}
               {!isSelf && (
-                <button
-                  onClick={() => {
-                    selectConversation(profile.id, profile.name);
-                    navigate('chat-conversation');
-                  }}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-full gradient-bg text-white text-sm font-semibold active:scale-95 transition-all"
-                >
-                  <MessageCircle size={16} />
-                  Mensagem
-                </button>
+                <div className="flex items-center gap-3 w-full max-w-xs">
+                  {/* Botão Seguir / Seguindo */}
+                  <button
+                    onClick={handleToggleFollow}
+                    disabled={isFollowLoading}
+                    className={`
+                      flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold
+                      active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed
+                      ${isFollowing
+                        ? 'bg-[#F2F2F8] text-[#1A1B25] hover:bg-[#E4E5EE]'
+                        : 'gradient-bg text-white'
+                      }
+                    `}
+                  >
+                    {isFollowLoading ? (
+                      <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : isFollowing ? (
+                      <UserCheck size={16} />
+                    ) : (
+                      <UserPlus size={16} />
+                    )}
+                    {isFollowing ? 'Seguindo' : 'Seguir'}
+                  </button>
+
+                  {/* Botão Mensagem */}
+                  <button
+                    onClick={() => {
+                      selectConversation(profile.id, profile.name);
+                      navigate('chat-conversation');
+                    }}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-black/5 hover:bg-black/10 text-sm font-semibold text-[#1A1B25] active:scale-95 transition-all"
+                  >
+                    <MessageCircle size={16} />
+                  </button>
+                </div>
               )}
             </div>
           </div>

@@ -19,7 +19,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
   "avatarUrl" TEXT,
   bio TEXT,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "passwordHash" TEXT,
+  "lastSeenAt" TIMESTAMPTZ,
+  "usuarioId" TEXT,
+  "seguidoresCount" INTEGER NOT NULL DEFAULT 0,
+  "seguindoCount" INTEGER NOT NULL DEFAULT 0
 );
 
 -- Tabela de artistas
@@ -77,6 +82,15 @@ CREATE TABLE IF NOT EXISTS seguindo (
   UNIQUE("usuarioId", "artistaId")
 );
 
+-- Tabela de seguir_usuarios (usuário segue outro usuário)
+CREATE TABLE IF NOT EXISTS seguir_usuarios (
+  id TEXT PRIMARY KEY,
+  "seguidorId" TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  "seguidoId" TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE("seguidorId", "seguidoId")
+);
+
 -- Tabela de comentários
 CREATE TABLE IF NOT EXISTS comentarios (
   id TEXT PRIMARY KEY,
@@ -109,6 +123,7 @@ CREATE INDEX IF NOT EXISTS idx_reproducoes_usuarioId ON reproducoes("usuarioId")
 CREATE INDEX IF NOT EXISTS idx_reproducoes_faixaId ON reproducoes("faixaId");
 CREATE INDEX IF NOT EXISTS idx_seguindo_usuarioId ON seguindo("usuarioId");
 CREATE INDEX IF NOT EXISTS idx_seguindo_artistaId ON seguindo("artistaId");
+CREATE INDEX IF NOT EXISTS idx_seguir_usuarios_seguidoId ON seguir_usuarios("seguidoId");
 CREATE INDEX IF NOT EXISTS idx_comentarios_faixaId ON comentarios("faixaId");
 CREATE INDEX IF NOT EXISTS idx_mensagens_remetenteId ON mensagens("remetenteId");
 CREATE INDEX IF NOT EXISTS idx_mensagens_destinatarioId ON mensagens("destinatarioId");
@@ -117,6 +132,21 @@ CREATE INDEX IF NOT EXISTS idx_mensagens_faixaId ON mensagens("faixaId");
 
 -- Caso a tabela já exista de uma versão anterior sem essa coluna, rode:
 -- ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS "faixaId" TEXT REFERENCES faixas(id) ON DELETE SET NULL;
+
+-- ============================================================
+-- Migração: seguir usuários (adicionado depois do lançamento inicial)
+-- ============================================================
+-- Se o banco já existir, rode:
+-- ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS "seguidoresCount" INTEGER NOT NULL DEFAULT 0;
+-- ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS "seguindoCount" INTEGER NOT NULL DEFAULT 0;
+-- CREATE TABLE IF NOT EXISTS seguir_usuarios (
+--   id TEXT PRIMARY KEY,
+--   "seguidorId" TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+--   "seguidoId" TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+--   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+--   UNIQUE("seguidorId", "seguidoId")
+-- );
+-- CREATE INDEX IF NOT EXISTS idx_seguir_usuarios_seguidoId ON seguir_usuarios("seguidoId");
 
 -- ============================================================
 -- Views úteis

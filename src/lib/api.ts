@@ -189,6 +189,56 @@ export async function toggleArtistFollow(artistId: string): Promise<{
   }
 }
 
+// Segue/deixa de seguir um USUÁRIO no servidor (toggle). Retorna o estado
+// real após a operação — incluindo os contadores já atualizados — para
+// manter o front sincronizado com o banco.
+export async function toggleUserFollow(followedId: string): Promise<{
+  following: boolean;
+  followers_count: number;
+  following_count: number;
+  follow?: { id: string; follower_id: string; followed_id: string; created_at: string };
+} | null> {
+  try {
+    const res = await apiFetch('/api/follow-user', {
+      method: 'POST',
+      body: JSON.stringify({ followed_id: followedId }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[toggleUserFollow] falha ao seguir/deixar de seguir usuário:', err);
+    return null;
+  }
+}
+
+// Busca a lista de usuários que um usuário segue.
+export async function fetchUserFollowing(userId: string): Promise<Array<{
+  id: string; follower_id: string; followed_id: string; created_at: string;
+}>> {
+  try {
+    const res = await apiFetch(`/api/follow-user?follower_id=${encodeURIComponent(userId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.follows) ? data.follows : [];
+  } catch (err) {
+    console.warn('[fetchUserFollowing] falha ao buscar seguindo:', err);
+    return [];
+  }
+}
+
+// Verifica se um usuário segue outro.
+export async function fetchUserFollowStatus(followerId: string, followedId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`/api/follow-user?follower_id=${encodeURIComponent(followerId)}&followed_id=${encodeURIComponent(followedId)}`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!data.is_following;
+  } catch (err) {
+    console.warn('[fetchUserFollowStatus] falha ao verificar status de seguir:', err);
+    return false;
+  }
+}
+
 // Busca a lista real de conversas do usuário logado.
 export async function fetchConversations(): Promise<Array<{
   id: string;
