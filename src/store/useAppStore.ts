@@ -53,6 +53,13 @@ interface AppState {
   // Chat
   selectedConversationId: string | null;
   selectedConversationName: string | null;
+  // Nome do artista/playlist que originou essa conversa (ex: você clicou
+  // em "Mensagem" no perfil do artista "DJ Thunder", cujo dono real é
+  // "João Silva"). Mostrado como legenda menor embaixo do nome do dono
+  // real na tela de conversa, pra deixar claro que a mensagem vai pra
+  // pessoa, não pro "personagem". Fica null quando a conversa não veio
+  // de um perfil de artista (ex: nova conversa direta com um usuário).
+  selectedConversationContext: string | null;
 
   // Artist profile (perfil público de um artista)
   selectedArtistId: string | null;
@@ -91,7 +98,7 @@ interface AppState {
   registerPlay: (trackId: string) => void;
 
   // Actions - Chat
-  selectConversation: (id: string, name: string) => void;
+  selectConversation: (id: string, name: string, context?: string | null) => void;
   closeConversation: () => void;
 
   // Actions - Artist profile
@@ -128,6 +135,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   mainTab: 'tracks',
   selectedConversationId: null,
   selectedConversationName: null,
+  selectedConversationContext: null,
   selectedArtistId: null,
   likes: [],
   comments: [],
@@ -346,9 +354,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
 
   // Chat actions
-  selectConversation: (id, name) => set({
+  selectConversation: (id, name, context = null) => set({
     selectedConversationId: id,
     selectedConversationName: name,
+    selectedConversationContext: context,
   }),
 
   // Fecha a conversa aberta de verdade — sem isso o app fica preso na
@@ -357,6 +366,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeConversation: () => set({
     selectedConversationId: null,
     selectedConversationName: null,
+    selectedConversationContext: null,
   }),
 
   // Artist profile actions

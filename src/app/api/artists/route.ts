@@ -14,6 +14,7 @@ function serializeArtista(a: {
   bio: string;
   genero: string;
   seguidoresCount: number;
+  usuario?: { name: string } | null;
 }) {
   return {
     id: a.id,
@@ -24,6 +25,11 @@ function serializeArtista(a: {
     bio: a.bio,
     genre: a.genero,
     followers_count: a.seguidoresCount,
+    // Nome de verdade de quem fez o upload/criou esse perfil de artista —
+    // é pra ELE que as mensagens vão de fato, já que "artista" aqui é só
+    // uma espécie de playlist/persona criada por um usuário, não uma
+    // pessoa própria com conta própria.
+    owner_name: a.usuario?.name ?? null,
   };
 }
 
@@ -49,12 +55,14 @@ export async function GET(request: Request) {
       const artistas = await db.artista.findMany({
         where: { usuarioId: userId },
         orderBy: { createdAt: 'desc' },
+        include: { usuario: { select: { name: true } } },
       });
       return NextResponse.json({ artists: artistas.map(serializeArtista) });
     }
 
     const artistas = await db.artista.findMany({
       orderBy: { seguidoresCount: 'desc' },
+      include: { usuario: { select: { name: true } } },
     });
 
     return NextResponse.json({ artists: artistas.map(serializeArtista) });

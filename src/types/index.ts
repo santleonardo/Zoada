@@ -16,6 +16,9 @@ export interface Artist {
   bio: string;
   genre: string;
   followers_count: number;
+  // Nome real de quem criou o perfil (dono do upload) — pode ser null/undefined
+  // se o artista não tiver dono (perfis demo/seed).
+  owner_name?: string | null;
 }
 
 export interface Track {

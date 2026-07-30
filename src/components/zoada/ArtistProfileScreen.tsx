@@ -29,6 +29,7 @@ const ArtistProfileScreen: React.FC = () => {
 
   useEffect(() => {
     if (!selectedArtistId) return;
+    let cancelled = false;
     setIsLoading(true);
 
     // Busca o artista (a rota já cai no modo demo automaticamente se o
@@ -36,11 +37,13 @@ const ArtistProfileScreen: React.FC = () => {
     fetch('/api/artists')
       .then((res) => res.json())
       .then((data) => {
+        if (cancelled) return;
         const list: Artist[] = Array.isArray(data.artists) && data.artists.length > 0 ? data.artists : DEMO_ARTISTS;
         const found = list.find((a) => a.id === selectedArtistId) || null;
         setArtist(found);
       })
       .catch(() => {
+        if (cancelled) return;
         setArtist(DEMO_ARTISTS.find((a) => a.id === selectedArtistId) || null);
       });
 
@@ -48,13 +51,27 @@ const ArtistProfileScreen: React.FC = () => {
     fetch(`/api/tracks?artist_id=${selectedArtistId}`)
       .then((res) => res.json())
       .then((data) => {
+        if (cancelled) return;
         const list: Track[] = Array.isArray(data.tracks) ? data.tracks : [];
         setTracks(list.length > 0 ? list : DEMO_TRACKS.filter((t) => t.artist_id === selectedArtistId));
       })
       .catch(() => {
+        if (cancelled) return;
         setTracks(DEMO_TRACKS.filter((t) => t.artist_id === selectedArtistId));
       })
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    // Se o usuário trocar de artista (ou sair da tela) antes dessas
+    // buscas terminarem, essa flag impede que a resposta atrasada de um
+    // artista ANTERIOR sobrescreva o estado com dados errados — sem isso,
+    // o `artist.user_id` podia ficar "preso" no artista antigo mesmo com
+    // a tela já mostrando outro, fazendo o botão "Mensagem" abrir sempre
+    // a mesma conversa de antes.
+    return () => {
+      cancelled = true;
+    };
   }, [selectedArtistId]);
 
   const handlePlayTrack = (track: Track) => {
@@ -158,7 +175,11 @@ const ArtistProfileScreen: React.FC = () => {
                 {artist.user_id && artist.user_id !== user?.id && (
                   <button
                     onClick={() => {
-                      selectConversation(artist.user_id as string, artist.name);
+                      // A conversa é sempre com a PESSOA (dono do upload), não
+                      // com o "personagem" artista — por isso o nome mostrado
+                      // na caixa de conversa é o nome real do dono, e o nome
+                      // do artista vira só uma legenda menor de contexto.
+                      selectConversation(artist.user_id as string, artist.owner_name || artist.name, artist.name);
                       navigate('chat-conversation');
                     }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/5 text-[#1A1B25] text-sm font-semibold active:scale-95 transition-all"

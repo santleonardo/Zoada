@@ -139,7 +139,7 @@ const ChatScreen: React.FC = () => {
 };
 
 const ChatConversation: React.FC = () => {
-  const { selectedConversationId, selectedConversationName, closeConversation, user } = useAppStore();
+  const { selectedConversationId, selectedConversationName, selectedConversationContext, closeConversation, user } = useAppStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
@@ -232,11 +232,18 @@ const ChatConversation: React.FC = () => {
             <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-white" />
           )}
         </div>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-[#1A1B25]">{selectedConversationName}</p>
-          <p className="text-[11px] text-black/35">
-            {presence == null ? '' : presence.online ? 'Online' : formatLastSeen(presence.last_seen_at)}
-          </p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-[#1A1B25] truncate">{selectedConversationName}</p>
+          {selectedConversationContext ? (
+            <p className="text-[11px] text-black/35 truncate">
+              Sobre: {selectedConversationContext}
+              {presence?.online ? ' · Online' : presence ? ` · ${formatLastSeen(presence.last_seen_at)}` : ''}
+            </p>
+          ) : (
+            <p className="text-[11px] text-black/35">
+              {presence == null ? '' : presence.online ? 'Online' : formatLastSeen(presence.last_seen_at)}
+            </p>
+          )}
         </div>
       </div>
 
