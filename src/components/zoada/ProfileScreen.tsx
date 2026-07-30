@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Settings,
   LogOut,
@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { TopListenedTrack } from '@/types';
-import { fetchTopListenedTracks } from '@/lib/api';
+import { fetchTopListenedTracks, updateMyProfile } from '@/lib/api';
+import { uploadImageFile } from '@/lib/trackUpload';
 import GradientButton from './GradientButton';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -21,9 +22,15 @@ import MyTracksPanel from './MyTracksPanel';
 import MyArtistsPanel from './MyArtistsPanel';
 
 const ProfileScreen: React.FC = () => {
-  const { user, logout, navigate, selectArtist } = useAppStore();
+  const { user, logout, navigate, selectArtist, setUser, authToken } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar_url || null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const profileCardRef = useRef<HTMLDivElement>(null);
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
   const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
   const [topTracks, setTopTracks] = useState<TopListenedTrack[]>([]);
@@ -43,6 +50,71 @@ const ProfileScreen: React.FC = () => {
     .toUpperCase()
     .slice(0, 2);
 
+  // Abre o modo de edição: reseta os campos com os dados atuais do
+  // usuário (evita mostrar um rascunho velho de uma edição anterior
+  // cancelada) e rola até o card de perfil, já que o botão "Editar
+  // perfil" fica lá embaixo, na lista de Configurações.
+  const handleStartEdit = () => {
+    setName(user.name);
+    setAvatarPreview(user.avatar_url || null);
+    setAvatarFile(null);
+    setSaveError(null);
+    setIsEditing(true);
+    profileCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleCancelEdit = () => {
+    setName(user.name);
+    setAvatarPreview(user.avatar_url || null);
+    setAvatarFile(null);
+    setSaveError(null);
+    setIsEditing(false);
+  };
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    // Limpa o input pra permitir escolher o mesmo arquivo de novo depois.
+    e.target.value = '';
+  };
+
+  const handleSaveProfile = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setSaveError('O nome não pode ficar vazio');
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      // Sobe a foto nova pro R2 primeiro (se o usuário escolheu uma),
+      // só então salva o perfil com a URL definitiva.
+      const avatarUrl = avatarFile ? await uploadImageFile(avatarFile, 'avatars') : undefined;
+
+      const updated = await updateMyProfile({
+        name: trimmedName !== user.name ? trimmedName : undefined,
+        avatarUrl,
+      });
+
+      if (updated) {
+        // Persiste também no localStorage (via setUser com o token atual),
+        // senão um reload traria de volta o nome/foto antigos.
+        setUser(updated, authToken);
+        setAvatarPreview(updated.avatar_url || null);
+      }
+
+      setAvatarFile(null);
+      setIsEditing(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erro ao salvar perfil');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="px-4 pt-6 pb-4">
       {/* Header */}
@@ -58,7 +130,7 @@ const ProfileScreen: React.FC = () => {
       </div>
 
       {/* Profile Card */}
-      <div className="rounded-2xl bg-white shadow-sm p-6 mb-6 text-center relative overflow-hidden">
+      <div ref={profileCardRef} className="rounded-2xl bg-white shadow-sm p-6 mb-6 text-center relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl"
@@ -73,36 +145,64 @@ const ProfileScreen: React.FC = () => {
           {/* Avatar */}
           <div className="relative inline-block mb-4">
             <div className="w-24 h-24 rounded-full overflow-hidden gradient-bg flex items-center justify-center pulse-glow">
-              <span className="text-3xl font-bold text-white">{initials}</span>
+              {avatarPreview ? (
+                <img src={avatarPreview} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-3xl font-bold text-white">{initials}</span>
+              )}
             </div>
             <button
-              onClick={() => setIsEditing(!isEditing)}
+              type="button"
+              onClick={() => (isEditing ? avatarInputRef.current?.click() : handleStartEdit())}
               className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#EFF0F6] border-2 border-white shadow-sm flex items-center justify-center hover:bg-[#E4E5EE] transition-colors"
-              aria-label="Editar perfil"
+              aria-label={isEditing ? 'Trocar foto de perfil' : 'Editar perfil'}
             >
-              {isEditing ? (
-                <Check size={14} className="text-[#1A1B25]" />
-              ) : (
-                <Camera size={14} className="text-black/60" />
-              )}
+              <Camera size={14} className="text-black/60" />
             </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarFileChange}
+            />
           </div>
 
           {/* Name */}
           {isEditing ? (
-            <div className="flex items-center justify-center gap-2 mb-1">
+            <div className="mb-1">
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="!text-center !text-lg !font-bold !py-1 !px-4 max-w-[200px]"
+                placeholder="Seu nome"
+                className="!text-center !text-lg !font-bold !py-1.5 !px-4 w-full max-w-[220px] mx-auto block"
               />
             </div>
           ) : (
             <h2 className="text-xl font-bold text-[#1A1B25] mb-1">{user.name}</h2>
           )}
 
-          <p className="text-black/40 text-sm">{user.email}</p>
+          <p className="text-black/40 text-sm mb-4">{user.email}</p>
+
+          {isEditing && (
+            <div className="flex flex-col items-center gap-2">
+              {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  disabled={saving}
+                  className="px-4 py-2 rounded-xl bg-black/5 hover:bg-black/10 text-sm text-black/60 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <GradientButton onClick={handleSaveProfile} loading={saving} size="sm">
+                  Salvar
+                </GradientButton>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -194,10 +294,11 @@ const ProfileScreen: React.FC = () => {
         {[
           { icon: <Settings size={18} />, label: 'Notificações' },
           { icon: <Music2 size={18} />, label: 'Qualidade de áudio' },
-          { icon: <Edit3 size={18} />, label: 'Editar perfil' },
+          { icon: <Edit3 size={18} />, label: 'Editar perfil', onClick: handleStartEdit },
         ].map((item) => (
           <button
             key={item.label}
+            onClick={item.onClick}
             className="flex items-center justify-between w-full p-3 rounded-xl bg-white shadow-sm hover:bg-[#F2F2F8] transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -214,14 +315,5 @@ const ProfileScreen: React.FC = () => {
     </div>
   );
 };
-
-// Simple check icon component
-function Check({ size, className }: { size: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
 
 export default ProfileScreen;

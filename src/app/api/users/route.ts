@@ -133,3 +133,46 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Erro ao buscar usuários' }, { status: 500 });
   }
 }
+
+// PATCH /api/users — Atualiza o PRÓPRIO perfil do usuário logado (nome
+// e/ou foto de perfil). Não recebe id no corpo: sempre edita quem está
+// autenticado, então não há como um usuário editar o perfil de outro.
+export async function PATCH(request: Request) {
+  try {
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    const { name, avatarUrl } = await request.json();
+
+    if (name !== undefined && !String(name).trim()) {
+      return NextResponse.json({ error: 'Nome não pode ficar vazio' }, { status: 400 });
+    }
+
+    const usuario = await db.usuario.update({
+      where: { id: userId },
+      data: {
+        ...(name !== undefined ? { name: String(name).trim() } : {}),
+        ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+      },
+    });
+
+    return NextResponse.json({
+      user: {
+        id: usuario.id,
+        email: usuario.email,
+        name: usuario.name,
+        avatar_url: usuario.avatarUrl,
+        created_at: usuario.createdAt.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('[USERS PATCH]', error);
+    return NextResponse.json({ error: 'Erro ao atualizar perfil' }, { status: 500 });
+  }
+}

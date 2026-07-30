@@ -136,6 +136,33 @@ export async function fetchPublicUserProfile(userId: string): Promise<PublicUser
   }
 }
 
+// Atualiza o PRÓPRIO perfil do usuário logado (nome e/ou foto). Retorna
+// o usuário atualizado (vindo do servidor) em caso de sucesso, ou null
+// se a chamada falhar.
+export async function updateMyProfile(fields: { name?: string; avatarUrl?: string }): Promise<{
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  created_at: string;
+} | null> {
+  try {
+    const res = await apiFetch('/api/users', {
+      method: 'PATCH',
+      body: JSON.stringify(fields),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Falha ao atualizar perfil');
+    }
+    const data = await res.json();
+    return data.user ?? null;
+  } catch (err) {
+    console.warn('[updateMyProfile] falha ao atualizar perfil:', err);
+    throw err;
+  }
+}
+
 // Curte/descurte uma faixa no servidor (toggle). Retorna o estado real
 // após a operação, para manter o front sincronizado com o banco.
 export async function toggleTrackLike(trackId: string): Promise<{
