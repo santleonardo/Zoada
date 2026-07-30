@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Home, Disc3, MessageCircle, User } from 'lucide-react';
+import { Home, Disc3, MessageCircle, User, Radio } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { Screen } from '@/types';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: <Home size={18} />, label: 'Início', screen: 'main', tab: 'tracks' },
+  { icon: <Radio size={18} />, label: 'Rádio', screen: 'radio' },
   { icon: <Disc3 size={18} />, label: 'Explorar', screen: 'main', tab: 'artists' },
   { icon: <MessageCircle size={18} />, label: 'Chat', screen: 'chat' },
   { icon: <User size={18} />, label: 'Perfil', screen: 'profile' },
@@ -42,6 +43,8 @@ const BottomNav: React.FC = () => {
               ? currentScreen === 'chat' || currentScreen === 'chat-conversation'
               : item.screen === 'profile'
               ? currentScreen === 'profile'
+              : item.screen === 'radio'
+              ? currentScreen === 'radio'
               : item.tab
               ? currentScreen === 'main' && mainTab === item.tab
               : currentScreen === 'main';

@@ -14,6 +14,7 @@ import ProfileScreen from '@/components/zoada/ProfileScreen';
 import ArtistProfileScreen from '@/components/zoada/ArtistProfileScreen';
 import UserProfileScreen from '@/components/zoada/UserProfileScreen';
 import ChatScreen from '@/components/zoada/ChatScreen';
+import RadioScreen from '@/components/zoada/RadioScreen';
 import BottomNav from '@/components/zoada/BottomNav';
 import MiniPlayer from '@/components/zoada/MiniPlayer';
 
@@ -142,13 +143,15 @@ export default function Home() {
       case 'chat':
       case 'chat-conversation':
         return <ChatScreen />;
+      case 'radio':
+        return <RadioScreen />;
       default:
         return <MainScreen />;
     }
   };
 
   const showNav = isAuthenticated && currentScreen !== 'login' && currentScreen !== 'player';
-  const showMiniPlayer = isAuthenticated && currentScreen !== 'login' && currentScreen !== 'player';
+  const showMiniPlayer = isAuthenticated && currentScreen !== 'login' && currentScreen !== 'player' && currentScreen !== 'radio';
 
   return (
     <main className="min-h-screen bg-[#F7F7FB] relative overflow-x-hidden">
