@@ -8,7 +8,7 @@ import Equalizer from './Equalizer';
 import { COVER_COLORS } from '@/lib/demo-data';
 
 const MiniPlayer: React.FC = () => {
-  const { player, queue, queueIndex, navigate, togglePlay, nextTrack, prevTrack, likes, toggleLike, favorites, toggleFavorite } = useAppStore();
+  const { player, queue, queueIndex, navigate, togglePlay, nextTrack, prevTrack, likes, toggleLike, favorites, toggleFavorite, selectArtist } = useAppStore();
   const { currentTrack, isPlaying, progress, duration } = player;
   const progressRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -132,7 +132,16 @@ const MiniPlayer: React.FC = () => {
         {/* Track info */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-[#1A1B25] truncate">{currentTrack.title}</p>
-          <p className="text-xs text-black/40 truncate">{currentTrack.artist_name}</p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (currentTrack.artist_id) selectArtist(currentTrack.artist_id);
+            }}
+            className="text-xs text-black/40 hover:text-[#FF8C42] hover:underline transition-colors truncate block text-left"
+          >
+            {currentTrack.artist_name}
+          </button>
         </div>
 
         {/* Controls */}

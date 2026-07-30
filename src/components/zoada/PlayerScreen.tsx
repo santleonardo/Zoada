@@ -29,7 +29,7 @@ const PlayerScreen: React.FC = () => {
     player, queue, queueIndex, goBack, togglePlay, nextTrack, prevTrack,
     likes, toggleLike, comments, loadComments, sendComment,
     shuffleEnabled, toggleShuffle, repeatMode, cycleRepeatMode,
-    favorites, toggleFavorite,
+    favorites, toggleFavorite, selectArtist,
   } = useAppStore();
   const { currentTrack, isPlaying, progress, duration } = player;
 
@@ -166,7 +166,13 @@ const PlayerScreen: React.FC = () => {
         </button>
         <div className="text-center">
           <p className="text-xs text-black/40 uppercase tracking-wider">Reproduzindo</p>
-          <p className="text-sm font-semibold text-[#1A1B25]">{currentTrack.artist_name}</p>
+          <button
+            type="button"
+            onClick={() => currentTrack.artist_id && selectArtist(currentTrack.artist_id)}
+            className="text-sm font-semibold text-[#1A1B25] hover:text-[#FF8C42] hover:underline transition-colors"
+          >
+            {currentTrack.artist_name}
+          </button>
         </div>
         <button
           onClick={() => setShowMenu(!showMenu)}
@@ -194,7 +200,13 @@ const PlayerScreen: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0 mr-4">
             <h2 className="text-xl font-bold text-[#1A1B25] truncate">{currentTrack.title}</h2>
-            <p className="text-black/50 text-sm">{currentTrack.artist_name}</p>
+            <button
+              type="button"
+              onClick={() => currentTrack.artist_id && selectArtist(currentTrack.artist_id)}
+              className="text-black/50 text-sm hover:text-[#FF8C42] hover:underline transition-colors"
+            >
+              {currentTrack.artist_name}
+            </button>
             <p className="text-black/30 text-xs mt-0.5">{formatNumber(currentTrack.plays_count)} reproduções</p>
           </div>
           <div className="flex items-center gap-2">

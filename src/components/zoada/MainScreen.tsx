@@ -91,6 +91,15 @@ const MainScreen: React.FC = () => {
     toggleFavorite(trackId);
   };
 
+  // Leva pro perfil do artista a partir de uma faixa (cartão de música,
+  // vitrine "mais tocadas", etc.) — sem isso só dava pra chegar no perfil
+  // pela aba "Artistas". stopPropagation evita que o clique também dispare
+  // o play da faixa, já que esse botão fica dentro do cartão clicável.
+  const handleGoToArtist = (e: React.MouseEvent, artistId: string) => {
+    e.stopPropagation();
+    selectArtist(artistId);
+  };
+
 
 
   // Capa que preenche 100% do cartão bento (sem os tamanhos fixos do
@@ -200,9 +209,13 @@ const MainScreen: React.FC = () => {
             {track.title}
           </p>
           {variant !== 'small' && (
-            <p className={cn('text-white/50 truncate mt-0.5', variant === 'medium' ? 'text-[10px]' : 'text-sm')}>
+            <button
+              type="button"
+              onClick={(e) => track.artist_id && handleGoToArtist(e, track.artist_id)}
+              className={cn('block text-white/50 truncate mt-0.5 hover:text-white/80 hover:underline transition-colors text-left', variant === 'medium' ? 'text-[10px]' : 'text-sm')}
+            >
               {track.artist_name}
-            </p>
+            </button>
           )}
           {variant === 'hero' && (
             <div className="flex items-center gap-1 mt-2">
@@ -307,7 +320,13 @@ const MainScreen: React.FC = () => {
           <div className="bg-white shadow-sm rounded-b-2xl px-3 py-2.5">
             <p className="text-sm font-semibold text-[#1A1B25] truncate">{track.title}</p>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-black/40">{track.artist_name}</span>
+              <button
+                type="button"
+                onClick={(e) => track.artist_id && handleGoToArtist(e, track.artist_id)}
+                className="text-xs text-black/40 hover:text-[#FF8C42] hover:underline transition-colors truncate"
+              >
+                {track.artist_name}
+              </button>
               <span className="text-black/20">·</span>
               <div className="flex items-center gap-1">
                 <TrendingUp size={10} className="text-black/30" />
