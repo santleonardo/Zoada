@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, Music2, Play, Users } from 'lucide-react';
+import { ChevronLeft, Music2, Play, Users, MessageCircle } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { DEMO_ARTISTS, DEMO_TRACKS } from '@/lib/demo-data';
 import type { Artist, Track } from '@/types';
@@ -10,7 +10,7 @@ import Equalizer from './Equalizer';
 import { cn, formatNumber } from '@/lib/utils';
 
 const ArtistProfileScreen: React.FC = () => {
-  const { selectedArtistId, goBack, playTrack, player, lastCountedPlay } = useAppStore();
+  const { selectedArtistId, goBack, playTrack, player, lastCountedPlay, user, selectConversation, navigate } = useAppStore();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,6 +114,22 @@ const ArtistProfileScreen: React.FC = () => {
 
               {artist.bio && (
                 <p className="text-sm text-black/60 leading-relaxed max-w-sm">{artist.bio}</p>
+              )}
+
+              {/* Mensagem — só aparece se o artista tiver um dono real
+                  (perfis demo/seed sem usuarioId não podem receber
+                  mensagem) e se não for o próprio usuário logado. */}
+              {artist.user_id && artist.user_id !== user?.id && (
+                <button
+                  onClick={() => {
+                    selectConversation(artist.user_id as string, artist.name);
+                    navigate('chat-conversation');
+                  }}
+                  className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-full gradient-bg text-white text-sm font-semibold active:scale-95 transition-all"
+                >
+                  <MessageCircle size={16} />
+                  Mensagem
+                </button>
               )}
             </div>
           </div>

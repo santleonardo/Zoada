@@ -8,6 +8,7 @@ import type { Track, Artist, User, Comment } from '@/types';
 export const DEMO_ARTISTS: Artist[] = [
   {
     id: 'artist-1',
+    user_id: null,
     name: 'DJ Thunder',
     avatar_url: '/demo-artist-1.jpg',
     cover_url: '/demo-cover-1.jpg',
@@ -17,6 +18,7 @@ export const DEMO_ARTISTS: Artist[] = [
   },
   {
     id: 'artist-2',
+    user_id: null,
     name: 'Luna Vox',
     avatar_url: '/demo-artist-2.jpg',
     cover_url: '/demo-cover-2.jpg',
@@ -26,6 +28,7 @@ export const DEMO_ARTISTS: Artist[] = [
   },
   {
     id: 'artist-3',
+    user_id: null,
     name: 'MC Flow',
     avatar_url: '/demo-artist-3.jpg',
     cover_url: '/demo-cover-3.jpg',
@@ -35,6 +38,7 @@ export const DEMO_ARTISTS: Artist[] = [
   },
   {
     id: 'artist-4',
+    user_id: null,
     name: 'Neon Pulse',
     avatar_url: '/demo-artist-4.jpg',
     cover_url: '/demo-cover-4.jpg',
@@ -44,6 +48,7 @@ export const DEMO_ARTISTS: Artist[] = [
   },
   {
     id: 'artist-5',
+    user_id: null,
     name: 'Sombra',
     avatar_url: '/demo-artist-5.jpg',
     cover_url: '/demo-cover-5.jpg',
@@ -53,6 +58,7 @@ export const DEMO_ARTISTS: Artist[] = [
   },
   {
     id: 'artist-6',
+    user_id: null,
     name: 'Banda Aurora',
     avatar_url: '/demo-artist-6.jpg',
     cover_url: '/demo-cover-6.jpg',
@@ -62,6 +68,7 @@ export const DEMO_ARTISTS: Artist[] = [
   },
   {
     id: 'artist-7',
+    user_id: null,
     name: 'Kiko Beatz',
     avatar_url: '/demo-artist-7.jpg',
     cover_url: '/demo-cover-7.jpg',
@@ -71,6 +78,7 @@ export const DEMO_ARTISTS: Artist[] = [
   },
   {
     id: 'artist-8',
+    user_id: null,
     name: 'Velvet Skies',
     avatar_url: '/demo-artist-8.jpg',
     cover_url: '/demo-cover-8.jpg',

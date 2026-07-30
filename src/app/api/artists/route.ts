@@ -7,6 +7,7 @@ import { DEMO_ARTISTS } from '@/lib/demo-data';
 
 function serializeArtista(a: {
   id: string;
+  usuarioId: string | null;
   nome: string;
   avatarUrl: string | null;
   coverUrl: string | null;
@@ -16,6 +17,7 @@ function serializeArtista(a: {
 }) {
   return {
     id: a.id,
+    user_id: a.usuarioId,
     name: a.nome,
     avatar_url: a.avatarUrl,
     cover_url: a.coverUrl,

@@ -181,6 +181,25 @@ export async function sendMessageApi(receiverId: string, content: string): Promi
   }
 }
 
+// Busca usuários por nome/email — usado para iniciar uma nova conversa.
+export async function searchUsers(query: string): Promise<Array<{
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  created_at: string;
+}>> {
+  try {
+    const res = await apiFetch(`/api/users?search=${encodeURIComponent(query)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.users) ? data.users : [];
+  } catch (err) {
+    console.warn('[searchUsers] falha ao buscar usuários:', err);
+    return [];
+  }
+}
+
 // Busca os comentários reais de uma faixa no servidor.
 export async function fetchTrackComments(trackId: string): Promise<Array<{
   id: string;

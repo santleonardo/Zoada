@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Send, ArrowLeft, MessageCircle } from 'lucide-react';
+import { Search, Send, ArrowLeft, MessageCircle, X, Plus } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchConversations, fetchMessages, sendMessageApi } from '@/lib/api';
-import type { Message, Conversation } from '@/types';
+import { fetchConversations, fetchMessages, sendMessageApi, searchUsers } from '@/lib/api';
+import type { Message, Conversation, User } from '@/types';
 
 const ChatScreen: React.FC = () => {
   const { selectedConversationId, selectConversation, user } = useAppStore();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showNewChat, setShowNewChat] = useState(false);
 
   // Busca as conversas reais do usuário logado (nada de dados fake aqui).
   useEffect(() => {
@@ -28,15 +29,22 @@ const ChatScreen: React.FC = () => {
     return <ChatConversation />;
   }
 
+  if (showNewChat) {
+    return <NewChatSearch onClose={() => setShowNewChat(false)} />;
+  }
+
   return (
     <div className="px-4 pt-6 pb-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold gradient-text">Mensagens</h1>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/5">
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-xs text-black/50">Online</span>
-        </div>
+        <button
+          onClick={() => setShowNewChat(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full gradient-bg text-white text-xs font-semibold active:scale-95 transition-all"
+        >
+          <Plus size={14} />
+          Nova
+        </button>
       </div>
 
       {/* Search */}
@@ -242,6 +250,99 @@ const ChatConversation: React.FC = () => {
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// Tela de busca de usuários pra iniciar uma conversa nova — sem isso não
+// havia como descobrir o id de alguém com quem você nunca tinha falado.
+const NewChatSearch: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { selectConversation } = useAppStore();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<User[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    const term = query.trim();
+    if (!term) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const timeout = setTimeout(() => {
+      searchUsers(term).then((users) => {
+        setResults(users);
+        setSearching(false);
+      });
+    }, 300); // debounce pra não disparar uma busca a cada tecla
+    return () => clearTimeout(timeout);
+  }, [query]);
+
+  return (
+    <div className="px-4 pt-6 pb-4">
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={onClose}
+          className="p-2 rounded-full hover:bg-black/5 transition-colors"
+          aria-label="Voltar"
+        >
+          <ArrowLeft size={20} className="text-black/70" />
+        </button>
+        <h1 className="text-xl font-bold text-[#1A1B25]">Nova conversa</h1>
+      </div>
+
+      <div className="relative mb-5">
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30" />
+        <input
+          type="text"
+          autoFocus
+          placeholder="Buscar por nome ou e-mail..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="!pl-11"
+        />
+        {query && (
+          <button
+            onClick={() => setQuery('')}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-black/30 hover:text-black/60"
+            aria-label="Limpar"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
+      {searching ? (
+        <p className="text-center text-sm text-black/30 mt-4">Buscando...</p>
+      ) : !query.trim() ? (
+        <p className="text-center text-sm text-black/30 mt-4">Digite um nome ou e-mail pra buscar.</p>
+      ) : results.length === 0 ? (
+        <p className="text-center text-sm text-black/30 mt-4">Nenhum usuário encontrado.</p>
+      ) : (
+        <div className="space-y-2">
+          {results.map((u) => (
+            <button
+              key={u.id}
+              onClick={() => {
+                selectConversation(u.id, u.name || u.email);
+                onClose();
+              }}
+              className="flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors w-full text-left active:scale-[0.98]"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0">
+                <span className="text-base font-bold text-black/60">
+                  {(u.name || u.email).charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-[#1A1B25] text-sm truncate">{u.name || 'Sem nome'}</p>
+                <p className="text-xs text-black/40 truncate">{u.email}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
