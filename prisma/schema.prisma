@@ -75,6 +75,7 @@ model Faixa {
   artista    Artista     @relation(fields: [artistaId], references: [id], onDelete: Cascade)
   curtidas   Curtida[]
   comentarios Comentario[]
+  mensagens  Mensagem[]
 
   @@map("faixas")
 }
@@ -127,14 +128,21 @@ model Mensagem {
   remetenteId  String   @map("remetente_id")
   destinatarioId String  @map("destinatario_id")
   conteudo      String
+  // Faixa compartilhada nessa mensagem (opcional). Quando preenchida, o
+  // chat renderiza um "cartão de música" tocável em vez de um balão de
+  // texto comum. onDelete SetNull: se a faixa original for apagada, a
+  // mensagem continua existindo (só perde o link tocável).
+  faixaId       String?  @map("faixa_id")
   lida          Boolean  @default(false)
   createdAt     DateTime @default(now()) @map("created_at")
 
   remetente  Usuario @relation("Enviadas", fields: [remetenteId], references: [id], onDelete: Cascade)
   destinatario Usuario @relation("Recebidas", fields: [destinatarioId], references: [id], onDelete: Cascade)
+  faixa      Faixa?  @relation(fields: [faixaId], references: [id], onDelete: SetNull)
 
   @@index([remetenteId])
   @@index([destinatarioId])
   @@index([createdAt])
+  @@index([faixaId])
   @@map("mensagens")
 }

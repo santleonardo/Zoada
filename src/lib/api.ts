@@ -16,6 +16,8 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
+import type { Message, Track } from '@/types';
+
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
 
@@ -159,7 +161,7 @@ export async function fetchConversations(): Promise<Array<{
   id: string;
   user_id: string;
   other_user: { id: string; email: string; name: string; avatar_url: string | null; created_at: string };
-  last_message: { id: string; sender_id: string; receiver_id: string; content: string; read: boolean; created_at: string };
+  last_message: Message;
   unread_count: number;
 }>> {
   try {
@@ -174,14 +176,7 @@ export async function fetchConversations(): Promise<Array<{
 }
 
 // Busca as mensagens reais trocadas com um usuário específico.
-export async function fetchMessages(partnerId: string): Promise<Array<{
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
-  read: boolean;
-  created_at: string;
-}>> {
+export async function fetchMessages(partnerId: string): Promise<Message[]> {
   try {
     const res = await apiFetch(`/api/messages?conversation_id=${encodeURIComponent(partnerId)}`);
     if (!res.ok) return [];
@@ -193,25 +188,34 @@ export async function fetchMessages(partnerId: string): Promise<Array<{
   }
 }
 
-// Envia uma mensagem de verdade (persistida no banco).
-export async function sendMessageApi(receiverId: string, content: string): Promise<{
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
-  read: boolean;
-  created_at: string;
-} | null> {
+// Envia uma mensagem de verdade (persistida no banco). `trackId`, quando
+// informado, transforma a mensagem em um "link de música" tocável — nesse
+// caso `content` pode ficar vazio, que o servidor preenche um texto padrão.
+export async function sendMessageApi(receiverId: string, content: string, trackId?: string): Promise<Message | null> {
   try {
     const res = await apiFetch('/api/messages', {
       method: 'POST',
-      body: JSON.stringify({ receiver_id: receiverId, content }),
+      body: JSON.stringify({ receiver_id: receiverId, content, track_id: trackId }),
     });
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
     console.warn('[sendMessageApi] falha ao enviar mensagem:', err);
     return null;
+  }
+}
+
+// Busca todas as faixas disponíveis no catálogo (usado pelo seletor de
+// "compartilhar música" no chat).
+export async function fetchAllTracks(): Promise<Track[]> {
+  try {
+    const res = await apiFetch('/api/tracks');
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.tracks) ? data.tracks : [];
+  } catch (err) {
+    console.warn('[fetchAllTracks] falha ao buscar faixas:', err);
+    return [];
   }
 }
 

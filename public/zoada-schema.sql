@@ -74,6 +74,9 @@ CREATE TABLE IF NOT EXISTS public.mensagens (
   remetente_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
   destinatario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
   conteudo TEXT NOT NULL,
+  -- Faixa compartilhada nessa mensagem (opcional): permite enviar um "link"
+  -- de música clicável dentro da conversa.
+  faixa_id UUID REFERENCES public.faixas(id) ON DELETE SET NULL,
   lida BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

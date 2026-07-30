@@ -81,6 +81,9 @@ CREATE TABLE IF NOT EXISTS mensagens (
   "remetenteId" TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   "destinatarioId" TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   conteudo TEXT NOT NULL,
+  -- Faixa compartilhada nessa mensagem (opcional): permite enviar um "link"
+  -- de música clicável dentro da conversa.
+  "faixaId" TEXT REFERENCES faixas(id) ON DELETE SET NULL,
   lida BOOLEAN NOT NULL DEFAULT false,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -97,6 +100,10 @@ CREATE INDEX IF NOT EXISTS idx_comentarios_faixaId ON comentarios("faixaId");
 CREATE INDEX IF NOT EXISTS idx_mensagens_remetenteId ON mensagens("remetenteId");
 CREATE INDEX IF NOT EXISTS idx_mensagens_destinatarioId ON mensagens("destinatarioId");
 CREATE INDEX IF NOT EXISTS idx_mensagens_createdAt ON mensagens("createdAt");
+CREATE INDEX IF NOT EXISTS idx_mensagens_faixaId ON mensagens("faixaId");
+
+-- Caso a tabela já exista de uma versão anterior sem essa coluna, rode:
+-- ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS "faixaId" TEXT REFERENCES faixas(id) ON DELETE SET NULL;
 
 -- ============================================================
 -- Views úteis

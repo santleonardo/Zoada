@@ -2,7 +2,37 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
-import type { Message, Conversation } from '@/types';
+import type { Message, Conversation, Track } from '@/types';
+
+// Monta o objeto Track (formato usado no resto do app) a partir de uma
+// faixa incluída via Prisma (com o artista junto). Retorna null se a
+// mensagem não tinha faixa compartilhada (ou se ela foi apagada depois).
+function mapFaixaToTrack(
+  faixa: null | {
+    id: string;
+    titulo: string;
+    artistaId: string;
+    coverUrl: string | null;
+    audioUrl: string | null;
+    duracao: number;
+    playsCount: number;
+    createdAt: Date;
+    artista: { nome: string; avatarUrl: string | null };
+  }
+): Track | null {
+  if (!faixa) return null;
+  return {
+    id: faixa.id,
+    title: faixa.titulo,
+    artist_id: faixa.artistaId,
+    artist_name: faixa.artista.nome,
+    cover_url: faixa.coverUrl || faixa.artista.avatarUrl || '',
+    audio_url: faixa.audioUrl || '',
+    duration: faixa.duracao,
+    plays_count: faixa.playsCount,
+    created_at: faixa.createdAt.toISOString(),
+  };
+}
 
 // GET /api/messages?conversation_id=xxx
 // GET /api/messages (no param) → returns conversations list
@@ -35,6 +65,7 @@ export async function GET(request: Request) {
         },
         include: {
           remetente: { select: { id: true, name: true, avatarUrl: true } },
+          faixa: { include: { artista: { select: { nome: true, avatarUrl: true } } } },
         },
         orderBy: { createdAt: 'asc' },
       });
@@ -53,6 +84,8 @@ export async function GET(request: Request) {
           avatar_url: m.remetente.avatarUrl,
           created_at: '',
         },
+        track_id: m.faixaId,
+        track: mapFaixaToTrack(m.faixa),
       }));
 
       // Mark unread messages as read
@@ -79,6 +112,7 @@ export async function GET(request: Request) {
       include: {
         remetente: { select: { id: true, name: true, avatarUrl: true, lastSeenAt: true } },
         destinatario: { select: { id: true, name: true, avatarUrl: true, lastSeenAt: true } },
+        faixa: { include: { artista: { select: { nome: true, avatarUrl: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -108,9 +142,13 @@ export async function GET(request: Request) {
             id: m.id,
             sender_id: m.remetenteId,
             receiver_id: m.destinatarioId,
-            content: m.conteudo,
+            // Prévia amigável na lista de conversas quando a última
+            // mensagem foi uma música compartilhada (sem faixa == texto normal).
+            content: m.faixa ? `🎵 ${m.faixa.titulo}` : m.conteudo,
             read: m.lida,
             created_at: m.createdAt.toISOString(),
+            track_id: m.faixaId,
+            track: mapFaixaToTrack(m.faixa),
           },
           unreadCount: 0,
         });
@@ -145,10 +183,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { receiver_id, content } = await request.json();
-    if (!receiver_id || !content) {
+    const { receiver_id, content, track_id } = await request.json();
+    // content é obrigatório normalmente, mas quando uma faixa é compartilhada
+    // (track_id presente) o texto vira opcional — nesse caso preenchemos um
+    // texto padrão pra manter compatibilidade com qualquer lugar que ainda
+    // exiba `content` como texto puro (ex: notificações).
+    if (!receiver_id || (!content && !track_id)) {
       return NextResponse.json(
-        { error: 'receiver_id e content são obrigatórios' },
+        { error: 'receiver_id e (content ou track_id) são obrigatórios' },
         { status: 400 }
       );
     }
@@ -157,14 +199,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Neon não configurado' }, { status: 503 });
     }
 
+    let faixaId: string | null = null;
+    let fallbackContent = content?.trim() || '';
+
+    if (track_id) {
+      // Confirma que a faixa existe antes de linkar — sem isso alguém
+      // poderia mandar um track_id inventado e quebrar o cartão no chat.
+      const faixa = await db.faixa.findUnique({
+        where: { id: track_id },
+        select: { id: true, titulo: true },
+      });
+      if (!faixa) {
+        return NextResponse.json({ error: 'Faixa não encontrada' }, { status: 404 });
+      }
+      faixaId = faixa.id;
+      if (!fallbackContent) fallbackContent = `🎵 ${faixa.titulo}`;
+    }
+
     const mensagem = await db.mensagem.create({
       data: {
         remetenteId: userId,
         destinatarioId: receiver_id,
-        conteudo: content,
+        conteudo: fallbackContent,
+        faixaId,
       },
       include: {
         remetente: { select: { id: true, name: true, avatarUrl: true } },
+        faixa: { include: { artista: { select: { nome: true, avatarUrl: true } } } },
       },
     });
 
@@ -182,6 +243,8 @@ export async function POST(request: Request) {
         avatar_url: mensagem.remetente.avatarUrl,
         created_at: '',
       },
+      track_id: mensagem.faixaId,
+      track: mapFaixaToTrack(mensagem.faixa),
     }, { status: 201 });
   } catch (error) {
     console.error('[MESSAGES POST]', error);

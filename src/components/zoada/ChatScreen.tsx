@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Send, ArrowLeft, MessageCircle, X, Plus } from 'lucide-react';
+import { Search, Send, ArrowLeft, MessageCircle, X, Plus, Music, Play, Pause } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchConversations, fetchMessages, sendMessageApi, searchUsers, fetchPresence } from '@/lib/api';
+import { fetchConversations, fetchMessages, sendMessageApi, searchUsers, fetchPresence, fetchAllTracks } from '@/lib/api';
 import { isOnline, formatLastSeen, HEARTBEAT_INTERVAL_MS } from '@/lib/presence';
-import type { Message, Conversation, User } from '@/types';
+import CoverArt from './CoverArt';
+import Equalizer from './Equalizer';
+import type { Message, Conversation, User, Track } from '@/types';
 
 const ChatScreen: React.FC = () => {
   const { selectedConversationId, selectConversation, user } = useAppStore();
@@ -145,6 +147,8 @@ const ChatConversation: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [presence, setPresence] = useState<{ online: boolean; last_seen_at: string | null } | null>(null);
+  const [showShareSong, setShowShareSong] = useState(false);
+  const [sendingTrackId, setSendingTrackId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -206,6 +210,20 @@ const ChatConversation: React.FC = () => {
     setMessages((prev) => [...prev, sent]);
   };
 
+  // Envia uma faixa como "link de música" clicável na conversa — o
+  // destinatário poderá tocá-la sem sair do chat.
+  const handleShareTrack = async (track: Track) => {
+    if (!selectedConversationId || sendingTrackId) return;
+    setSendingTrackId(track.id);
+    const sent = await sendMessageApi(selectedConversationId, '', track.id);
+    setSendingTrackId(null);
+
+    if (!sent) return;
+
+    setMessages((prev) => [...prev, sent]);
+    setShowShareSong(false);
+  };
+
   if (!selectedConversationId) return null;
 
   const otherInitials = selectedConversationName
@@ -256,6 +274,28 @@ const ChatConversation: React.FC = () => {
         ) : (
           messages.map((msg) => {
             const isMe = msg.sender_id === user?.id;
+
+            if (msg.track) {
+              return (
+                <div
+                  key={msg.id}
+                  className={cn('flex', isMe ? 'justify-end' : 'justify-start')}
+                >
+                  <div className="max-w-[80%]">
+                    <TrackMessageCard track={msg.track} isMe={isMe} />
+                    <p
+                      className={cn(
+                        'text-[10px] mt-1 px-1',
+                        isMe ? 'text-right text-black/30' : 'text-black/30'
+                      )}
+                    >
+                      {formatMessageTime(msg.created_at)}
+                    </p>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={msg.id}
@@ -289,6 +329,14 @@ const ChatConversation: React.FC = () => {
       {/* Input */}
       <div className="px-4 py-3 border-t border-black/5 glass safe-bottom">
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowShareSong(true)}
+            className="p-3 rounded-xl bg-[#F2F2F8] flex-shrink-0 active:scale-90 transition-all"
+            aria-label="Compartilhar música"
+            title="Compartilhar música"
+          >
+            <Music size={18} className="text-[#6C5CE7]" />
+          </button>
           <input
             ref={inputRef}
             type="text"
@@ -309,7 +357,225 @@ const ChatConversation: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {showShareSong && (
+        <ShareSongPanel
+          onClose={() => setShowShareSong(false)}
+          onShare={handleShareTrack}
+          sendingTrackId={sendingTrackId}
+        />
+      )}
     </div>
+  );
+};
+
+// Cartão de música clicável usado dentro do balão de chat — toca (ou
+// pausa) a faixa direto pelo motor de áudio global, sem precisar sair da
+// conversa nem trocar de tela.
+const TrackMessageCard: React.FC<{ track: Track; isMe: boolean }> = ({ track, isMe }) => {
+  const { player, playTrack, togglePlay, selectArtist } = useAppStore();
+  const isCurrent = player.currentTrack?.id === track.id;
+  const isPlayingThis = isCurrent && player.isPlaying;
+
+  const handlePlayToggle = () => {
+    if (isCurrent) {
+      togglePlay();
+    } else {
+      playTrack(track, [track]);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-3 rounded-2xl p-2.5 pr-3',
+        isMe ? 'bg-white/15' : 'bg-white shadow-sm'
+      )}
+    >
+      <button
+        onClick={handlePlayToggle}
+        className="relative flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden active:scale-95 transition-transform"
+        aria-label={isPlayingThis ? 'Pausar' : 'Tocar'}
+      >
+        <CoverArt title={track.title} artistName={track.artist_name} coverUrl={track.cover_url} size="sm" className="w-12 h-12" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+          {isPlayingThis ? (
+            <Equalizer barCount={3} height={16} barWidth={2} gap={2} />
+          ) : (
+            <Play size={16} className="text-white ml-0.5" fill="white" />
+          )}
+        </div>
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <p className={cn('text-sm font-semibold truncate', isMe ? 'text-white' : 'text-[#1A1B25]')}>
+          {track.title}
+        </p>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (track.artist_id) selectArtist(track.artist_id);
+          }}
+          className={cn(
+            'text-xs truncate block text-left hover:underline',
+            isMe ? 'text-white/70' : 'text-black/40'
+          )}
+        >
+          {track.artist_name}
+        </button>
+      </div>
+
+      <button
+        onClick={handlePlayToggle}
+        className={cn(
+          'p-2 rounded-full flex-shrink-0 active:scale-90 transition-all',
+          isMe ? 'bg-white/20' : 'gradient-bg'
+        )}
+        aria-label={isPlayingThis ? 'Pausar' : 'Tocar'}
+      >
+        {isPlayingThis ? (
+          <Pause size={14} className="text-white" fill="white" />
+        ) : (
+          <Play size={14} className="text-white ml-0.5" fill="white" />
+        )}
+      </button>
+    </div>
+  );
+};
+
+// Painel de seleção de música pra compartilhar na conversa: mostra a
+// faixa tocando agora (se houver) em destaque, e o catálogo completo logo
+// abaixo pra escolher qualquer outra.
+const ShareSongPanel: React.FC<{
+  onClose: () => void;
+  onShare: (track: Track) => void;
+  sendingTrackId: string | null;
+}> = ({ onClose, onShare, sendingTrackId }) => {
+  const { player } = useAppStore();
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAllTracks().then((result) => {
+      if (!cancelled) {
+        setTracks(result);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const currentTrack = player.currentTrack;
+  const filtered = tracks.filter((t) => {
+    if (currentTrack && t.id === currentTrack.id) return false; // já aparece em destaque
+    if (!query.trim()) return true;
+    const q = query.trim().toLowerCase();
+    return t.title.toLowerCase().includes(q) || t.artist_name.toLowerCase().includes(q);
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="w-full max-w-lg bg-[#F7F7FB] rounded-t-3xl max-h-[75vh] flex flex-col safe-bottom"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <h2 className="text-lg font-bold text-[#1A1B25]">Compartilhar música</h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-black/5 transition-colors"
+            aria-label="Fechar"
+          >
+            <X size={18} className="text-black/50" />
+          </button>
+        </div>
+
+        <div className="px-5 pb-3">
+          <div className="relative">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/30" />
+            <input
+              type="text"
+              autoFocus
+              placeholder="Buscar por música ou artista..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="!pl-10 !py-2.5 !text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 pb-6 space-y-2">
+          {currentTrack && (!query.trim() || currentTrack.title.toLowerCase().includes(query.trim().toLowerCase()) || currentTrack.artist_name.toLowerCase().includes(query.trim().toLowerCase())) && (
+            <div>
+              <p className="text-[11px] font-semibold text-black/40 uppercase tracking-wide mb-2">Tocando agora</p>
+              <ShareTrackRow
+                track={currentTrack}
+                highlighted
+                sending={sendingTrackId === currentTrack.id}
+                onShare={() => onShare(currentTrack)}
+              />
+            </div>
+          )}
+
+          {(currentTrack || filtered.length > 0) && (
+            <p className="text-[11px] font-semibold text-black/40 uppercase tracking-wide mb-2 pt-2">
+              Todas as músicas
+            </p>
+          )}
+
+          {loading ? (
+            <p className="text-center text-sm text-black/30 mt-4">Carregando músicas...</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-center text-sm text-black/30 mt-4">
+              {query.trim() ? 'Nenhuma música encontrada.' : 'Nenhuma música disponível.'}
+            </p>
+          ) : (
+            filtered.map((track) => (
+              <ShareTrackRow
+                key={track.id}
+                track={track}
+                sending={sendingTrackId === track.id}
+                onShare={() => onShare(track)}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ShareTrackRow: React.FC<{
+  track: Track;
+  highlighted?: boolean;
+  sending: boolean;
+  onShare: () => void;
+}> = ({ track, highlighted, sending, onShare }) => {
+  return (
+    <button
+      onClick={onShare}
+      disabled={sending}
+      className={cn(
+        'w-full flex items-center gap-3 p-2.5 rounded-2xl transition-colors text-left active:scale-[0.98] disabled:opacity-50',
+        highlighted ? 'bg-white shadow-sm ring-1 ring-[#6C5CE7]/20' : 'bg-white/70 hover:bg-white'
+      )}
+    >
+      <CoverArt title={track.title} artistName={track.artist_name} coverUrl={track.cover_url} size="sm" className="w-11 h-11 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-[#1A1B25] truncate">{track.title}</p>
+        <p className="text-xs text-black/40 truncate">{track.artist_name}</p>
+      </div>
+      <div className="flex-shrink-0 p-2 rounded-full gradient-bg">
+        {sending ? (
+          <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+        ) : (
+          <Send size={14} className="text-white" />
+        )}
+      </div>
+    </button>
   );
 };
 

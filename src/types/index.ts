@@ -65,6 +65,10 @@ export interface Message {
   read: boolean;
   created_at: string;
   sender?: User;
+  // Faixa compartilhada nessa mensagem (opcional). Quando presente, a
+  // mensagem é um "link de música" tocável em vez de um texto simples.
+  track_id?: string | null;
+  track?: Track | null;
 }
 
 export interface Conversation {
