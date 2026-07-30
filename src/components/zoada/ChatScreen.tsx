@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Send, ArrowLeft, MessageCircle, X, Plus } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchConversations, fetchMessages, sendMessageApi, searchUsers } from '@/lib/api';
+import { fetchConversations, fetchMessages, sendMessageApi, searchUsers, fetchPresence } from '@/lib/api';
+import { isOnline, formatLastSeen, HEARTBEAT_INTERVAL_MS } from '@/lib/presence';
 import type { Message, Conversation, User } from '@/types';
 
 const ChatScreen: React.FC = () => {
@@ -24,6 +25,30 @@ const ChatScreen: React.FC = () => {
     });
     return () => { cancelled = true; };
   }, []);
+
+  // Mantém o status "online" da lista atualizado enquanto a tela estiver
+  // aberta, consultando só a presença (leve) em vez de recarregar tudo.
+  useEffect(() => {
+    if (conversations.length === 0) return;
+    const ids = conversations.map((c) => c.other_user.id);
+
+    const refreshPresence = () => {
+      fetchPresence(ids).then((presence) => {
+        setConversations((prev) =>
+          prev.map((c) => {
+            const p = presence[c.other_user.id];
+            if (!p) return c;
+            return { ...c, other_user: { ...c.other_user, last_seen_at: p.last_seen_at } };
+          })
+        );
+      });
+    };
+
+    refreshPresence();
+    const interval = setInterval(refreshPresence, HEARTBEAT_INTERVAL_MS);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversations.length]);
 
   if (selectedConversationId) {
     return <ChatConversation />;
@@ -77,7 +102,9 @@ const ChatScreen: React.FC = () => {
                 <span className="text-lg font-bold text-black/60">
                   {conv.other_user.name.charAt(0)}
                 </span>
-                <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-white" />
+                {isOnline(conv.other_user.last_seen_at) && (
+                  <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-white" />
+                )}
               </div>
 
               {/* Info */}
@@ -117,6 +144,7 @@ const ChatConversation: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [presence, setPresence] = useState<{ online: boolean; last_seen_at: string | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -132,6 +160,26 @@ const ChatConversation: React.FC = () => {
       }
     });
     return () => { cancelled = true; };
+  }, [selectedConversationId]);
+
+  // Busca e atualiza a presença real da pessoa com quem você está
+  // conversando, enquanto a conversa estiver aberta.
+  useEffect(() => {
+    if (!selectedConversationId) return;
+    let cancelled = false;
+
+    const refreshPresence = () => {
+      fetchPresence([selectedConversationId]).then((result) => {
+        if (!cancelled) setPresence(result[selectedConversationId] || null);
+      });
+    };
+
+    refreshPresence();
+    const interval = setInterval(refreshPresence, HEARTBEAT_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [selectedConversationId]);
 
   useEffect(() => {
@@ -178,11 +226,17 @@ const ChatConversation: React.FC = () => {
         >
           <ArrowLeft size={20} className="text-black/70" />
         </button>
-        <div className="w-9 h-9 rounded-full bg-[#EFF0F6] flex items-center justify-center">
+        <div className="w-9 h-9 rounded-full bg-[#EFF0F6] flex items-center justify-center relative">
           <span className="text-sm font-bold text-black/60">{otherInitials}</span>
+          {presence?.online && (
+            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-white" />
+          )}
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold text-[#1A1B25]">{selectedConversationName}</p>
+          <p className="text-[11px] text-black/35">
+            {presence == null ? '' : presence.online ? 'Online' : formatLastSeen(presence.last_seen_at)}
+          </p>
         </div>
       </div>
 

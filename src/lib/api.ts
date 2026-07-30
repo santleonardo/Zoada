@@ -181,6 +181,33 @@ export async function sendMessageApi(receiverId: string, content: string): Promi
   }
 }
 
+// Envia um heartbeat de presença ("estou online agora"). Fire-and-forget:
+// se falhar, não faz sentido travar nada — o usuário só deixa de aparecer
+// online até o próximo heartbeat funcionar.
+export async function sendHeartbeat(): Promise<void> {
+  try {
+    await apiFetch('/api/presence', { method: 'POST' });
+  } catch (err) {
+    console.warn('[sendHeartbeat] falha ao enviar heartbeat:', err);
+  }
+}
+
+// Busca o status de presença (online / última vez visto) de um ou mais
+// usuários de uma vez.
+export async function fetchPresence(userIds: string[]): Promise<Record<string, { online: boolean; last_seen_at: string | null }>> {
+  const ids = userIds.filter(Boolean);
+  if (ids.length === 0) return {};
+  try {
+    const res = await apiFetch(`/api/presence?user_ids=${encodeURIComponent(ids.join(','))}`);
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data.presence || {};
+  } catch (err) {
+    console.warn('[fetchPresence] falha ao buscar presença:', err);
+    return {};
+  }
+}
+
 // Busca usuários por nome/email — usado para iniciar uma nova conversa.
 export async function searchUsers(query: string): Promise<Array<{
   id: string;

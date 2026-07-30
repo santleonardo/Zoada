@@ -77,15 +77,15 @@ export async function GET(request: Request) {
         ],
       },
       include: {
-        remetente: { select: { id: true, name: true, avatarUrl: true } },
-        destinatario: { select: { id: true, name: true, avatarUrl: true } },
+        remetente: { select: { id: true, name: true, avatarUrl: true, lastSeenAt: true } },
+        destinatario: { select: { id: true, name: true, avatarUrl: true, lastSeenAt: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
     // Group by conversation partner and get last message
     const convMap = new Map<string, {
-      otherUser: { id: string; email: string; name: string; avatar_url: string | null; created_at: string };
+      otherUser: { id: string; email: string; name: string; avatar_url: string | null; last_seen_at: string | null; created_at: string };
       lastMessage: Message;
       unreadCount: number;
     }>();
@@ -101,6 +101,7 @@ export async function GET(request: Request) {
             email: '',
             name: otherUser.name,
             avatar_url: otherUser.avatarUrl,
+            last_seen_at: otherUser.lastSeenAt?.toISOString() ?? null,
             created_at: '',
           },
           lastMessage: {

@@ -4,6 +4,8 @@ import React, { useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
 import { registerServiceWorker } from '@/lib/registerServiceWorker';
+import { sendHeartbeat } from '@/lib/api';
+import { HEARTBEAT_INTERVAL_MS } from '@/lib/presence';
 import { DEMO_COMMENTS } from '@/lib/demo-data';
 import LoginScreen from '@/components/zoada/LoginScreen';
 import MainScreen from '@/components/zoada/MainScreen';
@@ -45,6 +47,29 @@ export default function Home() {
   useEffect(() => {
     registerServiceWorker();
   }, []);
+
+  // Heartbeat de presença: avisa o servidor "estou online agora" enquanto
+  // o app estiver aberto e o usuário logado. Sem isso, o status "online"
+  // seria só decoração — aqui ele reflete atividade real e recente.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+
+    // Manda um heartbeat extra quando a aba volta a ficar visível, pra
+    // não esperar até 45s pra "reaparecer" online depois de um tempo
+    // com a aba em segundo plano.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') sendHeartbeat();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [isAuthenticated]);
 
   // Media Session API setup
   useEffect(() => {

@@ -14,14 +14,15 @@ datasource db {
 
 // ---------- Usuários ----------
 model Usuario {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String   @default("")
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String    @default("")
   avatarUrl    String?
   bio          String?
-  passwordHash String?  @map("password_hash")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  passwordHash String?   @map("password_hash")
+  lastSeenAt   DateTime? @map("last_seen_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   curtidas    Curtida[]
   comentarios Comentario[]
