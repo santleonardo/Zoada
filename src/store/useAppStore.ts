@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { User, Track, Screen, Message, Comment, Like, Follow } from '@/types';
+import type { User, Track, Screen, Message, Comment, Like, Follow, RadioTab } from '@/types';
 import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchUserFollows, toggleArtistFollow } from '@/lib/api';
 
 const FAVORITES_KEY = 'zoada-favorites';
@@ -76,6 +76,10 @@ interface AppState {
   // Favorites
   favorites: string[]; // track IDs
 
+  // Radio
+  radioEnabled: boolean;
+  radioTab: RadioTab;
+
   // Actions - Auth
   setUser: (user: User | null, token?: string | null) => void;
   logout: () => void;
@@ -130,6 +134,11 @@ interface AppState {
   toggleFavorite: (trackId: string) => void;
   isFavorite: (trackId: string) => boolean;
   initFavorites: () => void;
+
+  // Actions - Radio
+  startRadio: (tracks: Track[]) => void;
+  stopRadio: () => void;
+  setRadioTab: (tab: RadioTab) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -149,6 +158,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   comments: [],
   follows: [],
   favorites: [],
+
+  radioEnabled: false,
+  radioTab: 'faixas',
 
   player: {
     currentTrack: null,
@@ -556,4 +568,37 @@ export const useAppStore = create<AppState>((set, get) => ({
   isFavorite: (trackId) => {
     return get().favorites.includes(trackId);
   },
+
+  // Radio actions
+  startRadio: (tracks) => {
+    if (tracks.length === 0) return;
+    // Shuffle the tracks array randomly
+    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+    const randomIndex = Math.floor(Math.random() * shuffled.length);
+    set({
+      radioEnabled: true,
+      shuffleEnabled: true,
+      repeatMode: 'all', // Radio loops forever
+      queue: shuffled,
+      queueIndex: randomIndex,
+      player: {
+        ...get().player,
+        currentTrack: shuffled[randomIndex],
+        isPlaying: true,
+        progress: 0,
+      },
+    });
+  },
+
+  stopRadio: () => {
+    set({
+      radioEnabled: false,
+      player: {
+        ...get().player,
+        isPlaying: false,
+      },
+    });
+  },
+
+  setRadioTab: (tab) => set({ radioTab: tab }),
 }));

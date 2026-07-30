@@ -110,4 +110,6 @@ export interface Conversation {
   unread_count: number;
 }
 
-export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-profile' | 'chat' | 'chat-conversation';
+export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-profile' | 'chat' | 'chat-conversation' | 'radio';
+
+export type RadioTab = 'faixas' | 'explorar' | 'artistas';
