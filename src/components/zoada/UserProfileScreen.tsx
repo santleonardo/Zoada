@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, MessageCircle, Music2, Users } from 'lucide-react';
+import { ChevronLeft, Flame, MessageCircle, Music2, Users } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchPublicUserProfile } from '@/lib/api';
+import { fetchPublicUserProfile, fetchTopListenedTracks } from '@/lib/api';
 import { isOnline, formatLastSeen } from '@/lib/presence';
 import { formatNumber } from '@/lib/utils';
-import type { PublicUserProfile } from '@/types';
+import type { PublicUserProfile, TopListenedTrack } from '@/types';
 import CoverArt from './CoverArt';
 
 /**
@@ -16,16 +16,18 @@ import CoverArt from './CoverArt';
  * como um botão explícito "Mensagem" dentro dessa tela.
  */
 const UserProfileScreen: React.FC = () => {
-  const { selectedUserId, goBack, user, selectConversation, navigate, selectArtist } = useAppStore();
+  const { selectedUserId, goBack, user, selectConversation, navigate, selectArtist, playTrack } = useAppStore();
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [topTracks, setTopTracks] = useState<TopListenedTrack[]>([]);
 
   useEffect(() => {
     if (!selectedUserId) return;
     let cancelled = false;
     setIsLoading(true);
     setNotFound(false);
+    setTopTracks([]);
 
     fetchPublicUserProfile(selectedUserId).then((data) => {
       if (cancelled) return;
@@ -35,6 +37,12 @@ const UserProfileScreen: React.FC = () => {
         setProfile(data);
       }
       setIsLoading(false);
+    });
+
+    // Top 10 músicas mais ouvidas por ESSE usuário (não pelo usuário
+    // logado), pra mostrar no perfil público dele.
+    fetchTopListenedTracks(10, selectedUserId).then((data) => {
+      if (!cancelled) setTopTracks(data);
     });
 
     return () => {
@@ -121,6 +129,59 @@ const UserProfileScreen: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Mais ouvidas: top 10 músicas que esse usuário mais repetiu,
+              da mais pra menos ouvida (ex: 15x aparece antes de 10x). */}
+          {topTracks.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Flame size={18} className="text-[#FF8C42]" fill="#FF8C42" />
+                  <h3 className="font-semibold text-[#1A1B25]">
+                    {isSelf ? 'Suas mais ouvidas' : 'Mais ouvidas'}
+                  </h3>
+                </div>
+                <span className="text-sm text-black/40">{topTracks.length} faixas</span>
+              </div>
+
+              <div className="space-y-2">
+                {topTracks.map((track, index) => (
+                  <div
+                    key={track.id}
+                    onClick={() => playTrack(track, topTracks)}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-white shadow-sm hover:bg-[#F2F2F8] transition-colors cursor-pointer group"
+                  >
+                    <span className="w-5 text-center text-sm font-bold text-black/25 flex-shrink-0">
+                      {index + 1}
+                    </span>
+                    <CoverArt
+                      title={track.title}
+                      artistName={track.artist_name}
+                      coverUrl={track.cover_url}
+                      size="sm"
+                      className="!w-12 !h-12 !max-w-none !rounded-lg flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#1A1B25] truncate">{track.title}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (track.artist_id) selectArtist(track.artist_id);
+                        }}
+                        className="text-xs text-black/40 hover:text-[#FF8C42] hover:underline transition-colors truncate block text-left"
+                      >
+                        {track.artist_name}
+                      </button>
+                    </div>
+                    <span className="text-xs text-black/40 flex-shrink-0">
+                      {track.listen_count}x
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Artistas criados por esse usuário */}
           <div className="flex items-center gap-2 mb-3">

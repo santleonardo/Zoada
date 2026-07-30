@@ -103,11 +103,15 @@ export async function fetchUserLikes(userId: string): Promise<Array<{ id: string
   }
 }
 
-// Busca as músicas que o usuário logado mais ouviu (contador pessoal,
-// não a contagem global da faixa), já ordenadas da mais pra menos ouvida.
-export async function fetchTopListenedTracks(limit = 10): Promise<TopListenedTrack[]> {
+// Busca as músicas que um usuário mais ouviu (contador pessoal, não a
+// contagem global da faixa), já ordenadas da mais pra menos ouvida.
+// Sem `userId`: busca do usuário logado (autenticado). Com `userId`:
+// busca de outro usuário, pro perfil público dele (não exige login).
+export async function fetchTopListenedTracks(limit = 10, userId?: string): Promise<TopListenedTrack[]> {
   try {
-    const res = await apiFetch(`/api/plays?limit=${limit}`);
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (userId) params.set('user_id', userId);
+    const res = await apiFetch(`/api/plays?${params.toString()}`);
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data.tracks) ? data.tracks : [];
