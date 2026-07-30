@@ -120,6 +120,40 @@ export async function toggleTrackLike(trackId: string): Promise<{
   }
 }
 
+// Busca os artistas que um usuário segue de verdade no servidor.
+export async function fetchUserFollows(userId: string): Promise<Array<{ id: string; user_id: string; artist_id: string; created_at: string }>> {
+  try {
+    const res = await apiFetch(`/api/follow?user_id=${encodeURIComponent(userId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.follows) ? data.follows : [];
+  } catch (err) {
+    console.warn('[fetchUserFollows] falha ao buscar seguidos:', err);
+    return [];
+  }
+}
+
+// Segue/deixa de seguir um artista no servidor (toggle). Retorna o estado
+// real após a operação — incluindo o followers_count já atualizado — para
+// manter o front sincronizado com o banco.
+export async function toggleArtistFollow(artistId: string): Promise<{
+  following: boolean;
+  followers_count: number;
+  follow?: { id: string; user_id: string; artist_id: string; created_at: string };
+} | null> {
+  try {
+    const res = await apiFetch('/api/follow', {
+      method: 'POST',
+      body: JSON.stringify({ artist_id: artistId }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[toggleArtistFollow] falha ao seguir/deixar de seguir:', err);
+    return null;
+  }
+}
+
 // Busca a lista real de conversas do usuário logado.
 export async function fetchConversations(): Promise<Array<{
   id: string;

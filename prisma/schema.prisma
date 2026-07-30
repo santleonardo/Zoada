@@ -29,6 +29,7 @@ model Usuario {
   enviado     Mensagem[] @relation("Enviadas")
   recebido    Mensagem[] @relation("Recebidas")
   artistas    Artista[]
+  seguindo    Seguindo[]
 
   @@map("usuarios")
 }
@@ -53,7 +54,8 @@ model Artista {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  faixas Faixa[]
+  faixas   Faixa[]
+  seguidores Seguindo[]
 
   @@map("artistas")
 }
@@ -89,6 +91,20 @@ model Curtida {
 
   @@unique([usuarioId, faixaId])
   @@map("curtidas")
+}
+
+// ---------- Seguindo (usuário segue artista) ----------
+model Seguindo {
+  id        String   @id @default(cuid())
+  usuarioId String   @map("usuario_id")
+  artistaId String   @map("artista_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  artista Artista @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, artistaId])
+  @@map("seguindo")
 }
 
 // ---------- Comentários ----------

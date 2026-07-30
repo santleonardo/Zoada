@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, Music2, Play, Users, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Music2, Play, Users, MessageCircle, UserPlus, UserCheck } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { DEMO_ARTISTS, DEMO_TRACKS } from '@/lib/demo-data';
 import type { Artist, Track } from '@/types';
@@ -10,7 +10,9 @@ import Equalizer from './Equalizer';
 import { cn, formatNumber } from '@/lib/utils';
 
 const ArtistProfileScreen: React.FC = () => {
-  const { selectedArtistId, goBack, playTrack, player, lastCountedPlay, user, selectConversation, navigate } = useAppStore();
+  const { selectedArtistId, goBack, playTrack, player, lastCountedPlay, user, selectConversation, navigate, isFollowingArtist, toggleFollow } = useAppStore();
+  const isFollowing = selectedArtistId ? isFollowingArtist(selectedArtistId) : false;
+  const [followBusy, setFollowBusy] = useState(false);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,6 +59,19 @@ const ArtistProfileScreen: React.FC = () => {
 
   const handlePlayTrack = (track: Track) => {
     playTrack(track, tracks);
+  };
+
+  const handleToggleFollow = async () => {
+    if (!selectedArtistId || followBusy) return;
+    setFollowBusy(true);
+    const newCount = await toggleFollow(selectedArtistId);
+    // Se o servidor confirmou a operação, sincroniza o número exibido com
+    // o valor real (evita o contador ficar dessincronizado do estado
+    // otimista do botão em caso de corrida entre cliques).
+    if (newCount !== null) {
+      setArtist((prev) => (prev ? { ...prev, followers_count: newCount } : prev));
+    }
+    setFollowBusy(false);
   };
 
   if (!selectedArtistId) return null;
@@ -116,21 +131,43 @@ const ArtistProfileScreen: React.FC = () => {
                 <p className="text-sm text-black/60 leading-relaxed max-w-sm">{artist.bio}</p>
               )}
 
-              {/* Mensagem — só aparece se o artista tiver um dono real
-                  (perfis demo/seed sem usuarioId não podem receber
-                  mensagem) e se não for o próprio usuário logado. */}
-              {artist.user_id && artist.user_id !== user?.id && (
-                <button
-                  onClick={() => {
-                    selectConversation(artist.user_id as string, artist.name);
-                    navigate('chat-conversation');
-                  }}
-                  className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-full gradient-bg text-white text-sm font-semibold active:scale-95 transition-all"
-                >
-                  <MessageCircle size={16} />
-                  Mensagem
-                </button>
-              )}
+              {/* Seguir/Deixar de seguir — só aparece se não for o próprio
+                  usuário logado dono desse artista (não faz sentido seguir
+                  a si mesmo). Perfis demo/seed sem usuarioId também podem
+                  ser seguidos normalmente. */}
+              <div className="mt-4 flex items-center gap-2">
+                {artist.user_id !== user?.id && (
+                  <button
+                    onClick={handleToggleFollow}
+                    disabled={followBusy}
+                    className={cn(
+                      'flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold active:scale-95 transition-all disabled:opacity-60',
+                      isFollowing
+                        ? 'bg-black/5 text-[#1A1B25]'
+                        : 'gradient-bg text-white'
+                    )}
+                  >
+                    {isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
+                    {isFollowing ? 'Seguindo' : 'Seguir'}
+                  </button>
+                )}
+
+                {/* Mensagem — só aparece se o artista tiver um dono real
+                    (perfis demo/seed sem usuarioId não podem receber
+                    mensagem) e se não for o próprio usuário logado. */}
+                {artist.user_id && artist.user_id !== user?.id && (
+                  <button
+                    onClick={() => {
+                      selectConversation(artist.user_id as string, artist.name);
+                      navigate('chat-conversation');
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/5 text-[#1A1B25] text-sm font-semibold active:scale-95 transition-all"
+                  >
+                    <MessageCircle size={16} />
+                    Mensagem
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

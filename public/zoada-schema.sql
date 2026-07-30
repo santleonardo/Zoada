@@ -50,6 +50,15 @@ CREATE TABLE IF NOT EXISTS public.curtidas (
   UNIQUE(usuario_id, faixa_id)
 );
 
+-- Tabela de seguindo (usuário segue artista)
+CREATE TABLE IF NOT EXISTS public.seguindo (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+  artista_id UUID NOT NULL REFERENCES public.artistas(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(usuario_id, artista_id)
+);
+
 -- Tabela de comentários
 CREATE TABLE IF NOT EXISTS public.comentarios (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -75,6 +84,8 @@ CREATE TABLE IF NOT EXISTS public.mensagens (
 CREATE INDEX IF NOT EXISTS idx_faixas_artista ON public.faixas(artista_id);
 CREATE INDEX IF NOT EXISTS idx_curtidas_usuario ON public.curtidas(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_curtidas_faixa ON public.curtidas(faixa_id);
+CREATE INDEX IF NOT EXISTS idx_seguindo_usuario ON public.seguindo(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_seguindo_artista ON public.seguindo(artista_id);
 CREATE INDEX IF NOT EXISTS idx_comentarios_faixa ON public.comentarios(faixa_id);
 CREATE INDEX IF NOT EXISTS idx_mensagens_remetente ON public.mensagens(remetente_id);
 CREATE INDEX IF NOT EXISTS idx_mensagens_destinatario ON public.mensagens(destinatario_id);
@@ -89,6 +100,7 @@ ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.artistas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.faixas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.curtidas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.seguindo ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comentarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mensagens ENABLE ROW LEVEL SECURITY;
 
@@ -109,6 +121,11 @@ CREATE POLICY "Faixas_select" ON public.faixas FOR SELECT USING (true);
 CREATE POLICY "Curtidas_select" ON public.curtidas FOR SELECT USING (true);
 CREATE POLICY "Curtidas_insert" ON public.curtidas FOR INSERT WITH CHECK (auth.uid() = usuario_id);
 CREATE POLICY "Curtidas_delete" ON public.curtidas FOR DELETE USING (auth.uid() = usuario_id);
+
+-- Seguindo: autenticado pode ler/criar/deletar os próprios
+CREATE POLICY "Seguindo_select" ON public.seguindo FOR SELECT USING (true);
+CREATE POLICY "Seguindo_insert" ON public.seguindo FOR INSERT WITH CHECK (auth.uid() = usuario_id);
+CREATE POLICY "Seguindo_delete" ON public.seguindo FOR DELETE USING (auth.uid() = usuario_id);
 
 -- Comentários: autenticado pode ler/criar/deletar os próprios
 CREATE POLICY "Comentarios_select" ON public.comentarios FOR SELECT USING (true);

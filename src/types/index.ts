@@ -38,6 +38,13 @@ export interface Like {
   track?: Track;
 }
 
+export interface Follow {
+  id: string;
+  user_id: string;
+  artist_id: string;
+  created_at: string;
+}
+
 export interface Comment {
   id: string;
   user_id: string;

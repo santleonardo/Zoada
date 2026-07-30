@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { User, Track, Screen, Message, Comment, Like } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment } from '@/lib/api';
+import type { User, Track, Screen, Message, Comment, Like, Follow } from '@/types';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchUserFollows, toggleArtistFollow } from '@/lib/api';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -60,6 +60,7 @@ interface AppState {
   // Social
   likes: Like[];
   comments: Comment[];
+  follows: Follow[];
 
   // Favorites
   favorites: string[]; // track IDs
@@ -104,6 +105,12 @@ interface AppState {
   loadComments: (trackId: string) => Promise<void>;
   addComment: (comment: Comment) => void;
   sendComment: (trackId: string, content: string) => Promise<boolean>;
+  loadFollows: (userId: string) => Promise<void>;
+  // Segue/deixa de seguir um artista; retorna o followers_count real vindo
+  // do servidor (ou null se a chamada falhou) para a tela ajustar o número
+  // exibido sem precisar recarregar tudo.
+  toggleFollow: (artistId: string) => Promise<number | null>;
+  isFollowingArtist: (artistId: string) => boolean;
 
   // Actions - Favorites
   toggleFavorite: (trackId: string) => void;
@@ -124,6 +131,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedArtistId: null,
   likes: [],
   comments: [],
+  follows: [],
   favorites: [],
 
   player: {
@@ -453,6 +461,61 @@ export const useAppStore = create<AppState>((set, get) => ({
       comments: state.comments.map((c) => (c.id === tempId ? result : c)),
     }));
     return true;
+  },
+
+  // Busca os artistas que o usuário realmente segue no servidor e
+  // substitui o estado local.
+  loadFollows: async (userId) => {
+    const follows = await fetchUserFollows(userId);
+    set({ follows });
+  },
+
+  // Segue/deixa de seguir um artista: atualiza a tela na hora (otimista) e
+  // persiste de verdade no servidor. Se a chamada falhar, desfaz a mudança
+  // local pra não deixar o usuário achando que seguiu alguém que não foi
+  // salvo — igual ao toggleLike.
+  toggleFollow: async (artistId) => {
+    const before = get().follows;
+    const exists = before.some((f) => f.artist_id === artistId);
+    const userId = get().user?.id || '';
+
+    // Atualização otimista
+    if (exists) {
+      set({ follows: before.filter((f) => f.artist_id !== artistId) });
+    } else {
+      set({
+        follows: [...before, {
+          id: `temp-${Date.now()}`,
+          user_id: userId,
+          artist_id: artistId,
+          created_at: new Date().toISOString(),
+        }],
+      });
+    }
+
+    const result = await toggleArtistFollow(artistId);
+
+    if (!result) {
+      // Falhou de verdade (rede caiu, não autenticado, etc.) — desfaz.
+      set({ follows: before });
+      return null;
+    }
+
+    // Sincroniza com o dado real vindo do servidor (id definitivo, etc.)
+    if (result.following && result.follow) {
+      const serverFollow = result.follow;
+      set((state) => ({
+        follows: state.follows.map((f) =>
+          f.artist_id === artistId && f.id.startsWith('temp-') ? serverFollow : f
+        ),
+      }));
+    }
+
+    return result.followers_count;
+  },
+
+  isFollowingArtist: (artistId) => {
+    return get().follows.some((f) => f.artist_id === artistId);
   },
 
   // Favorites actions

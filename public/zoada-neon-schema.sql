@@ -57,6 +57,15 @@ CREATE TABLE IF NOT EXISTS curtidas (
   UNIQUE("usuarioId", "faixaId")
 );
 
+-- Tabela de seguindo (usuário segue artista)
+CREATE TABLE IF NOT EXISTS seguindo (
+  id TEXT PRIMARY KEY,
+  "usuarioId" TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  "artistaId" TEXT NOT NULL REFERENCES artistas(id) ON DELETE CASCADE,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE("usuarioId", "artistaId")
+);
+
 -- Tabela de comentários
 CREATE TABLE IF NOT EXISTS comentarios (
   id TEXT PRIMARY KEY,
@@ -82,6 +91,8 @@ CREATE TABLE IF NOT EXISTS mensagens (
 CREATE INDEX IF NOT EXISTS idx_faixas_artistaId ON faixas("artistaId");
 CREATE INDEX IF NOT EXISTS idx_curtidas_usuarioId ON curtidas("usuarioId");
 CREATE INDEX IF NOT EXISTS idx_curtidas_faixaId ON curtidas("faixaId");
+CREATE INDEX IF NOT EXISTS idx_seguindo_usuarioId ON seguindo("usuarioId");
+CREATE INDEX IF NOT EXISTS idx_seguindo_artistaId ON seguindo("artistaId");
 CREATE INDEX IF NOT EXISTS idx_comentarios_faixaId ON comentarios("faixaId");
 CREATE INDEX IF NOT EXISTS idx_mensagens_remetenteId ON mensagens("remetenteId");
 CREATE INDEX IF NOT EXISTS idx_mensagens_destinatarioId ON mensagens("destinatarioId");

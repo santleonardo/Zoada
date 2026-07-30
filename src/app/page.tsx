@@ -17,7 +17,7 @@ import BottomNav from '@/components/zoada/BottomNav';
 import MiniPlayer from '@/components/zoada/MiniPlayer';
 
 export default function Home() {
-  const { currentScreen, isAuthenticated, user, setComments, restoreSession, initFavorites, loadLikes } = useAppStore();
+  const { currentScreen, isAuthenticated, user, setComments, restoreSession, initFavorites, loadLikes, loadFollows } = useAppStore();
 
   // Restore auth session from localStorage on mount
   useEffect(() => {
@@ -34,8 +34,9 @@ export default function Home() {
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       loadLikes(user.id);
+      loadFollows(user.id);
     }
-  }, [isAuthenticated, user?.id, loadLikes]);
+  }, [isAuthenticated, user?.id, loadLikes, loadFollows]);
 
   // Load demo comments on mount
   useEffect(() => {
