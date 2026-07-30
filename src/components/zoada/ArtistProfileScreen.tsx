@@ -137,7 +137,18 @@ const ArtistProfileScreen: React.FC = () => {
                 className="!w-24 !h-24 !max-w-none !rounded-full mb-4"
               />
               <h2 className="text-xl font-bold text-[#1A1B25]">{artist.name}</h2>
-              <p className="text-sm text-black/40 mb-3">{artist.genre}</p>
+              <p className="text-sm text-black/40 mb-1">{artist.genre}</p>
+
+              {/* Nome de quem fez o upload desse artista — "artista" aqui é
+                  uma persona/catálogo criado por um usuário, não uma conta
+                  própria, então deixamos claro quem está por trás dele.
+                  Só aparece quando há um dono real (perfis demo/seed sem
+                  usuarioId não mostram essa linha). */}
+              {artist.owner_name && (
+                <p className="text-xs text-black/40 mb-3">
+                  enviado por <span className="font-medium text-black/60">{artist.owner_name}</span>
+                </p>
+              )}
 
               <div className="flex items-center gap-1.5 text-black/50 text-sm mb-4">
                 <Users size={14} />
