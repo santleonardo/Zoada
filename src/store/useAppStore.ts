@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, Like } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike } from '@/lib/api';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment } from '@/lib/api';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -100,7 +100,9 @@ interface AppState {
   loadLikes: (userId: string) => Promise<void>;
   toggleLike: (trackId: string) => Promise<void>;
   setComments: (comments: Comment[]) => void;
+  loadComments: (trackId: string) => Promise<void>;
   addComment: (comment: Comment) => void;
+  sendComment: (trackId: string, content: string) => Promise<boolean>;
 
   // Actions - Favorites
   toggleFavorite: (trackId: string) => void;
@@ -395,9 +397,54 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   setComments: (comments) => set({ comments }),
+
+  // Busca os comentários reais de uma faixa no servidor e substitui o estado local.
+  loadComments: async (trackId) => {
+    const serverComments = await fetchTrackComments(trackId);
+    set((state) => ({
+      // Mantém comentários de OUTRAS faixas já carregadas, substitui só os desta.
+      comments: [
+        ...state.comments.filter((c) => c.track_id !== trackId),
+        ...serverComments,
+      ],
+    }));
+  },
+
   addComment: (comment) => set((state) => ({
     comments: [...state.comments, comment],
   })),
+
+  // Envia um comentário de verdade: atualiza a tela na hora (otimista) e
+  // persiste no servidor. Se falhar, desfaz a mudança local para não deixar
+  // o usuário achando que o comentário foi salvo quando não foi.
+  sendComment: async (trackId, content) => {
+    const user = get().user;
+    const tempId = `temp-${Date.now()}`;
+    const optimisticComment: Comment = {
+      id: tempId,
+      user_id: user?.id || '',
+      track_id: trackId,
+      content,
+      created_at: new Date().toISOString(),
+      user: user || undefined,
+    };
+
+    set((state) => ({ comments: [...state.comments, optimisticComment] }));
+
+    const result = await postTrackComment(trackId, content);
+
+    if (!result) {
+      // Falhou de verdade (rede caiu, não autenticado, etc.) — desfaz.
+      set((state) => ({ comments: state.comments.filter((c) => c.id !== tempId) }));
+      return false;
+    }
+
+    // Sincroniza com o dado real vindo do servidor (id definitivo, etc.)
+    set((state) => ({
+      comments: state.comments.map((c) => (c.id === tempId ? result : c)),
+    }));
+    return true;
+  },
 
   // Favorites actions
   initFavorites: () => set({ favorites: loadFavorites() }),

@@ -20,16 +20,14 @@ import {
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
 import { toast } from 'sonner';
-import { DEMO_COMMENTS } from '@/lib/demo-data';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import { cn, formatNumber } from '@/lib/utils';
-import type { Comment } from '@/types';
 
 const PlayerScreen: React.FC = () => {
   const {
     player, queue, queueIndex, goBack, togglePlay, nextTrack, prevTrack,
-    likes, toggleLike, comments, addComment,
+    likes, toggleLike, comments, loadComments, sendComment,
     shuffleEnabled, toggleShuffle, repeatMode, cycleRepeatMode,
     favorites, toggleFavorite,
   } = useAppStore();
@@ -37,6 +35,7 @@ const PlayerScreen: React.FC = () => {
 
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [isSendingComment, setIsSendingComment] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -45,6 +44,15 @@ const PlayerScreen: React.FC = () => {
   const isFav = currentTrack ? favorites.includes(currentTrack.id) : false;
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
   const trackComments = currentTrack ? comments.filter((c) => c.track_id === currentTrack.id) : [];
+
+  // Busca os comentários reais no servidor sempre que a faixa mudar,
+  // para não depender só do que já estava carregado localmente.
+  useEffect(() => {
+    if (currentTrack) {
+      loadComments(currentTrack.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTrack?.id]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -125,19 +133,22 @@ const PlayerScreen: React.FC = () => {
     };
   }, [isDragging, handleProgressInteraction]);
 
-  const handleSendComment = () => {
-    if (!newComment.trim() || !currentTrack) return;
-    const user = useAppStore.getState().user;
-    const comment: Comment = {
-      id: `comment-${Date.now()}`,
-      user_id: user?.id || '',
-      track_id: currentTrack.id,
-      content: newComment.trim(),
-      created_at: new Date().toISOString(),
-      user: user || undefined,
-    };
-    addComment(comment);
+  const handleSendComment = async () => {
+    if (!newComment.trim() || !currentTrack || isSendingComment) return;
+    const content = newComment.trim();
     setNewComment('');
+    setIsSendingComment(true);
+
+    const ok = await sendComment(currentTrack.id, content);
+
+    setIsSendingComment(false);
+
+    if (!ok) {
+      // Falhou de verdade — devolve o texto pro campo e avisa o usuário,
+      // em vez de fingir que o comentário foi salvo.
+      setNewComment(content);
+      toast.error('Não foi possível enviar o comentário. Tente novamente.');
+    }
   };
 
   if (!currentTrack) return null;

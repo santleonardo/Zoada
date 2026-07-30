@@ -181,6 +181,48 @@ export async function sendMessageApi(receiverId: string, content: string): Promi
   }
 }
 
+// Busca os comentários reais de uma faixa no servidor.
+export async function fetchTrackComments(trackId: string): Promise<Array<{
+  id: string;
+  user_id: string;
+  track_id: string;
+  content: string;
+  created_at: string;
+  user?: { id: string; email: string; name: string; avatar_url: string | null; created_at: string };
+}>> {
+  try {
+    const res = await apiFetch(`/api/comments?track_id=${encodeURIComponent(trackId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.comments) ? data.comments : [];
+  } catch (err) {
+    console.warn('[fetchTrackComments] falha ao buscar comentários:', err);
+    return [];
+  }
+}
+
+// Envia um comentário de verdade (persistido no banco).
+export async function postTrackComment(trackId: string, content: string): Promise<{
+  id: string;
+  user_id: string;
+  track_id: string;
+  content: string;
+  created_at: string;
+  user?: { id: string; email: string; name: string; avatar_url: string | null; created_at: string };
+} | null> {
+  try {
+    const res = await apiFetch('/api/comments', {
+      method: 'POST',
+      body: JSON.stringify({ track_id: trackId, content }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[postTrackComment] falha ao enviar comentário:', err);
+    return null;
+  }
+}
+
 // Registra uma reprodução de faixa (incrementa plays_count no servidor).
 // Fire-and-forget: quem chama não precisa esperar nem tratar erro — se a
 // contagem falhar (ex: rede caiu), simplesmente perdemos essa reprodução,
