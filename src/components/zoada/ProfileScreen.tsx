@@ -19,12 +19,10 @@ import Equalizer from './Equalizer';
 import UploadMusicPanel from './UploadMusicPanel';
 import MyTracksPanel from './MyTracksPanel';
 import MyArtistsPanel from './MyArtistsPanel';
-import EditProfileDialog from './EditProfileDialog';
 
 const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, selectArtist } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
   const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
@@ -75,15 +73,7 @@ const ProfileScreen: React.FC = () => {
           {/* Avatar */}
           <div className="relative inline-block mb-4">
             <div className="w-24 h-24 rounded-full overflow-hidden gradient-bg flex items-center justify-center pulse-glow">
-              {user.avatar_url ? (
-                <img
-                  src={user.avatar_url}
-                  alt={user.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-3xl font-bold text-white">{initials}</span>
-              )}
+              <span className="text-3xl font-bold text-white">{initials}</span>
             </div>
             <button
               onClick={() => setIsEditing(!isEditing)}
@@ -204,11 +194,10 @@ const ProfileScreen: React.FC = () => {
         {[
           { icon: <Settings size={18} />, label: 'Notificações' },
           { icon: <Music2 size={18} />, label: 'Qualidade de áudio' },
-          { icon: <Edit3 size={18} />, label: 'Editar perfil', action: () => setShowEditDialog(true) },
+          { icon: <Edit3 size={18} />, label: 'Editar perfil' },
         ].map((item) => (
           <button
             key={item.label}
-            onClick={'action' in item && item.action ? item.action : undefined}
             className="flex items-center justify-between w-full p-3 rounded-xl bg-white shadow-sm hover:bg-[#F2F2F8] transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -219,12 +208,6 @@ const ProfileScreen: React.FC = () => {
           </button>
         ))}
       </div>
-
-      {/* Edit Profile Dialog */}
-      <EditProfileDialog
-        open={showEditDialog}
-        onClose={() => setShowEditDialog(false)}
-      />
 
       {/* Bottom spacing */}
       <div className="h-32" />

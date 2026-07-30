@@ -35,13 +35,12 @@ export const AUTH_CONFIG = {
 };
 
 // ---------- Helpers ----------
-export const isDbConfigured = !!NEON_CONFIG.DATABASE_URL;
-export const isNeonConfigured = isDbConfigured;
+export const isNeonConfigured = !!NEON_CONFIG.DATABASE_URL;
 export const isR2Configured = !!(R2_CONFIG.ACCOUNT_ID && R2_CONFIG.ACCESS_KEY_ID && R2_CONFIG.SECRET_ACCESS_KEY);
 
-if (!isR2Configured) {
+if (!isNeonConfigured || !isR2Configured) {
   console.warn(
-    '[ZÔADA] R2 não configurado. Uploads de arquivos usarão armazenamento local.\n' +
+    '[ZÔADA] Neon ou R2 não configurados. O app funcionará com dados de demonstração.\n' +
     'Edite o arquivo .env na raiz do projeto com as variáveis de ambiente.\n' +
     'Veja README.md para instruções completas.'
   );

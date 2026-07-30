@@ -42,6 +42,12 @@ model Usuario {
 // ---------- Artistas ----------
 model Artista {
   id             String   @id @default(cuid())
+  // Dono do perfil de artista (o usuário logado que fez o upload). Nullable
+  // pra não quebrar artistas antigos/seed que não têm dono. Uma conta pode
+  // ter VÁRIOS artistas (ex: alguém populando o catálogo com diferentes
+  // artistas fictícios) — por isso não é @unique: o que impede um artista
+  // de "virar" outro é o app sempre criar um registro novo para um nome
+  // novo, em vez de reaproveitar/reescrever um artista já existente.
   usuarioId      String?  @map("usuario_id")
   usuario        Usuario? @relation(fields: [usuarioId], references: [id])
   nome           String
@@ -53,7 +59,7 @@ model Artista {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  faixas     Faixa[]
+  faixas   Faixa[]
   seguidores Seguindo[]
 
   @@map("artistas")
@@ -66,15 +72,15 @@ model Faixa {
   artistaId   String   @map("artista_id")
   coverUrl    String?  @map("cover_url")
   audioUrl    String?  @map("audio_url")
-  duracao     Int      @default(0) @map("duracao")
+  duracao     Int      @default(0) @map("duracao") // segundos
   playsCount  Int      @default(0) @map("plays_count")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  artista     Artista     @relation(fields: [artistaId], references: [id], onDelete: Cascade)
-  curtidas    Curtida[]
+  artista    Artista     @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+  curtidas   Curtida[]
   comentarios Comentario[]
-  mensagens   Mensagem[]
+  mensagens  Mensagem[]
   reproducoes Reproducao[]
 
   @@map("faixas")
@@ -94,7 +100,10 @@ model Curtida {
   @@map("curtidas")
 }
 
-// ---------- Reproduções ----------
+// ---------- Reproduções (quantas vezes CADA usuário ouviu CADA faixa) ----------
+// Diferente de faixas.playsCount (contagem global, pública, de qualquer
+// ouvinte), esta tabela guarda um contador por par usuário+faixa, usado
+// para montar o "Mais ouvidas" no perfil de cada pessoa.
 model Reproducao {
   id        String   @id @default(cuid())
   usuarioId String   @map("usuario_id")
@@ -124,12 +133,12 @@ model Seguindo {
   @@map("seguindo")
 }
 
-// ---------- Seguir Usuário ----------
+// ---------- Seguir Usuário (usuário segue outro usuário) ----------
 model SeguirUsuario {
-  id          String   @id @default(cuid())
-  seguidorId  String   @map("seguidor_id")
-  seguidoId   String   @map("seguido_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              String   @id @default(cuid())
+  seguidorId      String   @map("seguidor_id")
+  seguidoId       String   @map("seguido_id")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   seguidor Usuario @relation("Seguindo", fields: [seguidorId], references: [id], onDelete: Cascade)
   seguido  Usuario @relation("Seguidos", fields: [seguidoId], references: [id], onDelete: Cascade)
@@ -155,17 +164,21 @@ model Comentario {
 
 // ---------- Mensagens (chat) ----------
 model Mensagem {
-  id             String   @id @default(cuid())
-  remetenteId    String   @map("remetente_id")
-  destinatarioId String   @map("destinatario_id")
-  conteudo       String
-  faixaId        String?  @map("faixa_id")
-  lida           Boolean  @default(false)
-  createdAt      DateTime @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  remetenteId  String   @map("remetente_id")
+  destinatarioId String  @map("destinatario_id")
+  conteudo      String
+  // Faixa compartilhada nessa mensagem (opcional). Quando preenchida, o
+  // chat renderiza um "cartão de música" tocável em vez de um balão de
+  // texto comum. onDelete SetNull: se a faixa original for apagada, a
+  // mensagem continua existindo (só perde o link tocável).
+  faixaId       String?  @map("faixa_id")
+  lida          Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  remetente   Usuario  @relation("Enviadas", fields: [remetenteId], references: [id], onDelete: Cascade)
+  remetente  Usuario @relation("Enviadas", fields: [remetenteId], references: [id], onDelete: Cascade)
   destinatario Usuario @relation("Recebidas", fields: [destinatarioId], references: [id], onDelete: Cascade)
-  faixa       Faixa?   @relation(fields: [faixaId], references: [id], onDelete: SetNull)
+  faixa      Faixa?  @relation(fields: [faixaId], references: [id], onDelete: SetNull)
 
   @@index([remetenteId])
   @@index([destinatarioId])

@@ -10,7 +10,6 @@ import { isNeonConfigured } from '@/lib/config';
 //                                 também `is_following` (se o viewer segue
 //                                 esse usuário).
 // GET /api/users?search=xxx   -> Busca usuários por nome/email (autenticado).
-// PATCH /api/users            -> Atualiza perfil do usuário logado (nome, avatar_url).
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -51,6 +50,8 @@ export async function GET(request: Request) {
       }
 
       // Verifica se quem está vendo o perfil segue esse usuário
+      // (tenta pegar o token sem obrigar autenticação — se não tiver,
+      // is_following será null, indicando "não verificado / não logado").
       let isFollowing: boolean | null = null;
       const viewerId = await authenticateRequest(request);
       if (viewerId && viewerId !== id) {
@@ -101,15 +102,16 @@ export async function GET(request: Request) {
     }
 
     if (!isNeonConfigured) {
+      // Sem banco configurado não há usuários reais pra buscar.
       return NextResponse.json({ users: [] });
     }
 
     const usuarios = await db.usuario.findMany({
       where: {
-        id: { not: userId },
+        id: { not: userId }, // não retorna o próprio usuário logado
         OR: [
-          { name: { contains: search } },
-          { email: { contains: search } },
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
         ],
       },
       select: { id: true, name: true, email: true, avatarUrl: true },
@@ -129,54 +131,5 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('[USERS GET]', error);
     return NextResponse.json({ error: 'Erro ao buscar usuários' }, { status: 500 });
-  }
-}
-
-// PATCH /api/users
-// Atualiza o perfil do usuário logado (nome e/ou avatar_url).
-export async function PATCH(request: Request) {
-  try {
-    const userId = await authenticateRequest(request);
-    if (!userId) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
-
-    if (!isNeonConfigured) {
-      return NextResponse.json({ error: 'Banco de dados não configurado' }, { status: 503 });
-    }
-
-    const body = await request.json();
-    const { name, avatar_url } = body;
-
-    // Monta o objeto de atualização só com os campos enviados
-    const data: { name?: string; avatarUrl?: string | null } = {};
-    if (typeof name === 'string' && name.trim().length > 0) {
-      data.name = name.trim().slice(0, 100);
-    }
-    if (avatar_url !== undefined) {
-      data.avatarUrl = avatar_url === '' ? null : avatar_url;
-    }
-
-    if (Object.keys(data).length === 0) {
-      return NextResponse.json({ error: 'Nenhum campo para atualizar' }, { status: 400 });
-    }
-
-    const updated = await db.usuario.update({
-      where: { id: userId },
-      data,
-      select: { id: true, name: true, avatarUrl: true, email: true },
-    });
-
-    return NextResponse.json({
-      user: {
-        id: updated.id,
-        email: updated.email,
-        name: updated.name,
-        avatar_url: updated.avatarUrl,
-      },
-    });
-  } catch (error) {
-    console.error('[USERS PATCH]', error);
-    return NextResponse.json({ error: 'Erro ao atualizar perfil' }, { status: 500 });
   }
 }

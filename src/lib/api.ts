@@ -76,7 +76,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     headers,
   });
 
-  if (response.status === 401 && token && token !== 'demo') {
+  if (response.status === 401 && token) {
     // Só força logout/reload se HAVIA um token sendo enviado (ou seja,
     // era uma sessão real que expirou/foi invalidada). Se não havia
     // token (ex: usuário em modo demo), não faz sentido "deslogar"
@@ -402,43 +402,6 @@ export async function registerTrackPlay(trackId: string): Promise<number | null>
     return typeof data.plays_count === 'number' ? data.plays_count : null;
   } catch (err) {
     console.warn('[registerTrackPlay] falha ao contabilizar reprodução:', err);
-    return null;
-  }
-}
-
-// Atualiza o perfil do usuário logado (nome e/ou avatar_url).
-// Retorna os dados atualizados ou null em caso de erro.
-export async function updateUserProfile(data: { name?: string; avatar_url?: string | null }): Promise<{
-  id: string; email: string; name: string; avatar_url: string | null;
-} | null> {
-  try {
-    const res = await apiFetch('/api/users', {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) return null;
-    const result = await res.json();
-    return result.user ?? null;
-  } catch (err) {
-    console.warn('[updateUserProfile] falha ao atualizar perfil:', err);
-    return null;
-  }
-}
-
-// Faz upload de uma foto de perfil. Retorna a URL pública da imagem.
-export async function uploadAvatar(file: File): Promise<string | null> {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await apiFetch('/api/avatar-upload', {
-      method: 'POST',
-      body: formData,
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.url ?? null;
-  } catch (err) {
-    console.warn('[uploadAvatar] falha ao fazer upload:', err);
     return null;
   }
 }
