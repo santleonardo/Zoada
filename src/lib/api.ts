@@ -16,7 +16,7 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
-import type { Message, Track, TopListenedTrack } from '@/types';
+import type { Message, Track, TopListenedTrack, PublicUserProfile } from '@/types';
 
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
@@ -114,6 +114,21 @@ export async function fetchTopListenedTracks(limit = 10): Promise<TopListenedTra
   } catch (err) {
     console.warn('[fetchTopListenedTracks] falha ao buscar mais ouvidas:', err);
     return [];
+  }
+}
+
+// Busca o perfil público de OUTRO usuário (nome, foto, artistas que ele
+// criou) — usado quando alguém clica no nome de uma pessoa (dono de um
+// artista, autor de um comentário, etc).
+export async function fetchPublicUserProfile(userId: string): Promise<PublicUserProfile | null> {
+  try {
+    const res = await apiFetch(`/api/users?id=${encodeURIComponent(userId)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.user ?? null;
+  } catch (err) {
+    console.warn('[fetchPublicUserProfile] falha ao buscar perfil do usuário:', err);
+    return null;
   }
 }
 

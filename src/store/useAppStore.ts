@@ -64,6 +64,10 @@ interface AppState {
   // Artist profile (perfil público de um artista)
   selectedArtistId: string | null;
 
+  // User profile (perfil público de outro usuário — ex: quem comentou
+  // numa faixa, ou quem é dono de um artista)
+  selectedUserId: string | null;
+
   // Social
   likes: Like[];
   comments: Comment[];
@@ -104,6 +108,9 @@ interface AppState {
   // Actions - Artist profile
   selectArtist: (id: string) => void;
 
+  // Actions - User profile
+  selectUser: (id: string) => void;
+
   // Actions - Social
   setLikes: (likes: Like[]) => void;
   loadLikes: (userId: string) => Promise<void>;
@@ -137,6 +144,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedConversationName: null,
   selectedConversationContext: null,
   selectedArtistId: null,
+  selectedUserId: null,
   likes: [],
   comments: [],
   follows: [],
@@ -374,6 +382,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     selectedArtistId: id,
     previousScreen: state.currentScreen,
     currentScreen: 'artist',
+  })),
+
+  // User profile actions
+  selectUser: (id) => set((state) => ({
+    selectedUserId: id,
+    previousScreen: state.currentScreen,
+    currentScreen: 'user-profile',
   })),
 
   // Social actions

@@ -10,7 +10,7 @@ import Equalizer from './Equalizer';
 import { cn, formatNumber } from '@/lib/utils';
 
 const ArtistProfileScreen: React.FC = () => {
-  const { selectedArtistId, goBack, playTrack, player, lastCountedPlay, user, selectConversation, navigate, isFollowingArtist, toggleFollow } = useAppStore();
+  const { selectedArtistId, goBack, playTrack, player, lastCountedPlay, user, selectConversation, navigate, isFollowingArtist, toggleFollow, selectUser } = useAppStore();
   const isFollowing = selectedArtistId ? isFollowingArtist(selectedArtistId) : false;
   const [followBusy, setFollowBusy] = useState(false);
   const [artist, setArtist] = useState<Artist | null>(null);
@@ -150,10 +150,7 @@ const ArtistProfileScreen: React.FC = () => {
                   {artist.user_id && artist.user_id !== user?.id ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        selectConversation(artist.user_id as string, artist.owner_name || artist.name, artist.name);
-                        navigate('chat-conversation');
-                      }}
+                      onClick={() => selectUser(artist.user_id as string)}
                       className="font-medium text-black/60 hover:text-[#FF8C42] hover:underline transition-colors"
                     >
                       {artist.owner_name}

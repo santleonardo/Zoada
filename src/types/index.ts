@@ -7,6 +7,19 @@ export interface User {
   created_at: string;
 }
 
+// Perfil público de OUTRO usuário (ex: quem comentou numa faixa, ou o
+// dono de um artista) — mostrado na tela "user-profile". Diferente de
+// `User`, que é sempre o usuário logado.
+export interface PublicUserProfile {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  last_seen_at?: string | null;
+  created_at: string;
+  // Artistas (perfis/catálogos) criados por esse usuário.
+  artists: Artist[];
+}
+
 export interface Artist {
   id: string;
   user_id: string | null;
@@ -86,4 +99,4 @@ export interface Conversation {
   unread_count: number;
 }
 
-export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'chat' | 'chat-conversation';
+export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-profile' | 'chat' | 'chat-conversation';

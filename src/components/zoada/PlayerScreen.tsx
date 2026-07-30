@@ -30,7 +30,7 @@ const PlayerScreen: React.FC = () => {
     likes, toggleLike, comments, loadComments, sendComment,
     shuffleEnabled, toggleShuffle, repeatMode, cycleRepeatMode,
     favorites, toggleFavorite, selectArtist,
-    user, selectConversation, navigate,
+    user, selectUser,
   } = useAppStore();
   const { currentTrack, isPlaying, progress, duration } = player;
 
@@ -363,23 +363,22 @@ const PlayerScreen: React.FC = () => {
               )}
               {trackComments.map((comment) => {
                 const isMe = comment.user?.id === user?.id;
-                const canMessage = !!comment.user?.id && !isMe;
+                const canOpenProfile = !!comment.user?.id && !isMe;
                 const handleGoToUser = () => {
-                  if (!canMessage || !comment.user) return;
-                  selectConversation(comment.user.id, comment.user.name || 'Anônimo');
-                  navigate('chat-conversation');
+                  if (!canOpenProfile || !comment.user) return;
+                  selectUser(comment.user.id);
                 };
                 return (
                   <div key={comment.id} className="flex gap-3">
                     <button
                       type="button"
                       onClick={handleGoToUser}
-                      disabled={!canMessage}
+                      disabled={!canOpenProfile}
                       className={cn(
                         'w-8 h-8 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0',
-                        canMessage && 'hover:ring-2 hover:ring-[#FF8C42] transition-shadow'
+                        canOpenProfile && 'hover:ring-2 hover:ring-[#FF8C42] transition-shadow'
                       )}
-                      aria-label={canMessage ? `Ver conversa com ${comment.user?.name}` : undefined}
+                      aria-label={canOpenProfile ? `Ver perfil de ${comment.user?.name}` : undefined}
                     >
                       <span className="text-xs font-bold text-black/60">
                         {comment.user?.name?.charAt(0) || '?'}
@@ -390,10 +389,10 @@ const PlayerScreen: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleGoToUser}
-                          disabled={!canMessage}
+                          disabled={!canOpenProfile}
                           className={cn(
                             'text-sm font-semibold text-[#1A1B25] text-left',
-                            canMessage && 'hover:text-[#FF8C42] hover:underline transition-colors'
+                            canOpenProfile && 'hover:text-[#FF8C42] hover:underline transition-colors'
                           )}
                         >
                           {comment.user?.name || 'Anônimo'}
