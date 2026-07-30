@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Music2, Loader2, Check, X, Trash2, ListMusic } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { deleteTrackFile } from '@/lib/trackUpload';
+import { useAppStore } from '@/store/useAppStore';
 import type { Track } from '@/types';
 
 interface MyTracksPanelProps {
@@ -18,6 +19,7 @@ interface MyTracksPanelProps {
  * (UploadMusicPanel), que cuida apenas de subir músicas novas.
  */
 const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ refreshKey }) => {
+  const selectArtist = useAppStore((state) => state.selectArtist);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -101,7 +103,16 @@ const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ refreshKey }) => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-[#1A1B25] truncate">{track.title}</p>
-                <p className="text-xs text-black/40 truncate">{track.artist_name}</p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (track.artist_id) selectArtist(track.artist_id);
+                  }}
+                  className="text-xs text-black/40 hover:text-[#FF8C42] hover:underline transition-colors truncate block text-left"
+                >
+                  {track.artist_name}
+                </button>
               </div>
 
               {confirmDeleteId === track.id ? (

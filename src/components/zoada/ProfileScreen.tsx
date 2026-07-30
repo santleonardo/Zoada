@@ -21,7 +21,7 @@ import MyTracksPanel from './MyTracksPanel';
 import MyArtistsPanel from './MyArtistsPanel';
 
 const ProfileScreen: React.FC = () => {
-  const { user, logout, navigate } = useAppStore();
+  const { user, logout, navigate, selectArtist } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
@@ -147,7 +147,16 @@ const ProfileScreen: React.FC = () => {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[#1A1B25] truncate">{track.title}</p>
-                  <p className="text-xs text-black/40 truncate">{track.artist_name}</p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (track.artist_id) selectArtist(track.artist_id);
+                    }}
+                    className="text-xs text-black/40 hover:text-[#FF8C42] hover:underline transition-colors truncate block text-left"
+                  >
+                    {track.artist_name}
+                  </button>
                 </div>
                 <span className="text-xs text-black/40 flex-shrink-0">
                   {track.listen_count}x

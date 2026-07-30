@@ -146,7 +146,21 @@ const ArtistProfileScreen: React.FC = () => {
                   usuarioId não mostram essa linha). */}
               {artist.owner_name && (
                 <p className="text-xs text-black/40 mb-3">
-                  enviado por <span className="font-medium text-black/60">{artist.owner_name}</span>
+                  enviado por{' '}
+                  {artist.user_id && artist.user_id !== user?.id ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        selectConversation(artist.user_id as string, artist.owner_name || artist.name, artist.name);
+                        navigate('chat-conversation');
+                      }}
+                      className="font-medium text-black/60 hover:text-[#FF8C42] hover:underline transition-colors"
+                    >
+                      {artist.owner_name}
+                    </button>
+                  ) : (
+                    <span className="font-medium text-black/60">{artist.owner_name}</span>
+                  )}
                 </p>
               )}
 

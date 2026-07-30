@@ -30,6 +30,7 @@ const PlayerScreen: React.FC = () => {
     likes, toggleLike, comments, loadComments, sendComment,
     shuffleEnabled, toggleShuffle, repeatMode, cycleRepeatMode,
     favorites, toggleFavorite, selectArtist,
+    user, selectConversation, navigate,
   } = useAppStore();
   const { currentTrack, isPlaying, progress, duration } = player;
 
@@ -360,26 +361,52 @@ const PlayerScreen: React.FC = () => {
                   Nenhum comentário ainda. Seja o primeiro!
                 </p>
               )}
-              {trackComments.map((comment) => (
-                <div key={comment.id} className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-bold text-black/60">
-                      {comment.user?.name?.charAt(0) || '?'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-semibold text-[#1A1B25]">
-                        {comment.user?.name || 'Anônimo'}
+              {trackComments.map((comment) => {
+                const isMe = comment.user?.id === user?.id;
+                const canMessage = !!comment.user?.id && !isMe;
+                const handleGoToUser = () => {
+                  if (!canMessage || !comment.user) return;
+                  selectConversation(comment.user.id, comment.user.name || 'Anônimo');
+                  navigate('chat-conversation');
+                };
+                return (
+                  <div key={comment.id} className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleGoToUser}
+                      disabled={!canMessage}
+                      className={cn(
+                        'w-8 h-8 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0',
+                        canMessage && 'hover:ring-2 hover:ring-[#FF8C42] transition-shadow'
+                      )}
+                      aria-label={canMessage ? `Ver conversa com ${comment.user?.name}` : undefined}
+                    >
+                      <span className="text-xs font-bold text-black/60">
+                        {comment.user?.name?.charAt(0) || '?'}
                       </span>
-                      <span className="text-[10px] text-black/30">
-                        {new Date(comment.created_at).toLocaleDateString('pt-BR')}
-                      </span>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2">
+                        <button
+                          type="button"
+                          onClick={handleGoToUser}
+                          disabled={!canMessage}
+                          className={cn(
+                            'text-sm font-semibold text-[#1A1B25] text-left',
+                            canMessage && 'hover:text-[#FF8C42] hover:underline transition-colors'
+                          )}
+                        >
+                          {comment.user?.name || 'Anônimo'}
+                        </button>
+                        <span className="text-[10px] text-black/30">
+                          {new Date(comment.created_at).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-black/60 mt-0.5">{comment.content}</p>
                     </div>
-                    <p className="text-sm text-black/60 mt-0.5">{comment.content}</p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* New comment input */}
