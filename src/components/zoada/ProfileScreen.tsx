@@ -103,16 +103,6 @@ const ProfileScreen: React.FC = () => {
               <p className="text-lg font-bold text-[#1A1B25]">{likedTracks.length}</p>
               <p className="text-xs text-black/40">Curtidas</p>
             </div>
-            <div className="w-px h-8 bg-black/10" />
-            <div className="text-center">
-              <p className="text-lg font-bold text-[#1A1B25]">12</p>
-              <p className="text-xs text-black/40">Playlists</p>
-            </div>
-            <div className="w-px h-8 bg-black/10" />
-            <div className="text-center">
-              <p className="text-lg font-bold text-[#1A1B25]">48</p>
-              <p className="text-xs text-black/40">Seguindo</p>
-            </div>
           </div>
         </div>
       </div>
