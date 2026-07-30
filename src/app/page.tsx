@@ -15,7 +15,7 @@ import BottomNav from '@/components/zoada/BottomNav';
 import MiniPlayer from '@/components/zoada/MiniPlayer';
 
 export default function Home() {
-  const { currentScreen, isAuthenticated, setComments, restoreSession, initFavorites } = useAppStore();
+  const { currentScreen, isAuthenticated, user, setComments, restoreSession, initFavorites, loadLikes } = useAppStore();
 
   // Restore auth session from localStorage on mount
   useEffect(() => {
@@ -26,6 +26,14 @@ export default function Home() {
   useEffect(() => {
     initFavorites();
   }, [initFavorites]);
+
+  // Carrega as curtidas reais do usuário a partir do servidor assim que
+  // ele estiver autenticado (antes disso não temos user.id pra buscar).
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      loadLikes(user.id);
+    }
+  }, [isAuthenticated, user?.id, loadLikes]);
 
   // Load demo comments on mount
   useEffect(() => {

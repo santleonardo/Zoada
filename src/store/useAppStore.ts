@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, Like } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay } from '@/lib/api';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike } from '@/lib/api';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -97,7 +97,8 @@ interface AppState {
 
   // Actions - Social
   setLikes: (likes: Like[]) => void;
-  toggleLike: (trackId: string) => void;
+  loadLikes: (userId: string) => Promise<void>;
+  toggleLike: (trackId: string) => Promise<void>;
   setComments: (comments: Comment[]) => void;
   addComment: (comment: Comment) => void;
 
@@ -348,20 +349,51 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Social actions
   setLikes: (likes) => set({ likes }),
-  toggleLike: (trackId) => set((state) => {
-    const exists = state.likes.some(l => l.track_id === trackId);
+
+  // Busca as curtidas reais do usuário no servidor e substitui o estado local.
+  loadLikes: async (userId) => {
+    const likes = await fetchUserLikes(userId);
+    set({ likes });
+  },
+
+  // Curte/descurte uma faixa: atualiza a tela na hora (otimista) e persiste
+  // de verdade no servidor. Se a chamada falhar, desfaz a mudança local pra
+  // não deixar o usuário achando que curtiu algo que não foi salvo.
+  toggleLike: async (trackId) => {
+    const before = get().likes;
+    const exists = before.some(l => l.track_id === trackId);
+    const userId = get().user?.id || '';
+
+    // Atualização otimista
     if (exists) {
-      return { likes: state.likes.filter(l => l.track_id !== trackId) };
+      set({ likes: before.filter(l => l.track_id !== trackId) });
+    } else {
+      set({
+        likes: [...before, {
+          id: `temp-${Date.now()}`,
+          user_id: userId,
+          track_id: trackId,
+          created_at: new Date().toISOString(),
+        }],
+      });
     }
-    return {
-      likes: [...state.likes, {
-        id: `like-${Date.now()}`,
-        user_id: state.user?.id || '',
-        track_id: trackId,
-        created_at: new Date().toISOString(),
-      }],
-    };
-  }),
+
+    const result = await toggleTrackLike(trackId);
+
+    if (!result) {
+      // Falhou de verdade (rede caiu, não autenticado, etc.) — desfaz.
+      set({ likes: before });
+      return;
+    }
+
+    // Sincroniza com o dado real vindo do servidor (id definitivo, etc.)
+    if (result.liked && result.like) {
+      const serverLike = result.like;
+      set((state) => ({
+        likes: state.likes.map(l => (l.track_id === trackId && l.id.startsWith('temp-')) ? serverLike : l),
+      }));
+    }
+  },
   setComments: (comments) => set({ comments }),
   addComment: (comment) => set((state) => ({
     comments: [...state.comments, comment],

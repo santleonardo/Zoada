@@ -88,6 +88,38 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   return response;
 }
 
+// Busca as curtidas salvas de um usuário no servidor.
+export async function fetchUserLikes(userId: string): Promise<Array<{ id: string; user_id: string; track_id: string; created_at: string }>> {
+  try {
+    const res = await apiFetch(`/api/likes?user_id=${encodeURIComponent(userId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.likes) ? data.likes : [];
+  } catch (err) {
+    console.warn('[fetchUserLikes] falha ao buscar curtidas:', err);
+    return [];
+  }
+}
+
+// Curte/descurte uma faixa no servidor (toggle). Retorna o estado real
+// após a operação, para manter o front sincronizado com o banco.
+export async function toggleTrackLike(trackId: string): Promise<{
+  liked: boolean;
+  like?: { id: string; user_id: string; track_id: string; created_at: string };
+} | null> {
+  try {
+    const res = await apiFetch('/api/likes', {
+      method: 'POST',
+      body: JSON.stringify({ track_id: trackId }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[toggleTrackLike] falha ao curtir/descurtir:', err);
+    return null;
+  }
+}
+
 // Registra uma reprodução de faixa (incrementa plays_count no servidor).
 // Fire-and-forget: quem chama não precisa esperar nem tratar erro — se a
 // contagem falhar (ex: rede caiu), simplesmente perdemos essa reprodução,

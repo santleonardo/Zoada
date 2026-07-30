@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings,
   LogOut,
@@ -11,7 +11,7 @@ import {
   Edit3,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { DEMO_TRACKS } from '@/lib/demo-data';
+import type { Track } from '@/types';
 import GradientButton from './GradientButton';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -25,10 +25,24 @@ const ProfileScreen: React.FC = () => {
   const [name, setName] = useState(user?.name || '');
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
   const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
+  const [allTracks, setAllTracks] = useState<Track[]>([]);
+
+  // Busca as faixas reais da API pra poder mostrar as músicas curtidas
+  // de verdade (antes isso usava só os dados demo, que agora nem existem).
+  useEffect(() => {
+    fetch('/api/tracks')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.tracks)) setAllTracks(data.tracks);
+      })
+      .catch(() => {
+        // sem tracks reais disponíveis; a lista de curtidas fica vazia
+      });
+  }, []);
 
   if (!user) return null;
 
-  const likedTracks = DEMO_TRACKS.filter((t) => likes.some((l) => l.track_id === t.id));
+  const likedTracks = allTracks.filter((t) => likes.some((l) => l.track_id === t.id));
   const initials = user.name
     .split(' ')
     .map((n) => n[0])
