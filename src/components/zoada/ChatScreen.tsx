@@ -112,7 +112,7 @@ const ChatScreen: React.FC = () => {
 };
 
 const ChatConversation: React.FC = () => {
-  const { selectedConversationId, selectedConversationName, goBack, user } = useAppStore();
+  const { selectedConversationId, selectedConversationName, closeConversation, user } = useAppStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
@@ -172,9 +172,7 @@ const ChatConversation: React.FC = () => {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-black/5 glass safe-top">
         <button
-          onClick={() => {
-            goBack();
-          }}
+          onClick={closeConversation}
           className="p-2 rounded-full hover:bg-black/5 transition-colors"
           aria-label="Voltar"
         >

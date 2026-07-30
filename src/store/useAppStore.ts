@@ -91,6 +91,7 @@ interface AppState {
 
   // Actions - Chat
   selectConversation: (id: string, name: string) => void;
+  closeConversation: () => void;
 
   // Actions - Artist profile
   selectArtist: (id: string) => void;
@@ -340,6 +341,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectConversation: (id, name) => set({
     selectedConversationId: id,
     selectedConversationName: name,
+  }),
+
+  // Fecha a conversa aberta de verdade — sem isso o app fica preso na
+  // mesma conversa pra sempre, porque só currentScreen mudava, nunca
+  // selectedConversationId.
+  closeConversation: () => set({
+    selectedConversationId: null,
+    selectedConversationName: null,
   }),
 
   // Artist profile actions
