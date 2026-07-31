@@ -540,6 +540,7 @@ export async function fetchMyRadioStation(): Promise<RadioStation | null> {
 export async function saveRadioStation(fields: {
   name: string;
   cover_url?: string | null;
+  bio?: string | null;
   track_ids: string[];
 }): Promise<RadioStation | null> {
   try {

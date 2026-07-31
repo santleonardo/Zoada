@@ -133,6 +133,8 @@ export interface RadioStation {
   user_id: string;
   name: string;
   cover_url: string | null;
+  // Bio/descrição opcional da estação (ex: estilo musical, propósito).
+  bio: string | null;
   // true = publicada/disponível no seletor. Múltiplas estações podem
   // estar publicadas ao mesmo tempo.
   is_published: boolean;
