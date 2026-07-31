@@ -37,9 +37,9 @@ const CoverArt: React.FC<CoverArtProps> = ({
   const sizes = {
     sm: 'w-12 h-12',
     md: 'w-full aspect-square max-w-[200px]',
-    lg: 'w-full aspect-[3/4] max-w-[280px]',
-    xl: 'w-full aspect-[3/4] max-w-[340px]',
-    full: 'w-full aspect-[9/16] max-w-[360px]',
+    lg: 'w-full aspect-square max-w-[280px]',
+    xl: 'w-full aspect-square max-w-[340px]',
+    full: 'w-full aspect-square max-w-[360px]',
   };
 
   const fontSizes = {
