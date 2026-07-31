@@ -151,6 +151,12 @@ export interface RadioStation {
   };
   // Faixas da estação, na ordem escolhida (preenchido ao buscar com detalhes).
   tracks?: Track[];
+  // Soma do plays_count de todas as faixas da estação — usado como métrica
+  // de "estação mais tocada" no ranking da home (preenchido nas respostas
+  // que já carregam as faixas, ex: ?published=1).
+  total_plays?: number;
+  // Quantidade de faixas na estação (preenchido junto com total_plays).
+  tracks_count?: number;
 }
 
 // Resultado da busca de usuários por nome (aba "Fãs") — versão enxuta do

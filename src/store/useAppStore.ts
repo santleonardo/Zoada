@@ -187,6 +187,10 @@ interface AppState {
   loadPublishedStations: () => Promise<void>;
   // Seleciona uma estação pelo ID (null = volta pra estação padrão Zôada).
   selectStation: (stationId: string | null) => Promise<void>;
+  // Sintoniza e já começa a tocar uma estação publicada (usado a partir de
+  // fora da tela de Rádio, ex: ranking "mais tocadas" da Início). Busca a
+  // estação com as faixas, monta a fila e inicia o player nela.
+  tuneIntoStation: (stationId: string) => Promise<void>;
   // Avança a faixa atual da estação selecionada no servidor (fire-and-forget).
   advanceStationTrack: () => Promise<void>;
 }
@@ -785,6 +789,53 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     set({ selectedStationId: stationId, selectedStation: station });
+  },
+
+  // Sintoniza uma estação publicada e já coloca ela tocando, montando a
+  // fila e o player diretamente — mesma lógica que o dial da tela de Rádio
+  // usa ao trocar de estação, só que acionável de qualquer lugar do app
+  // (ex: card do ranking "estações mais tocadas" na Início).
+  tuneIntoStation: async (stationId) => {
+    const station = await fetchRadioStationById(stationId);
+    if (!station || !station.tracks || station.tracks.length === 0) return;
+
+    const stationTracks = station.tracks;
+
+    // Calcula qual faixa deveria estar tocando agora, pra entrar já
+    // sincronizado com quem mais estiver ouvindo essa estação.
+    let startIndex = 0;
+    if (station.current_track_started_at && station.current_track_id) {
+      const startedAt = new Date(station.current_track_started_at).getTime();
+      const elapsedMs = Date.now() - startedAt;
+      let accumulated = 0;
+      for (let i = 0; i < stationTracks.length; i++) {
+        accumulated += (stationTracks[i].duration || 0) * 1000;
+        if (accumulated > elapsedMs) {
+          startIndex = i;
+          break;
+        }
+        if (i === stationTracks.length - 1) startIndex = i;
+      }
+    }
+
+    const startingTrack = stationTracks[startIndex];
+    const state = get();
+    set({
+      selectedStationId: stationId,
+      selectedStation: station,
+      radioEnabled: true,
+      shuffleEnabled: false,
+      repeatMode: 'all',
+      queue: stationTracks,
+      queueIndex: startIndex,
+      shuffleBag: [],
+      player: {
+        ...state.player,
+        currentTrack: startingTrack,
+        isPlaying: true,
+        progress: 0,
+      },
+    });
   },
 
   // Avança a faixa atual da estação selecionada no servidor. Chamado
