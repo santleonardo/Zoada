@@ -19,6 +19,20 @@ function saveFavorites(favorites: string[]) {
   localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
 }
 
+// Embaralha uma lista de IDs (Fisher-Yates). Usado para sortear cada novo
+// "embrulho" do shuffle bag do rádio — dá uma distribuição realmente
+// uniforme, diferente de `.sort(() => Math.random() - 0.5)`, que é
+// enviesado (favorece certas posições dependendo do algoritmo de sort do
+// motor JS).
+function shuffleIds(ids: string[]): string[] {
+  const result = [...ids];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 interface PlayerState {
   currentTrack: Track | null;
   isPlaying: boolean;
@@ -43,6 +57,14 @@ interface AppState {
   queue: Track[];
   queueIndex: number;
   shuffleEnabled: boolean;
+  // IDs das faixas que ainda faltam tocar no "embrulho" atual de shuffle
+  // (shuffle bag). Cada faixa só sai daqui uma vez; quando esvazia, um
+  // embrulho novo é sorteado com todas as faixas de novo. Isso garante que
+  // nenhuma faixa repete antes de todas as outras terem tocado — diferente
+  // de sortear um índice aleatório a cada vez, que pode repetir faixas
+  // seguidas vezes por puro acaso (mais chance ainda quanto mais tempo o
+  // rádio fica tocando).
+  shuffleBag: string[];
   repeatMode: 'off' | 'all' | 'one';
   // Última reprodução contabilizada de verdade (ver audioEngine.ts): outras
   // telas que mantêm sua própria lista local de faixas (MainScreen,
@@ -173,6 +195,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   queue: [],
   queueIndex: 0,
   shuffleEnabled: false,
+  shuffleBag: [],
   repeatMode: 'off',
   lastCountedPlay: null,
   setUser: (user, token) => {
@@ -209,6 +232,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       queue: [],
       queueIndex: 0,
       shuffleEnabled: false,
+      shuffleBag: [],
       repeatMode: 'off',
     });
   },
@@ -285,11 +309,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (state.queue.length === 0) return;
 
     let nextIndex: number;
+    let nextShuffleBag = state.shuffleBag;
 
     if (state.shuffleEnabled && state.queue.length > 1) {
-      do {
-        nextIndex = Math.floor(Math.random() * state.queue.length);
-      } while (nextIndex === state.queueIndex);
+      const currentId = state.queue[state.queueIndex]?.id;
+
+      // Embrulho vazio (primeira vez ou todas as faixas dele já tocaram):
+      // sorteia um embrulho novo com TODAS as faixas da fila.
+      let bag = state.shuffleBag;
+      if (bag.length === 0) {
+        bag = shuffleIds(state.queue.map((t) => t.id));
+      }
+
+      // Evita que a faixa atual seja logo a primeira do embrulho novo (o
+      // que soaria como "repetiu direto"), trocando com a segunda posição
+      // quando isso acontece e há uma alternativa disponível.
+      let pickId = bag[0];
+      let rest = bag.slice(1);
+      if (pickId === currentId && rest.length > 0) {
+        pickId = rest[0];
+        rest = [bag[0], ...rest.slice(1)];
+      }
+
+      nextShuffleBag = rest;
+      const foundIndex = state.queue.findIndex((t) => t.id === pickId);
+      nextIndex = foundIndex >= 0 ? foundIndex : 0;
     } else {
       nextIndex = state.queueIndex + 1;
       if (nextIndex >= state.queue.length) {
@@ -312,6 +356,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         progress: 0,
       },
       queueIndex: nextIndex,
+      shuffleBag: nextShuffleBag,
     });
   },
 
@@ -335,7 +380,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     player: { ...state.player, volume },
   })),
 
-  toggleShuffle: () => set((state) => ({ shuffleEnabled: !state.shuffleEnabled })),
+  toggleShuffle: () => set((state) => {
+    const enabling = !state.shuffleEnabled;
+    if (!enabling) {
+      // Desligando: o embrulho não tem mais serventia até religar.
+      return { shuffleEnabled: false, shuffleBag: [] };
+    }
+    // Ligando: sorteia um embrulho novo, excluindo a faixa que já está
+    // tocando agora (ela só volta a poder ser sorteada depois que todas
+    // as outras tiverem tocado).
+    const currentId = state.queue[state.queueIndex]?.id;
+    const bag = shuffleIds(state.queue.map((t) => t.id).filter((id) => id !== currentId));
+    return { shuffleEnabled: true, shuffleBag: bag };
+  }),
 
   registerPlay: (trackId) => {
     const state = get();
@@ -575,15 +632,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Shuffle the tracks array randomly
     const shuffled = [...tracks].sort(() => Math.random() - 0.5);
     const randomIndex = Math.floor(Math.random() * shuffled.length);
+    const startingTrack = shuffled[randomIndex];
     set({
       radioEnabled: true,
       shuffleEnabled: true,
       repeatMode: 'all', // Radio loops forever
       queue: shuffled,
       queueIndex: randomIndex,
+      // Embrulho inicial já sorteado, sem a faixa que acabou de começar a
+      // tocar — ela só volta a ser candidata depois que as demais tiverem
+      // tocado uma vez cada.
+      shuffleBag: shuffleIds(shuffled.map((t) => t.id).filter((id) => id !== startingTrack.id)),
       player: {
         ...get().player,
-        currentTrack: shuffled[randomIndex],
+        currentTrack: startingTrack,
         isPlaying: true,
         progress: 0,
       },
