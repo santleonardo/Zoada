@@ -21,6 +21,7 @@ import Equalizer from './Equalizer';
 import UploadMusicPanel from './UploadMusicPanel';
 import MyTracksPanel from './MyTracksPanel';
 import MyArtistsPanel from './MyArtistsPanel';
+import MyRadioStationPanel from './MyRadioStationPanel';
 
 const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, selectArtist, setUser, authToken } = useAppStore();
@@ -313,6 +314,9 @@ const ProfileScreen: React.FC = () => {
           setFocusToken((t) => t + 1);
         }}
       />
+
+      {/* Estação de rádio pessoal: criar/editar/ativar/desativar/apagar. */}
+      <MyRadioStationPanel />
 
       {/* Settings */}
       <div className="space-y-2 mb-6">

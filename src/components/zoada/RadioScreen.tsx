@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Play, Pause, SkipForward, SkipBack, Radio, Star, Music2, TrendingUp, Heart, MessageCircle, Send } from 'lucide-react';
+import { Search, Play, Pause, SkipForward, SkipBack, Radio, Star, Music2, TrendingUp, Heart, MessageCircle, Send, Broadcast } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from 'sonner';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
@@ -34,6 +34,9 @@ const RadioScreen: React.FC = () => {
     user,
     lastCountedPlay,
     queue,
+    activeStation,
+    loadActiveStation,
+    advanceStationTrack,
   } = useAppStore();
 
   const { currentTrack, isPlaying, progress, duration } = player;
@@ -78,13 +81,79 @@ const RadioScreen: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  // Auto-start radio when screen first loads
+  // Busca a estação globalmente ativa ao entrar na tela — se existir, o
+  // rádio toca a fila dela em vez do shuffle genérico.
   useEffect(() => {
-    if (!hasAutoStarted.current && tracks.length > 0) {
+    loadActiveStation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-start radio when screen first loads. Se existe uma estação
+  // ativa com faixas, usa a fila ordenada dela; senão, faz o shuffle
+  // padrão de todas as faixas do catálogo.
+  useEffect(() => {
+    if (hasAutoStarted.current) return;
+    if (tracks.length === 0) return;
+
+    const stationTracks = activeStation?.tracks;
+    if (activeStation?.is_active && stationTracks && stationTracks.length > 0) {
+      hasAutoStarted.current = true;
+
+      // Calcula qual faixa deveria estar tocando com base no tempo
+      // decorrido desde que a transmissão começou (sincronização simples
+      // — suficiente pra "todo mundo ouve a mesma rádio").
+      let startIndex = 0;
+      if (activeStation.current_track_started_at && activeStation.current_track_id) {
+        const startedAt = new Date(activeStation.current_track_started_at).getTime();
+        const elapsedMs = Date.now() - startedAt;
+        let accumulated = 0;
+        for (let i = 0; i < stationTracks.length; i++) {
+          accumulated += (stationTracks[i].duration || 0) * 1000;
+          if (accumulated > elapsedMs) {
+            startIndex = i;
+            break;
+          }
+          if (i === stationTracks.length - 1) startIndex = i;
+        }
+      }
+
+      const startingTrack = stationTracks[startIndex];
+      // Começa tocando a fila da estação em ordem (sem shuffle).
+      const state = useAppStore.getState();
+      useAppStore.setState({
+        radioEnabled: true,
+        shuffleEnabled: false,
+        repeatMode: 'all',
+        queue: stationTracks,
+        queueIndex: startIndex,
+        shuffleBag: [],
+        player: {
+          ...state.player,
+          currentTrack: startingTrack,
+          isPlaying: true,
+          progress: 0,
+        },
+      });
+    } else {
+      // Nenhuma estação ativa: shuffle padrão de todo o catálogo.
       hasAutoStarted.current = true;
       startRadio(tracks);
     }
-  }, [tracks.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tracks.length, activeStation]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Quando a estação está ativa e avança de faixa (fim natural), avisa
+  // o servidor pra sincronizar os outros ouvintes — fire-and-forget.
+  const prevTrackIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeStation?.is_active || !currentTrack) return;
+    const prevId = prevTrackIdRef.current;
+    prevTrackIdRef.current = currentTrack.id;
+    // Só avisa o servidor se tínhamos uma faixa anterior (não é o
+    // início) E a faixa mudou — isso indica que o player avançou.
+    if (prevId && prevId !== currentTrack.id) {
+      advanceStationTrack();
+    }
+  }, [currentTrack?.id, activeStation?.is_active, advanceStationTrack]);
 
   const favoriteTracks = useMemo(() => {
     return tracks.filter((t) => favorites.includes(t.id));
@@ -304,13 +373,21 @@ const RadioScreen: React.FC = () => {
                 'w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg',
                 radioEnabled ? 'bg-white/20 backdrop-blur-sm pulse-glow' : 'bg-white/30'
               )}>
-                <Radio size={24} className="text-white" fill={radioEnabled ? 'white' : 'none'} />
+                {activeStation?.is_active ? (
+                  <Broadcast size={24} className="text-white" fill="white" />
+                ) : (
+                  <Radio size={24} className="text-white" fill={radioEnabled ? 'white' : 'none'} />
+                )}
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Rádio Zoada</h1>
+                <h1 className="text-xl font-bold text-white tracking-tight">
+                  {activeStation?.is_active ? activeStation.name : 'Rádio Zoada'}
+                </h1>
                 <p className="text-white/70 text-xs mt-0.5">
                   {radioEnabled
-                    ? `${queueLength} músicas em shuffle infinito`
+                    ? (activeStation?.is_active && activeStation.owner
+                      ? `Estação de ${activeStation.owner.name} — ${queueLength} faixas`
+                      : `${queueLength} músicas em shuffle infinito`)
                     : 'Toque para iniciar a rádio'
                   }
                 </p>
