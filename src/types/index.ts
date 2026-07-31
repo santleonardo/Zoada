@@ -122,4 +122,12 @@ export interface Conversation {
 
 export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-profile' | 'chat' | 'chat-conversation' | 'radio';
 
-export type RadioTab = 'faixas' | 'explorar' | 'artistas';
+export type RadioTab = 'fas' | 'faixas' | 'explorar' | 'artistas';
+
+// Resultado da busca de usuários por nome (aba "Fãs") — versão enxuta do
+// perfil público, só com o necessário pra listar/clicar num resultado.
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+}

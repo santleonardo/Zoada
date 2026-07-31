@@ -136,10 +136,29 @@ export async function fetchPublicUserProfile(userId: string): Promise<PublicUser
   }
 }
 
+// Faz upload de uma nova foto de perfil (multipart/form-data) para
+// /api/avatar-upload. Retorna a URL pública da imagem, ou null se falhar.
+export async function uploadAvatar(file: File): Promise<string | null> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiFetch('/api/avatar-upload', {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.url ?? null;
+  } catch (err) {
+    console.warn('[uploadAvatar] falha ao enviar foto:', err);
+    return null;
+  }
+}
+
 // Atualiza o PRÓPRIO perfil do usuário logado (nome e/ou foto). Retorna
 // o usuário atualizado (vindo do servidor) em caso de sucesso, ou null
 // se a chamada falhar.
-export async function updateMyProfile(fields: { name?: string; avatarUrl?: string }): Promise<{
+export async function updateMyProfile(fields: { name?: string; avatarUrl?: string | null }): Promise<{
   id: string;
   email: string;
   name: string;

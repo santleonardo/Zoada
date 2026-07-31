@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioTab } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow } from '@/lib/api';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile } from '@/lib/api';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -108,6 +108,10 @@ interface AppState {
   setUser: (user: User | null, token?: string | null) => void;
   logout: () => void;
   restoreSession: () => void;
+  // Atualiza nome/foto do usuário logado no servidor e reflete no estado
+  // local (sem navegar de tela, diferente de setUser). Retorna true em
+  // caso de sucesso.
+  updateProfile: (fields: { name: string; avatar_url: string | null }) => Promise<boolean>;
 
   // Actions - Navigation
   navigate: (screen: Screen, tab?: 'tracks' | 'artists' | 'favorites') => void;
@@ -256,6 +260,35 @@ export const useAppStore = create<AppState>((set, get) => ({
         isAuthenticated: true,
         currentScreen: 'main',
       });
+    }
+  },
+
+  updateProfile: async (fields) => {
+    try {
+      const updated = await updateMyProfile({ name: fields.name, avatarUrl: fields.avatar_url });
+      if (!updated) return false;
+
+      // Atualiza o estado local com o que o servidor confirmou (não com
+      // `fields` diretamente), pra manter a store sempre em sincronia com
+      // o que foi realmente persistido.
+      set((state) => ({
+        user: state.user ? { ...state.user, name: updated.name, avatar_url: updated.avatar_url } : state.user,
+      }));
+
+      // Mantém o localStorage sincronizado (usado pelo restoreSession).
+      const token = getAuthToken();
+      if (token) {
+        saveAuth(token, {
+          id: updated.id,
+          email: updated.email,
+          name: updated.name,
+          avatar_url: updated.avatar_url,
+        });
+      }
+
+      return true;
+    } catch {
+      return false;
     }
   },
 
