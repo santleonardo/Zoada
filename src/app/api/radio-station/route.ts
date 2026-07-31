@@ -12,6 +12,7 @@ function stationToResponse(estacao: any, includeOwner = false, includeTracks = f
     user_id: estacao.usuarioId,
     name: estacao.nome,
     cover_url: estacao.capaUrl,
+    bio: estacao.bio ?? null,
     is_published: estacao.publicada,
     current_track_id: estacao.faixaAtualId,
     current_track_started_at: estacao.faixaAtualInicio?.toISOString() ?? null,
@@ -158,11 +159,14 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, cover_url, track_ids } = body;
+    const { name, cover_url, bio, track_ids } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'name é obrigatório' }, { status: 400 });
     }
+
+    // Bio é opcional, mas se vier, limita o tamanho pra evitar textos gigantes.
+    const trimmedBio = typeof bio === 'string' ? bio.trim().slice(0, 280) : null;
 
     if (!Array.isArray(track_ids) || track_ids.length === 0) {
       return NextResponse.json({ error: 'track_ids deve ser um array não vazio' }, { status: 400 });
@@ -187,10 +191,12 @@ export async function POST(request: Request) {
         usuarioId: userId,
         nome: name.trim(),
         capaUrl: cover_url || null,
+        bio: trimmedBio || null,
       },
       update: {
         nome: name.trim(),
         capaUrl: cover_url || null,
+        bio: trimmedBio || null,
       },
       include: {
         faixasEstacao: {

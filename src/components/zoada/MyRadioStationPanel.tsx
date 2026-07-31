@@ -30,6 +30,7 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
   // Estado do formulário de criação/edição
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
@@ -57,11 +58,13 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
       setStation(s);
       if (s) {
         setName(s.name);
+        setBio(s.bio || '');
         setCoverPreview(s.cover_url);
         setSelectedTrackIds(s.tracks?.map((t) => t.id) || []);
       } else {
         // Reset formulário quando não há estação
         setName('');
+        setBio('');
         setCoverPreview(null);
         setSelectedTrackIds([]);
       }
@@ -140,6 +143,7 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
       const saved = await saveRadioStation({
         name: trimmedName,
         cover_url: coverUrl ?? station?.cover_url ?? null,
+        bio: bio.trim() || null,
         track_ids: selectedTrackIds,
       });
 
@@ -199,6 +203,7 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
       if (ok) {
         setStation(null);
         setName('');
+        setBio('');
         setCoverPreview(null);
         setSelectedTrackIds([]);
         setIsEditing(false);
@@ -269,6 +274,10 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
                   </p>
                 </div>
               </div>
+
+              {station.bio && (
+                <p className="text-xs text-black/50 mb-4 -mt-2 px-1">{station.bio}</p>
+              )}
 
               {/* Ações da estação */}
               <div className="space-y-2">
@@ -376,6 +385,22 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
                   placeholder="Ex: Sessão Acústica, Set de DJ..."
                   className="!text-sm"
                 />
+              </div>
+
+              {/* Bio opcional */}
+              <div>
+                <label className="text-xs font-medium text-black/60 block mb-1">
+                  Bio <span className="text-black/30">(opcional)</span>
+                </label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value.slice(0, 280))}
+                  placeholder="Conte um pouco sobre a proposta dessa estação..."
+                  rows={3}
+                  maxLength={280}
+                  className="!text-sm resize-none"
+                />
+                <p className="text-[10px] text-black/30 text-right mt-0.5">{bio.length}/280</p>
               </div>
 
               {/* Capa opcional */}
@@ -542,6 +567,7 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
                       // Restaura os dados originais da estação
                       if (station) {
                         setName(station.name);
+                        setBio(station.bio || '');
                         setCoverPreview(station.cover_url);
                         setSelectedTrackIds(station.tracks?.map((t) => t.id) || []);
                       }
