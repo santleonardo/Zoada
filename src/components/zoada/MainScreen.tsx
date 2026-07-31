@@ -356,26 +356,40 @@ const MainScreen: React.FC = () => {
     );
   };
 
-  // Bento grid: 6 colunas, cada cartão ocupa um bloco quadrado de N×N
-  // colunas conforme a posição no ranking — a mais tocada ocupa o maior
-  // bloco (3×3), as próximas duas um bloco médio (2×2) e o restante
-  // preenche em blocos pequenos (1×1), formando um mosaico.
-  const RANKED_SPANS = [3, 2, 2, 1, 1, 1, 1, 1];
-
+  // Bento grid em duas fileiras: a de cima tem o 1º lugar num bloco 3×3 e o
+  // 2º/3º lugar em blocos 2×2 lado a lado; embaixo, uma fileira própria só
+  // com os blocos 1×1 (4º ao 10º lugar) — assim os pequenos não ficam
+  // espalhados em buracos ao redor dos grandes, como ficava antes.
   const renderMostPlayedBento = () => {
-    const ranked = topTracks.slice(0, RANKED_SPANS.length);
+    const ranked = topTracks.slice(0, 10);
     if (ranked.length === 0) return null;
 
+    const heroTrack = ranked[0];
+    const mediumTracks = ranked.slice(1, 3);
+    const smallTracks = ranked.slice(3, 10);
+
     return (
-      <div className="grid grid-cols-6 gap-2.5 grid-flow-row-dense">
-        {ranked.map((track, i) => {
-          const span = RANKED_SPANS[i];
-          return (
-            <div key={track.id} style={{ gridColumn: `span ${span}`, gridRow: `span ${span}` }}>
-              {renderBentoTile(track, span >= 3 ? 'hero' : span === 2 ? 'medium' : 'small', {})}
+      <div className="space-y-2.5">
+        <div className="grid grid-cols-7 gap-2.5">
+          <div style={{ gridColumn: '1 / 4', gridRow: '1 / 4' }}>
+            {renderBentoTile(heroTrack, 'hero', {})}
+          </div>
+          {mediumTracks.map((track, i) => (
+            <div
+              key={track.id}
+              style={{ gridColumn: i === 0 ? '4 / 6' : '6 / 8', gridRow: '1 / 3' }}
+            >
+              {renderBentoTile(track, 'medium', {})}
             </div>
-          );
-        })}
+          ))}
+        </div>
+        {smallTracks.length > 0 && (
+          <div className="grid grid-cols-7 gap-2.5">
+            {smallTracks.map((track) => (
+              <div key={track.id}>{renderBentoTile(track, 'small', {})}</div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
