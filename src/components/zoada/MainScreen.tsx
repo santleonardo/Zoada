@@ -356,22 +356,26 @@ const MainScreen: React.FC = () => {
     );
   };
 
-  // Largura de cada cartão por posição no ranking — a mais tocada fica
-  // maior, e cada posição seguinte um pouco menor que a anterior, pra
-  // reforçar visualmente o ranking de reproduções.
-  const RANKED_WIDTHS = [220, 196, 174, 154, 136, 122, 110, 100];
+  // Bento grid: 6 colunas, cada cartão ocupa um bloco quadrado de N×N
+  // colunas conforme a posição no ranking — a mais tocada ocupa o maior
+  // bloco (3×3), as próximas duas um bloco médio (2×2) e o restante
+  // preenche em blocos pequenos (1×1), formando um mosaico.
+  const RANKED_SPANS = [3, 2, 2, 1, 1, 1, 1, 1];
 
   const renderMostPlayedBento = () => {
-    const ranked = topTracks.slice(0, RANKED_WIDTHS.length);
+    const ranked = topTracks.slice(0, RANKED_SPANS.length);
     if (ranked.length === 0) return null;
 
     return (
-      <div className="flex items-end gap-3 overflow-x-auto -mx-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {ranked.map((track, i) => (
-          <div key={track.id} className="flex-shrink-0" style={{ width: RANKED_WIDTHS[i] }}>
-            {renderBentoTile(track, i === 0 ? 'hero' : i <= 2 ? 'medium' : 'small', {})}
-          </div>
-        ))}
+      <div className="grid grid-cols-6 gap-2.5 grid-flow-row-dense">
+        {ranked.map((track, i) => {
+          const span = RANKED_SPANS[i];
+          return (
+            <div key={track.id} style={{ gridColumn: `span ${span}`, gridRow: `span ${span}` }}>
+              {renderBentoTile(track, span >= 3 ? 'hero' : span === 2 ? 'medium' : 'small', {})}
+            </div>
+          );
+        })}
       </div>
     );
   };
