@@ -209,7 +209,7 @@ model Mensagem {
 // só pode existir uma estação ativa por vez.
 model EstacaoRadio {
   id               String    @id @default(cuid())
-  usuarioId        String    @map("usuario_id")
+  usuarioId        String    @unique @map("usuario_id")
   nome             String
   capaUrl          String?   @map("capa_url")
   // Flag que indica se esta é a estação globalmente ativa. Só uma estação
