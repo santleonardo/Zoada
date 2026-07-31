@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Play, Pause, SkipForward, SkipBack, Radio, Star, Music2, TrendingUp, Heart, MessageCircle, Send } from 'lucide-react';
+import { Search, Play, Pause, SkipForward, SkipBack, Radio, Star, Music2, TrendingUp, Heart, MessageCircle, Send, Users, HeartHandshake } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from 'sonner';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
-import type { Track, Artist, RadioTab } from '@/types';
+import type { Track, Artist, RadioTab, UserSearchResult } from '@/types';
+import { searchUsers } from '@/lib/api';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import { cn, formatNumber } from '@/lib/utils';
@@ -42,6 +43,8 @@ const RadioScreen: React.FC = () => {
   const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
   const [newComment, setNewComment] = useState('');
   const [isSendingComment, setIsSendingComment] = useState(false);
+  const [fanResults, setFanResults] = useState<UserSearchResult[]>([]);
+  const [isSearchingFans, setIsSearchingFans] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const hasAutoStarted = useRef(false);
@@ -52,6 +55,26 @@ const RadioScreen: React.FC = () => {
     loadRadioComments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Busca usuários por nome na aba "Fãs" — com um pequeno debounce pra não
+  // disparar uma chamada a cada tecla digitada. Só roda quando a aba
+  // "fas" está ativa, pra não gastar requisição enquanto o usuário navega
+  // pelas outras abas com um texto de busca já digitado.
+  useEffect(() => {
+    if (radioTab !== 'fas') return;
+    if (!search.trim()) {
+      setFanResults([]);
+      setIsSearchingFans(false);
+      return;
+    }
+    setIsSearchingFans(true);
+    const timeout = setTimeout(() => {
+      searchUsers(search)
+        .then(setFanResults)
+        .finally(() => setIsSearchingFans(false));
+    }, 350);
+    return () => clearTimeout(timeout);
+  }, [radioTab, search]);
 
   // Sync play counts when counted
   useEffect(() => {
@@ -181,6 +204,7 @@ const RadioScreen: React.FC = () => {
   const currentQueueIndex = useAppStore.getState().queueIndex;
 
   const tabs: { key: RadioTab; label: string; icon: string }[] = [
+    { key: 'fas', label: 'Fãs', icon: '💜' },
     { key: 'faixas', label: 'Faixas', icon: '🎵' },
     { key: 'explorar', label: 'Explorar', icon: '🔍' },
     { key: 'artistas', label: 'Artistas', icon: '🎤' },
@@ -485,7 +509,13 @@ const RadioScreen: React.FC = () => {
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/25" />
           <input
             type="text"
-            placeholder={`Buscar ${radioTab === 'artistas' ? 'artistas' : 'músicas'}...`}
+            placeholder={
+              radioTab === 'fas'
+                ? 'Buscar usuários por nome...'
+                : radioTab === 'artistas'
+                ? 'Buscar artistas...'
+                : 'Buscar músicas...'
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="!pl-10 !py-2.5 !text-sm !rounded-xl"
@@ -511,6 +541,66 @@ const RadioScreen: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {/* Fãs Tab — busca de outros usuários por nome */}
+      {radioTab === 'fas' && (
+        <div className="space-y-2">
+          {!user && (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                <Users size={28} className="text-black/20" />
+              </div>
+              <p className="text-black/40 text-sm font-medium">Entre na sua conta para buscar outros fãs</p>
+            </div>
+          )}
+
+          {user && !search.trim() && (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                <HeartHandshake size={28} className="text-black/20" />
+              </div>
+              <p className="text-black/40 text-sm font-medium">Digite um nome para encontrar outros fãs</p>
+            </div>
+          )}
+
+          {user && search.trim() && isSearchingFans && (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-black/40 text-sm">Buscando...</p>
+            </div>
+          )}
+
+          {user && search.trim() && !isSearchingFans && fanResults.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                <Users size={28} className="text-black/20" />
+              </div>
+              <p className="text-black/40 text-sm font-medium">Nenhum fã encontrado com esse nome</p>
+            </div>
+          )}
+
+          {user && !isSearchingFans && fanResults.map((fan) => (
+            <button
+              key={fan.id}
+              onClick={() => selectUser(fan.id)}
+              className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
+            >
+              <CoverArt
+                title={fan.name}
+                artistName=""
+                coverUrl={fan.avatar_url || ''}
+                size="sm"
+                className="!w-12 !h-12 !max-w-none !rounded-full flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-[#1A1B25] truncate">{fan.name}</p>
+              </div>
+              <div className="p-2 rounded-full bg-black/5" aria-label="Ver perfil do usuário">
+                <Users size={16} className="text-black/50" />
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Faixas Tab */}
       {radioTab === 'faixas' && (

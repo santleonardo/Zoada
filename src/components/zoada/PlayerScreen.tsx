@@ -319,7 +319,7 @@ const PlayerScreen: React.FC = () => {
           )}
         </button>
         <button
-          onClick={nextTrack}
+          onClick={() => nextTrack()}
           className="p-3 rounded-full hover:bg-black/5 transition-all active:scale-90"
           aria-label="Próxima"
         >

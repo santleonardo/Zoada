@@ -71,7 +71,6 @@ export default function RootLayout({
         style={{
           backgroundColor: '#F7F7FB',
           color: '#1A1B25',
-          minHeight: '100vh',
           minHeight: '100dvh',
           WebkitOverflowScrolling: 'touch',
         }}

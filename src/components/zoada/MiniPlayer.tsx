@@ -189,7 +189,7 @@ const MiniPlayer: React.FC = () => {
           </button>
 
           <button
-            onClick={nextTrack}
+            onClick={() => nextTrack()}
             className="p-2 rounded-full hover:bg-black/5 transition-colors"
             aria-label="Próxima"
           >
