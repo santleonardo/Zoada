@@ -231,41 +231,63 @@ const UserProfileScreen: React.FC = () => {
                 <span className="text-sm text-black/40">{topTracks.length} faixas</span>
               </div>
 
-              <div className="space-y-2">
-                {topTracks.map((track, index) => (
-                  <div
-                    key={track.id}
-                    onClick={() => playTrack(track, topTracks)}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-white shadow-sm hover:bg-[#F2F2F8] transition-colors cursor-pointer group"
-                  >
-                    <span className="w-5 text-center text-sm font-bold text-black/25 flex-shrink-0">
-                      {index + 1}
-                    </span>
-                    <CoverArt
-                      title={track.title}
-                      artistName={track.artist_name}
-                      coverUrl={track.cover_url}
-                      size="sm"
-                      className="!w-12 !h-12 !max-w-none !rounded-lg flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-[#1A1B25] truncate">{track.title}</p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (track.artist_id) selectArtist(track.artist_id);
-                        }}
-                        className="text-xs text-black/40 hover:text-[#FF8C42] hover:underline transition-colors truncate block text-left"
-                      >
-                        {track.artist_name}
-                      </button>
+              <div className="grid grid-cols-4 auto-rows-[92px] grid-flow-row-dense gap-2">
+                {topTracks.map((track, index) => {
+                  // Padrão bento: alterna tamanhos de bloco a cada 6 faixas,
+                  // com grid-flow-dense preenchendo os buracos automaticamente.
+                  const bentoSpan = [
+                    'col-span-2 row-span-2',
+                    'col-span-2 row-span-1',
+                    'col-span-1 row-span-1',
+                    'col-span-1 row-span-1',
+                    'col-span-2 row-span-1',
+                    'col-span-2 row-span-1',
+                  ][index % 6];
+
+                  return (
+                    <div
+                      key={track.id}
+                      onClick={() => playTrack(track, topTracks)}
+                      className={`group relative rounded-2xl overflow-hidden cursor-pointer shadow-sm ${bentoSpan}`}
+                    >
+                      <CoverArt
+                        title={track.title}
+                        artistName={track.artist_name}
+                        coverUrl={track.cover_url}
+                        size="md"
+                        className="!absolute !inset-0 !w-full !h-full !max-w-none !aspect-auto !rounded-2xl !shadow-none transition-transform duration-300 group-hover:scale-105"
+                      />
+
+                      {/* Gradiente pra legibilidade do texto por cima da capa */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+
+                      {/* Posição no ranking */}
+                      <span className="absolute top-2 left-2 min-w-5 h-5 px-1 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-[10px] font-bold text-white">
+                        {index + 1}
+                      </span>
+
+                      {/* Quantas vezes essa pessoa ouviu */}
+                      <span className="absolute top-2 right-2 text-[10px] font-semibold text-white bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded-full">
+                        {track.listen_count}x
+                      </span>
+
+                      {/* Título e artista */}
+                      <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                        <p className="text-white text-sm font-semibold truncate drop-shadow">{track.title}</p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (track.artist_id) selectArtist(track.artist_id);
+                          }}
+                          className="text-[11px] text-white/70 hover:text-white hover:underline transition-colors truncate block text-left"
+                        >
+                          {track.artist_name}
+                        </button>
+                      </div>
                     </div>
-                    <span className="text-xs text-black/40 flex-shrink-0">
-                      {track.listen_count}x
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
