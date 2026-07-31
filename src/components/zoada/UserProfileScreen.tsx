@@ -221,14 +221,11 @@ const UserProfileScreen: React.FC = () => {
               da mais pra menos ouvida (ex: 15x aparece antes de 10x). */}
           {topTracks.length > 0 && (
             <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Flame size={18} className="text-[#FF8C42]" fill="#FF8C42" />
-                  <h3 className="font-semibold text-[#1A1B25]">
-                    {isSelf ? 'Suas mais ouvidas' : 'Mais ouvidas'}
-                  </h3>
-                </div>
-                <span className="text-sm text-black/40">{topTracks.length} faixas</span>
+              <div className="flex items-center gap-2 mb-3">
+                <Flame size={18} className="text-[#FF8C42]" fill="#FF8C42" />
+                <h3 className="font-semibold text-[#1A1B25]">
+                  {isSelf ? 'Suas mais ouvidas' : 'Mais ouvidas'}
+                </h3>
               </div>
 
               <div className="grid grid-cols-4 auto-rows-[92px] grid-flow-row-dense gap-2">
@@ -260,16 +257,6 @@ const UserProfileScreen: React.FC = () => {
 
                       {/* Gradiente pra legibilidade do texto por cima da capa */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-
-                      {/* Posição no ranking */}
-                      <span className="absolute top-2 left-2 min-w-5 h-5 px-1 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-[10px] font-bold text-white">
-                        {index + 1}
-                      </span>
-
-                      {/* Quantas vezes essa pessoa ouviu */}
-                      <span className="absolute top-2 right-2 text-[10px] font-semibold text-white bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded-full">
-                        {track.listen_count}x
-                      </span>
 
                       {/* Título e artista */}
                       <div className="absolute bottom-0 left-0 right-0 p-2.5">
