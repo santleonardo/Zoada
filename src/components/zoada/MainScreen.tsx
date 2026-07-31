@@ -263,7 +263,7 @@ const MainScreen: React.FC = () => {
         onClick={() => playTrack(track, topTracks)}
         style={style}
         className={cn(
-          'group relative aspect-square rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform duration-200',
+          'group relative w-full aspect-square rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform duration-200',
           isCurrentTrack && 'ring-2 ring-[#FF8C42] shadow-lg shadow-[#FF8C42]/30'
         )}
       >
@@ -356,22 +356,22 @@ const MainScreen: React.FC = () => {
     );
   };
 
-  // Monta o grid bento com as faixas mais tocadas: 1 cartão hero em
-  // destaque, até 2 cartões médios ao lado e uma fileira de cartões
-  // pequenos abaixo — dá muito mais peso visual do que uma lista.
+  // Largura de cada cartão por posição no ranking — a mais tocada fica
+  // maior, e cada posição seguinte um pouco menor que a anterior, pra
+  // reforçar visualmente o ranking de reproduções.
+  const RANKED_WIDTHS = [220, 196, 174, 154, 136, 122, 110, 100];
+
   const renderMostPlayedBento = () => {
-    const heroTrack = topTracks[0];
-    const restTracks = topTracks.slice(1, 7);
-    if (!heroTrack) return null;
+    const ranked = topTracks.slice(0, RANKED_WIDTHS.length);
+    if (ranked.length === 0) return null;
 
     return (
-      <div className="space-y-3.5">
-        <div className="-mx-4">{renderBentoTile(heroTrack, 'hero', {})}</div>
-        {restTracks.length > 0 && (
-          <div className="grid grid-cols-2 gap-3.5">
-            {restTracks.map((track) => renderBentoTile(track, 'medium', {}))}
+      <div className="flex items-end gap-3 overflow-x-auto -mx-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {ranked.map((track, i) => (
+          <div key={track.id} className="flex-shrink-0" style={{ width: RANKED_WIDTHS[i] }}>
+            {renderBentoTile(track, i === 0 ? 'hero' : i <= 2 ? 'medium' : 'small', {})}
           </div>
-        )}
+        ))}
       </div>
     );
   };
