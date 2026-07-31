@@ -33,6 +33,11 @@ const ProfileScreen: React.FC = () => {
   const profileCardRef = useRef<HTMLDivElement>(null);
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
   const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
+  // Controla o pedido de "editar este artista" vindo do painel "Seus
+  // Artistas": guarda qual artista e um contador que muda a cada clique
+  // (pra funcionar mesmo clicando duas vezes seguidas no mesmo artista).
+  const [focusArtistId, setFocusArtistId] = useState<string | null>(null);
+  const [focusToken, setFocusToken] = useState(0);
   const [topTracks, setTopTracks] = useState<TopListenedTrack[]>([]);
 
   // Busca as músicas que o usuário mais repetiu (contador pessoal de
@@ -267,24 +272,31 @@ const ProfileScreen: React.FC = () => {
         )}
       </div>
 
-      {/* Suas músicas enviadas (seção separada, só listagem/apagar) */}
+      {/* Suas músicas enviadas (seção separada, com opção de editar e apagar) */}
       <MyTracksPanel refreshKey={tracksRefreshKey} />
 
-      {/* Upload de músicas novas */}
+      {/* Upload de músicas novas — também é aqui que a edição de perfil de
+          artista acontece de fato, quando "focada" por fora. */}
       <UploadMusicPanel
         userName={user.name}
         onUploaded={() => setTracksRefreshKey((k) => k + 1)}
         refreshKey={artistsRefreshKey}
+        focusArtistId={focusArtistId}
+        focusToken={focusToken}
       />
 
-      {/* Seus artistas: seção própria, separada do envio/edição, só para
-          apagar artista(s) — ação destrutiva que não deve ficar misturada
-          com o formulário de upload. */}
+      {/* Seus artistas: seção própria, separada do envio, com opção de
+          editar (que leva pro painel de envio acima, já selecionado) e de
+          apagar — ação destrutiva que merece confirmação própria. */}
       <MyArtistsPanel
         refreshKey={artistsRefreshKey}
         onArtistDeleted={() => {
           setArtistsRefreshKey((k) => k + 1);
           setTracksRefreshKey((k) => k + 1);
+        }}
+        onEditArtist={(artistId) => {
+          setFocusArtistId(artistId);
+          setFocusToken((t) => t + 1);
         }}
       />
 

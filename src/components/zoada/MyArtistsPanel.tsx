@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Users, Loader2, Check, X, Trash2, Mic2 } from 'lucide-react';
+import { Users, Loader2, Check, X, Trash2, Mic2, Pencil } from 'lucide-react';
 import { listMyArtists, deleteArtistProfile } from '@/lib/trackUpload';
 import type { ArtistProfile } from '@/lib/trackUpload';
 
@@ -13,6 +13,10 @@ interface MyArtistsPanelProps {
    * de fora (lista de músicas, seletor de envio) também se atualizar —
    * apagar um artista apaga todas as músicas dele junto. */
   onArtistDeleted?: () => void;
+  /** Chamado quando a pessoa quer editar este artista — quem estiver de
+   * fora decide o que fazer (aqui: selecionar esse artista no painel de
+   * envio, que é onde a edição de perfil de artista realmente acontece). */
+  onEditArtist?: (artistId: string) => void;
 }
 
 /**
@@ -22,7 +26,7 @@ interface MyArtistsPanelProps {
  * "editar/enviar" com "apagar" — uma ação destrutiva e permanente merece
  * seu próprio espaço, bem sinalizado, para não ser clicada por engano.
  */
-const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDeleted }) => {
+const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDeleted, onEditArtist }) => {
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -132,13 +136,24 @@ const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDel
                   )}
                 </div>
               ) : (
-                <button
-                  onClick={() => setConfirmDeleteId(artist.id)}
-                  aria-label={`Apagar artista "${artist.name}"`}
-                  className="p-1.5 rounded-full text-black/30 hover:text-[#E84393] hover:bg-[#E84393]/10 flex-shrink-0"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {onEditArtist && (
+                    <button
+                      onClick={() => onEditArtist(artist.id)}
+                      aria-label={`Editar artista "${artist.name}"`}
+                      className="p-1.5 rounded-full text-black/30 hover:text-[#FF8C42] hover:bg-[#FF8C42]/10"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setConfirmDeleteId(artist.id)}
+                    aria-label={`Apagar artista "${artist.name}"`}
+                    className="p-1.5 rounded-full text-black/30 hover:text-[#E84393] hover:bg-[#E84393]/10"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               )}
             </div>
           ))}

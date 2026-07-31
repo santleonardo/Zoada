@@ -174,6 +174,66 @@ export async function PATCH(request: Request) {
   }
 }
 
+// PUT /api/tracks?id=xxx — Edita as informações de uma faixa já publicada
+// (título e/ou capa). Autenticado, só o dono do artista dono da faixa pode
+// editar. Separado do PATCH de propósito: PATCH aqui já é usado para
+// incrementar plays_count (chamado a toda hora, sem autenticação
+// obrigatória) — misturar os dois nesse mesmo verbo ia exigir diferenciar
+// "é edição ou é play?" dentro do handler, então PUT fica reservado só
+// pra edição de metadados de verdade.
+export async function PUT(request: Request) {
+  try {
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+
+    const { titulo, coverUrl } = await request.json();
+
+    const existing = await db.faixa.findUnique({ where: { id }, include: { artista: true } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Faixa não encontrada' }, { status: 404 });
+    }
+    if (existing.artista.usuarioId && existing.artista.usuarioId !== userId) {
+      return NextResponse.json({ error: 'Você não tem permissão para editar essa faixa' }, { status: 403 });
+    }
+
+    const faixa = await db.faixa.update({
+      where: { id },
+      data: {
+        ...(titulo !== undefined ? { titulo } : {}),
+        ...(coverUrl !== undefined ? { coverUrl } : {}),
+      },
+      include: { artista: { select: { nome: true, avatarUrl: true } } },
+    });
+
+    return NextResponse.json({
+      id: faixa.id,
+      title: faixa.titulo,
+      artist_id: faixa.artistaId,
+      artist_name: faixa.artista.nome,
+      cover_url: faixa.coverUrl || faixa.artista.avatarUrl || null,
+      audio_url: faixa.audioUrl,
+      duration: faixa.duracao,
+      plays_count: faixa.playsCount,
+      created_at: faixa.createdAt.toISOString(),
+    });
+  } catch (error) {
+    console.error('[TRACKS PUT]', error);
+    return NextResponse.json({ error: 'Erro ao editar faixa' }, { status: 500 });
+  }
+}
+
 // DELETE /api/tracks?id=xxx — Remove uma faixa (autenticado, só o dono)
 export async function DELETE(request: Request) {
   try {

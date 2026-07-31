@@ -30,12 +30,18 @@ interface UploadMusicPanelProps {
    * (ex: depois de apagar um artista no painel "Seus artistas"), pra esse
    * seletor não continuar mostrando um artista que já foi apagado. */
   refreshKey?: number;
+  /** Id do artista que deve ser selecionado neste painel (ex: clicou em
+   * "Editar" no painel "Seus Artistas"). Junto com focusToken, que muda a
+   * cada clique — mesmo clicando duas vezes seguidas no mesmo artista, o
+   * efeito precisa disparar de novo e rolar a tela até aqui. */
+  focusArtistId?: string | null;
+  focusToken?: number;
 }
 
 /** Valor especial usado no seletor pra representar "vou criar um artista novo". */
 const NEW_ARTIST = '__new__';
 
-const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploaded, refreshKey }) => {
+const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploaded, refreshKey, focusArtistId, focusToken }) => {
   // Lista de artistas que essa conta já criou. Uma conta pode ter vários —
   // por exemplo, alguém populando o catálogo com diferentes artistas
   // fictícios — então em vez de "o meu artista", o app deixa escolher com
@@ -61,6 +67,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
   const audioInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const applyArtistToForm = (a: ArtistProfile) => {
     setArtistName(a.name);
@@ -99,6 +106,23 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
       .finally(() => setLoadingArtists(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
+
+  // Reage a um pedido de foco vindo de fora (botão "Editar" no painel
+  // "Seus Artistas"): seleciona aquele artista aqui e rola a tela até este
+  // painel. Depende de focusToken (não só do id) para disparar de novo
+  // mesmo que a pessoa clique duas vezes seguidas em "Editar" no mesmo
+  // artista — sem isso, um segundo clique não mudaria nada e pareceria
+  // que o botão não fez nada.
+  useEffect(() => {
+    if (!focusArtistId) return;
+    const found = artists.find((a) => a.id === focusArtistId);
+    if (found) {
+      setSelectedArtistId(found.id);
+      applyArtistToForm(found);
+    }
+    rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusArtistId, focusToken, artists]);
 
   const handleSelectArtist = (value: string) => {
     setSelectedArtistId(value);
@@ -273,7 +297,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
   const hasPendingWork = items.some((i) => i.status === 'pending' || i.status === 'uploading');
 
   return (
-    <div className="rounded-2xl bg-white shadow-sm p-5 mb-6">
+    <div ref={rootRef} className="rounded-2xl bg-white shadow-sm p-5 mb-6">
       <div className="flex items-center gap-2 mb-1">
         <UploadCloud size={18} className="text-[#FF8C42]" />
         <h3 className="text-lg font-semibold text-[#1A1B25]">Enviar Músicas</h3>
