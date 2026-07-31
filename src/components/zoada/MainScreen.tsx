@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, TrendingUp, Play, Music2, Star } from 'lucide-react';
+import { Search, TrendingUp, Play, Music2, Star, Users } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
 import type { Track, Artist } from '@/types';
@@ -81,6 +81,22 @@ const MainScreen: React.FC = () => {
       .sort((a, b) => b.plays_count - a.plays_count)
       .slice(0, 10);
   }, [tracks]);
+
+  // Artistas mais populares = maior soma de reproduções entre todas as
+  // faixas dele (não é o mesmo que "seguidores"). Fica logo abaixo da
+  // vitrine "Mais tocadas", como um segundo destaque na tela inicial.
+  const topArtists = useMemo(() => {
+    const playsByArtist = new Map<string, number>();
+    tracks.forEach((t) => {
+      if (!t.artist_id) return;
+      playsByArtist.set(t.artist_id, (playsByArtist.get(t.artist_id) || 0) + t.plays_count);
+    });
+    return artists
+      .map((a) => ({ ...a, totalPlays: playsByArtist.get(a.id) || 0 }))
+      .filter((a) => a.totalPlays > 0)
+      .sort((a, b) => b.totalPlays - a.totalPlays)
+      .slice(0, 6);
+  }, [artists, tracks]);
 
   const handlePlayTrack = (track: Track) => {
     playTrack(track, activeTab === 'favorites' ? favoriteTracks : filteredTracks);
@@ -412,6 +428,44 @@ const MainScreen: React.FC = () => {
             <h2 className="text-xs font-bold text-[#1A1B25] uppercase tracking-wide">Mais tocadas</h2>
           </div>
           {renderMostPlayedBento()}
+        </div>
+      )}
+
+      {/* Artistas mais populares: ranking pela soma de reproduções das
+          faixas de cada artista, em grid — logo abaixo da vitrine "Mais
+          tocadas", como um segundo destaque na tela inicial. */}
+      {activeTab === 'tracks' && !search && topArtists.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-1.5 mb-3">
+            <div className="w-5 h-5 rounded-md gradient-bg flex items-center justify-center flex-shrink-0">
+              <Users size={11} className="text-white" />
+            </div>
+            <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide">Artistas mais populares</h2>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {topArtists.map((artist) => (
+              <button
+                key={artist.id}
+                onClick={() => selectArtist(artist.id)}
+                className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm active:scale-[0.97] transition-all text-center"
+              >
+                <CoverArt
+                  title={artist.name}
+                  artistName={artist.genre}
+                  coverUrl={artist.avatar_url || artist.cover_url}
+                  size="sm"
+                  className="!w-16 !h-16 !max-w-none !rounded-full"
+                />
+                <div className="min-w-0 w-full">
+                  <p className="text-xs font-semibold text-[#1A1B25] truncate">{artist.name}</p>
+                  <div className="flex items-center justify-center gap-1 mt-0.5">
+                    <TrendingUp size={9} className="text-[#FF8C42] flex-shrink-0" />
+                    <span className="text-[10px] text-black/40">{formatNumber(artist.totalPlays)}</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
