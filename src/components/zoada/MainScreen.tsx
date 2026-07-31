@@ -527,7 +527,7 @@ const MainScreen: React.FC = () => {
 
       {/* Tabs: também reduzidas, só pra navegação, sem chamar atenção. */}
       <div className="flex gap-1 mb-3">
-        {(['fans', 'tracks', 'favorites', 'artists'] as Tab[]).map((tab) => (
+        {(['tracks', 'favorites', 'artists', 'fans'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
