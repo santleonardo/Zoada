@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioTab } from '@/types';
 import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile } from '@/lib/api';
 
+// Abas da tela inicial ("Início"). 'fans' é a busca de outros usuários
+// por nome — sem conteúdo próprio na store, é só mais uma aba client-side
+// igual 'favorites'.
+export type MainTab = 'tracks' | 'artists' | 'favorites' | 'fans';
+
 const FAVORITES_KEY = 'zoada-favorites';
 
 function loadFavorites(): string[] {
@@ -50,7 +55,7 @@ interface AppState {
   // Navigation
   currentScreen: Screen;
   previousScreen: Screen | null;
-  mainTab: 'tracks' | 'artists' | 'favorites';
+  mainTab: MainTab;
 
   // Player
   player: PlayerState;
@@ -114,9 +119,9 @@ interface AppState {
   updateProfile: (fields: { name: string; avatar_url: string | null }) => Promise<boolean>;
 
   // Actions - Navigation
-  navigate: (screen: Screen, tab?: 'tracks' | 'artists' | 'favorites') => void;
+  navigate: (screen: Screen, tab?: MainTab) => void;
   goBack: () => void;
-  setMainTab: (tab: 'tracks' | 'artists' | 'favorites') => void;
+  setMainTab: (tab: MainTab) => void;
 
   // Actions - Player
   playTrack: (track: Track, queue?: Track[]) => void;
