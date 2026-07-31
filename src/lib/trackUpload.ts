@@ -170,6 +170,21 @@ export async function deleteTrackFile(trackId: string): Promise<void> {
   }
 }
 
+/** Edita o título e/ou a capa de uma faixa já publicada. */
+export async function updateTrackInfo(
+  trackId: string,
+  fields: { titulo?: string; coverUrl?: string }
+): Promise<void> {
+  const res = await apiFetch(`/api/tracks?id=${encodeURIComponent(trackId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(fields),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Falha ao editar a faixa');
+  }
+}
+
 export interface ArtistProfileFields {
   nome?: string;
   genero?: string;
