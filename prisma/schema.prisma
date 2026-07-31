@@ -205,19 +205,22 @@ model Mensagem {
 
 // ---------- Estação de Rádio (cada usuário pode ter uma) ----------
 // Permite que um usuário crie sua própria estação com uma lista ordenada
-// de faixas. Quando "ativada", ela se torna a estação global do app —
-// só pode existir uma estação ativa por vez.
+// de faixas. Quando "publicada", ela fica disponível no seletor de
+// estações da tela de Rádio para qualquer ouvinte. Várias estações
+// podem estar publicadas simultaneamente — a escolha é local de cada
+// ouvinte e NÃO substitui a estação padrão do app.
 model EstacaoRadio {
   id               String    @id @default(cuid())
   usuarioId        String    @unique @map("usuario_id")
   nome             String
   capaUrl          String?   @map("capa_url")
-  // Flag que indica se esta é a estação globalmente ativa. Só uma estação
-  // no app inteiro pode ter ativa=true por vez.
-  ativa            Boolean   @default(false)
+  // Flag que indica se esta estação está publicada/disponível no
+  // seletor de estações. Múltiplas estações podem estar publicadas
+  // ao mesmo tempo — cada ouvinte escolhe qual quer ouvir.
+  publicada        Boolean   @default(false) @map("publicada")
   // Faixa atual da transmissão + timestamp de quando ela começou a tocar.
-  // Usado para sincronizar os ouvintes: ao entrar, cada cliente calcula
-  // qual faixa deveria estar tocando com base no tempo decorrido.
+  // Usado para sincronizar ouvintes da mesma estação: ao entrar, cada
+  // cliente calcula qual faixa deveria estar tocando.
   faixaAtualId     String?   @map("faixa_atual_id")
   faixaAtualInicio DateTime? @map("faixa_atual_inicio")
   createdAt        DateTime  @default(now()) @map("created_at")
