@@ -28,9 +28,9 @@ const RadioScreen: React.FC = () => {
     selectUser,
     favorites,
     likes,
-    comments,
-    loadComments,
-    sendComment,
+    radioComments,
+    loadRadioComments,
+    sendRadioComment,
     user,
     lastCountedPlay,
     queue,
@@ -46,14 +46,12 @@ const RadioScreen: React.FC = () => {
   const isDragging = useRef(false);
   const hasAutoStarted = useRef(false);
 
-  // Busca os comentários da faixa que está tocando no rádio agora — dispara
-  // de novo sempre que o shuffle avança pra próxima faixa.
+  // Busca o chat geral da rádio uma vez, ao entrar na tela — é uma conversa
+  // aberta de quem está ouvindo, não muda conforme a faixa toca.
   useEffect(() => {
-    if (currentTrack) {
-      loadComments(currentTrack.id);
-    }
+    loadRadioComments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTrack?.id]);
+  }, []);
 
   // Sync play counts when counted
   useEffect(() => {
@@ -106,18 +104,13 @@ const RadioScreen: React.FC = () => {
     return artists.filter((a) => a.name.toLowerCase().includes(q));
   }, [search, artists]);
 
-  const trackComments = useMemo(
-    () => (currentTrack ? comments.filter((c) => c.track_id === currentTrack.id) : []),
-    [comments, currentTrack]
-  );
-
   const handleSendComment = async () => {
-    if (!newComment.trim() || !currentTrack || isSendingComment) return;
+    if (!newComment.trim() || isSendingComment) return;
     const content = newComment.trim();
     setNewComment('');
     setIsSendingComment(true);
 
-    const ok = await sendComment(currentTrack.id, content);
+    const ok = await sendRadioComment(content);
 
     setIsSendingComment(false);
 
@@ -404,90 +397,87 @@ const RadioScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Comentários da faixa atual */}
-      {currentTrack && (
-        <div className="bg-white rounded-2xl shadow-sm p-4 mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <MessageCircle size={16} className="text-[#FF8C42]" />
-            <h3 className="text-sm font-semibold text-[#1A1B25]">
-              Comentários{trackComments.length > 0 ? ` (${trackComments.length})` : ''}
-            </h3>
-            <span className="text-xs text-black/30 truncate">— {currentTrack.title}</span>
-          </div>
-
-          <div className="space-y-3 mb-3 max-h-48 overflow-y-auto">
-            {trackComments.length === 0 && (
-              <p className="text-center text-black/30 text-sm py-3">
-                Nenhum comentário ainda nesta faixa. Seja o primeiro!
-              </p>
-            )}
-            {trackComments.map((comment) => {
-              const isMe = comment.user?.id === user?.id;
-              const canOpenProfile = !!comment.user?.id && !isMe;
-              const handleGoToUser = () => {
-                if (!canOpenProfile || !comment.user) return;
-                selectUser(comment.user.id);
-              };
-              return (
-                <div key={comment.id} className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleGoToUser}
-                    disabled={!canOpenProfile}
-                    className={cn(
-                      'w-8 h-8 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0',
-                      canOpenProfile && 'hover:ring-2 hover:ring-[#FF8C42] transition-shadow'
-                    )}
-                    aria-label={canOpenProfile ? `Ver perfil de ${comment.user?.name}` : undefined}
-                  >
-                    <span className="text-xs font-bold text-black/60">
-                      {comment.user?.name?.charAt(0) || '?'}
-                    </span>
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <button
-                        type="button"
-                        onClick={handleGoToUser}
-                        disabled={!canOpenProfile}
-                        className={cn(
-                          'text-sm font-semibold text-[#1A1B25] text-left',
-                          canOpenProfile && 'hover:text-[#FF8C42] hover:underline transition-colors'
-                        )}
-                      >
-                        {comment.user?.name || 'Anônimo'}
-                      </button>
-                      <span className="text-[10px] text-black/30">
-                        {new Date(comment.created_at).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-black/60 mt-0.5">{comment.content}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Comente sobre esta faixa..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendComment()}
-              className="!py-2.5 !text-sm"
-            />
-            <button
-              onClick={handleSendComment}
-              disabled={isSendingComment}
-              className="p-2.5 rounded-xl gradient-bg flex-shrink-0 active:scale-90 transition-transform disabled:opacity-50"
-              aria-label="Enviar comentário"
-            >
-              <Send size={16} className="text-white" />
-            </button>
-          </div>
+      {/* Comentários gerais da rádio (chat aberto, sem vínculo com faixa) */}
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-5">
+        <div className="flex items-center gap-2 mb-3">
+          <MessageCircle size={16} className="text-[#FF8C42]" />
+          <h3 className="text-sm font-semibold text-[#1A1B25]">
+            Comentários da rádio{radioComments.length > 0 ? ` (${radioComments.length})` : ''}
+          </h3>
         </div>
-      )}
+
+        <div className="space-y-3 mb-3 max-h-48 overflow-y-auto">
+          {radioComments.length === 0 && (
+            <p className="text-center text-black/30 text-sm py-3">
+              Nenhum comentário ainda. Seja o primeiro a comentar na rádio!
+            </p>
+          )}
+          {radioComments.map((comment) => {
+            const isMe = comment.user?.id === user?.id;
+            const canOpenProfile = !!comment.user?.id && !isMe;
+            const handleGoToUser = () => {
+              if (!canOpenProfile || !comment.user) return;
+              selectUser(comment.user.id);
+            };
+            return (
+              <div key={comment.id} className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleGoToUser}
+                  disabled={!canOpenProfile}
+                  className={cn(
+                    'w-8 h-8 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0',
+                    canOpenProfile && 'hover:ring-2 hover:ring-[#FF8C42] transition-shadow'
+                  )}
+                  aria-label={canOpenProfile ? `Ver perfil de ${comment.user?.name}` : undefined}
+                >
+                  <span className="text-xs font-bold text-black/60">
+                    {comment.user?.name?.charAt(0) || '?'}
+                  </span>
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <button
+                      type="button"
+                      onClick={handleGoToUser}
+                      disabled={!canOpenProfile}
+                      className={cn(
+                        'text-sm font-semibold text-[#1A1B25] text-left',
+                        canOpenProfile && 'hover:text-[#FF8C42] hover:underline transition-colors'
+                      )}
+                    >
+                      {comment.user?.name || 'Anônimo'}
+                    </button>
+                    <span className="text-[10px] text-black/30">
+                      {new Date(comment.created_at).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                  <p className="text-sm text-black/60 mt-0.5">{comment.content}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Comente na rádio..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSendComment()}
+            className="!py-2.5 !text-sm"
+          />
+          <button
+            onClick={handleSendComment}
+            disabled={isSendingComment}
+            className="p-2.5 rounded-xl gradient-bg flex-shrink-0 active:scale-90 transition-transform disabled:opacity-50"
+            aria-label="Enviar comentário"
+          >
+            <Send size={16} className="text-white" />
+          </button>
+        </div>
+      </div>
 
       {/* Search */}
       <div className="mb-3">
