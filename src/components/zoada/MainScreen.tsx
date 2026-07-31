@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, TrendingUp, Play, Music2, Star, Flame, Users, HeartHandshake } from 'lucide-react';
+import { Search, TrendingUp, Play, Music2, Star, Flame, Users, HeartHandshake, Radio as RadioIcon } from 'lucide-react';
 import { useAppStore, type MainTab } from '@/store/useAppStore';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
-import type { Track, Artist, UserSearchResult } from '@/types';
+import type { Track, Artist, UserSearchResult, RadioStation } from '@/types';
 import { searchUsers } from '@/lib/api';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -13,7 +13,11 @@ import { cn, formatNumber } from '@/lib/utils';
 type Tab = MainTab;
 
 const MainScreen: React.FC = () => {
-  const { playTrack, player, selectArtist, selectUser, mainTab: activeTab, setMainTab: setActiveTab, favorites, toggleFavorite, lastCountedPlay, user } = useAppStore();
+  const {
+    playTrack, player, selectArtist, selectUser, mainTab: activeTab, setMainTab: setActiveTab,
+    favorites, toggleFavorite, lastCountedPlay, user,
+    publishedStations, loadPublishedStations, tuneIntoStation, navigate,
+  } = useAppStore();
   const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
   const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
@@ -69,7 +73,11 @@ const MainScreen: React.FC = () => {
       .catch(() => {
         // mantém os dados demo se a API falhar
       });
-  }, []);
+
+    // Estações de rádio publicadas — já vêm do servidor ordenadas por
+    // total de reproduções (soma do plays_count das faixas de cada uma).
+    loadPublishedStations();
+  }, [loadPublishedStations]);
 
   const favoriteTracks = useMemo(() => {
     return tracks.filter((t) => favorites.includes(t.id));
@@ -120,6 +128,22 @@ const MainScreen: React.FC = () => {
       .sort((a, b) => b.totalPlays - a.totalPlays)
       .slice(0, 5);
   }, [artists, tracks]);
+
+  // Top 7 estações de rádio mais tocadas (soma de plays_count das faixas
+  // de cada estação, já vem ordenado do servidor — só garantimos o corte
+  // aqui e ignoramos estações sem nenhuma reprodução ainda).
+  const topStations = useMemo(() => {
+    return publishedStations
+      .filter((s) => (s.total_plays || 0) > 0)
+      .slice(0, 7);
+  }, [publishedStations]);
+
+  // Sintoniza a estação escolhida e já leva pra tela de Rádio tocando.
+  const handlePlayStation = (e: React.MouseEvent, station: RadioStation) => {
+    e.stopPropagation();
+    tuneIntoStation(station.id);
+    navigate('radio');
+  };
 
   const handlePlayTrack = (track: Track) => {
     playTrack(track, activeTab === 'favorites' ? favoriteTracks : filteredTracks);
@@ -245,7 +269,98 @@ const MainScreen: React.FC = () => {
     </button>
   );
 
+  // Capa de fundo da estação de rádio: mesmo esquema determinístico de
+  // cores das faixas/artistas, usando a capa da estação (ou avatar do
+  // dono, se a estação não tiver capa própria).
+  const renderStationBackdrop = (station: RadioStation) => {
+    const hash = station.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const colors = COVER_COLORS[hash % COVER_COLORS.length];
+    const img = station.cover_url || station.owner?.avatar_url;
+    return (
+      <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}>
+        {img && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        )}
+      </div>
+    );
+  };
 
+  // Cartão em destaque da estação Nº1 do ranking — mesmo "hero" horizontal
+  // usado pro artista mais popular, com identidade própria em roxo/rosa
+  // (cor da rádio no app) pra diferenciar das outras vitrines.
+  const renderTopStationHero = (station: RadioStation) => (
+    <button
+      onClick={(e) => handlePlayStation(e, station)}
+      className="group relative w-full aspect-square rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform duration-200 mb-3"
+    >
+      {renderStationBackdrop(station)}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(180deg, rgba(10,8,20,0.05) 35%, rgba(10,8,20,0.92) 100%)' }}
+      />
+
+      <span
+        aria-hidden="true"
+        className="absolute -right-4 -bottom-10 font-black leading-none select-none text-white/[0.08]"
+        style={{ fontSize: 180 }}
+      >
+        1
+      </span>
+
+      <div className="absolute bottom-0 left-0 right-0 p-4">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <RadioIcon size={12} className="text-[#E84393]" fill="#E84393" />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#E84393]">
+            Nº1 mais tocada
+          </span>
+        </div>
+        <p className="text-white font-bold text-lg truncate">{station.name}</p>
+        <div className="flex items-center gap-1.5 mt-2">
+          {station.owner?.name && (
+            <span className="text-[11px] text-white/70 bg-white/10 px-2 py-0.5 rounded-full truncate max-w-[130px]">
+              por {station.owner.name}
+            </span>
+          )}
+          <span className="flex items-center gap-1 text-xs text-white/55 font-medium">
+            <TrendingUp size={11} />
+            {formatNumber(station.total_plays || 0)} reproduções
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+
+  // Cartões do 2º ao 7º lugar do ranking de estações — mesma linguagem
+  // "foto de fundo + selo de posição" dos artistas, num grid 2 colunas.
+  const renderStationRankCard = (station: RadioStation, rank: number) => (
+    <button
+      key={station.id}
+      onClick={(e) => handlePlayStation(e, station)}
+      className="group relative rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform duration-200 aspect-square"
+    >
+      {renderStationBackdrop(station)}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(180deg, rgba(10,8,20,0.05) 38%, rgba(10,8,20,0.88) 100%)' }}
+      />
+
+      <div
+        className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white/80 z-10"
+        style={{ background: RANK_ACCENTS[rank] || RANK_FALLBACK }}
+      >
+        {rank}
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 p-2.5">
+        <p className="text-white text-[11px] font-semibold leading-tight truncate">{station.name}</p>
+        <div className="flex items-center gap-1 mt-1">
+          <TrendingUp size={9} className="text-[#E84393] flex-shrink-0" />
+          <span className="text-[9px] text-white/60 font-medium">{formatNumber(station.total_plays || 0)}</span>
+        </div>
+      </div>
+    </button>
+  );
 
   // Capa que preenche 100% do cartão bento (sem os tamanhos fixos do
   // CoverArt), com fallback em gradiente igual ao resto do app.
@@ -649,6 +764,37 @@ const MainScreen: React.FC = () => {
           {topArtists.length > 1 && (
             <div className="grid grid-cols-2 gap-3">
               {topArtists.slice(1, 5).map((artist, i) => renderArtistRankCard(artist, i + 2))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Estações mais tocadas: ranking top 7, mesma moldura em destaque
+          das vitrines acima (1ª colocada em hero + 2ª a 7ª num grid de
+          cartões-foto). Clicar já sintoniza a estação e leva pra Rádio. */}
+      {activeTab === 'tracks' && !search && topStations.length > 0 && (
+        <div
+          className="mb-6 -mx-4 px-4 py-4 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, rgba(232,67,147,0.20), rgba(108,92,231,0.12) 55%, transparent)' }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5">
+              <div
+                className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #E84393, #6C5CE7)' }}
+              >
+                <RadioIcon size={11} className="text-white" />
+              </div>
+              <h2 className="text-xs font-bold text-[#1A1B25] uppercase tracking-wide">Estações mais tocadas</h2>
+            </div>
+            <span className="text-[10px] text-black/30 font-medium">por reproduções</span>
+          </div>
+
+          {renderTopStationHero(topStations[0])}
+
+          {topStations.length > 1 && (
+            <div className="grid grid-cols-2 gap-3">
+              {topStations.slice(1, 7).map((station, i) => renderStationRankCard(station, i + 2))}
             </div>
           )}
         </div>

@@ -27,6 +27,21 @@ function stationToResponse(estacao: any, includeOwner = false, includeTracks = f
     };
   }
 
+  // Total de reproduções da estação = soma do plays_count de cada faixa
+  // que ela carrega. Não existe um contador próprio de "execuções da
+  // estação" no banco, então essa soma é a métrica de "mais tocada".
+  // Calculado sempre que temos as faixas em mãos (independente de
+  // `includeTracks`), pra alimentar o ranking da tela inicial sem precisar
+  // devolver a lista de faixas inteira.
+  if (estacao.faixasEstacao) {
+    const faixasValidas = estacao.faixasEstacao.filter((fe: any) => fe.faixa);
+    result.total_plays = faixasValidas.reduce(
+      (sum: number, fe: any) => sum + (fe.faixa.playsCount || 0),
+      0,
+    );
+    result.tracks_count = faixasValidas.length;
+  }
+
   if (includeTracks && estacao.faixasEstacao) {
     // Ordena pelo campo `ordem` e converte cada faixa pro formato Track
     result.tracks = estacao.faixasEstacao
@@ -101,13 +116,22 @@ export async function GET(request: Request) {
         where: { publicada: true },
         include: {
           usuario: { select: { id: true, name: true, avatarUrl: true } },
+          // Precisamos das faixas (só o plays_count) pra calcular o total
+          // de reproduções da estação e ranquear "mais tocadas" na home.
+          faixasEstacao: {
+            include: { faixa: { select: { playsCount: true } } },
+          },
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      return NextResponse.json({
-        stations: estacoes.map((e) => stationToResponse(e, true, false)),
-      });
+      const stations = estacoes
+        .map((e) => stationToResponse(e, true, false))
+        // Mais tocadas primeiro; empate quebrado pelas mais recentes
+        // (createdAt desc, já veio nessa ordem do banco).
+        .sort((a, b) => (b.total_plays || 0) - (a.total_plays || 0));
+
+      return NextResponse.json({ stations });
     }
 
     // --- Dados de uma estação específica (com faixas, para tocar) ---
