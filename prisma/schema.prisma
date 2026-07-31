@@ -28,6 +28,7 @@ model Usuario {
 
   curtidas     Curtida[]
   comentarios  Comentario[]
+  comentariosRadio ComentarioRadio[]
   enviado      Mensagem[] @relation("Enviadas")
   recebido     Mensagem[] @relation("Recebidas")
   artistas     Artista[]
@@ -160,6 +161,19 @@ model Comentario {
   faixa   Faixa   @relation(fields: [faixaId], references: [id], onDelete: Cascade)
 
   @@map("comentarios")
+}
+
+// ---------- Comentários gerais da rádio (chat, sem vínculo com faixa) ----------
+model ComentarioRadio {
+  id        String   @id @default(cuid())
+  usuarioId String   @map("usuario_id")
+  conteudo  String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("comentarios_radio")
 }
 
 // ---------- Mensagens (chat) ----------
