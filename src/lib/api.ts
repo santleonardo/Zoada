@@ -417,6 +417,46 @@ export async function postTrackComment(trackId: string, content: string): Promis
   }
 }
 
+// Busca o chat geral da rádio (comentários que não pertencem a nenhuma faixa).
+export async function fetchRadioComments(): Promise<Array<{
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  user?: { id: string; email: string; name: string; avatar_url: string | null; created_at: string };
+}>> {
+  try {
+    const res = await apiFetch('/api/radio-comments');
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.comments) ? data.comments : [];
+  } catch (err) {
+    console.warn('[fetchRadioComments] falha ao buscar comentários da rádio:', err);
+    return [];
+  }
+}
+
+// Envia um comentário geral da rádio (não vinculado a nenhuma faixa).
+export async function postRadioComment(content: string): Promise<{
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  user?: { id: string; email: string; name: string; avatar_url: string | null; created_at: string };
+} | null> {
+  try {
+    const res = await apiFetch('/api/radio-comments', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[postRadioComment] falha ao enviar comentário da rádio:', err);
+    return null;
+  }
+}
+
 // Registra uma reprodução de faixa (incrementa plays_count no servidor).
 // Fire-and-forget: quem chama não precisa esperar nem tratar erro — se a
 // contagem falhar (ex: rede caiu), simplesmente perdemos essa reprodução,

@@ -1,4 +1,4 @@
-import type { Track, Artist, User, Comment } from '@/types';
+import type { Track, Artist, User, Comment, RadioComment } from '@/types';
 
 // ============================================================
 // DADOS DE DEMONSTRAÇÃO
@@ -129,6 +129,37 @@ export const DEMO_COMMENTS: Comment[] = [
       id: 'user-2',
       email: 'maria@email.com',
       name: 'Maria Silva',
+      avatar_url: null,
+      created_at: '2025-01-01T00:00:00Z',
+    },
+  },
+];
+
+// Chat geral da rádio — não é sobre nenhuma faixa específica, é uma
+// conversa aberta de quem está ouvindo no momento.
+export const DEMO_RADIO_COMMENTS: RadioComment[] = [
+  {
+    id: 'radio-comment-1',
+    user_id: 'user-2',
+    content: 'Alguém sabe o nome dessa rádio? Tá muito boa hoje 🎧',
+    created_at: '2025-06-20T18:00:00Z',
+    user: {
+      id: 'user-2',
+      email: 'maria@email.com',
+      name: 'Maria Silva',
+      avatar_url: null,
+      created_at: '2025-01-01T00:00:00Z',
+    },
+  },
+  {
+    id: 'radio-comment-2',
+    user_id: 'user-3',
+    content: 'É a Zôada mesmo, shuffle infinito e sem repetir 🔥',
+    created_at: '2025-06-20T18:03:00Z',
+    user: {
+      id: 'user-3',
+      email: 'joao@email.com',
+      name: 'João Pedro',
       avatar_url: null,
       created_at: '2025-01-01T00:00:00Z',
     },

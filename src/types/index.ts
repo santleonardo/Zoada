@@ -88,6 +88,16 @@ export interface Comment {
   user?: User;
 }
 
+// Comentário geral da rádio — não vinculado a nenhuma faixa específica,
+// funciona como um chat aberto de quem está ouvindo a rádio no momento.
+export interface RadioComment {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  user?: User;
+}
+
 export interface Message {
   id: string;
   sender_id: string;

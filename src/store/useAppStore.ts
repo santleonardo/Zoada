@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { User, Track, Screen, Message, Comment, Like, Follow, RadioTab } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchUserFollows, toggleArtistFollow } from '@/lib/api';
+import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioTab } from '@/types';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow } from '@/lib/api';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -93,6 +93,8 @@ interface AppState {
   // Social
   likes: Like[];
   comments: Comment[];
+  // Chat geral da rádio (comentários sem vínculo com faixa nenhuma)
+  radioComments: RadioComment[];
   follows: Follow[];
 
   // Favorites
@@ -145,6 +147,9 @@ interface AppState {
   loadComments: (trackId: string) => Promise<void>;
   addComment: (comment: Comment) => void;
   sendComment: (trackId: string, content: string) => Promise<boolean>;
+  // Chat geral da rádio: busca/envia comentários que não são de nenhuma faixa
+  loadRadioComments: () => Promise<void>;
+  sendRadioComment: (content: string) => Promise<boolean>;
   loadFollows: (userId: string) => Promise<void>;
   // Segue/deixa de seguir um artista; retorna o followers_count real vindo
   // do servidor (ou null se a chamada falhou) para a tela ajustar o número
@@ -178,6 +183,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedUserId: null,
   likes: [],
   comments: [],
+  radioComments: [],
   follows: [],
   favorites: [],
 
@@ -553,6 +559,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Sincroniza com o dado real vindo do servidor (id definitivo, etc.)
     set((state) => ({
       comments: state.comments.map((c) => (c.id === tempId ? result : c)),
+    }));
+    return true;
+  },
+
+  // Busca o chat geral da rádio (independe de qual faixa está tocando).
+  loadRadioComments: async () => {
+    const serverComments = await fetchRadioComments();
+    set({ radioComments: serverComments });
+  },
+
+  // Envia um comentário geral da rádio: atualiza a tela na hora (otimista)
+  // e persiste no servidor, desfazendo se a chamada falhar de verdade.
+  sendRadioComment: async (content) => {
+    const user = get().user;
+    const tempId = `temp-${Date.now()}`;
+    const optimisticComment: RadioComment = {
+      id: tempId,
+      user_id: user?.id || '',
+      content,
+      created_at: new Date().toISOString(),
+      user: user || undefined,
+    };
+
+    set((state) => ({ radioComments: [...state.radioComments, optimisticComment] }));
+
+    const result = await postRadioComment(content);
+
+    if (!result) {
+      set((state) => ({ radioComments: state.radioComments.filter((c) => c.id !== tempId) }));
+      return false;
+    }
+
+    set((state) => ({
+      radioComments: state.radioComments.map((c) => (c.id === tempId ? result : c)),
     }));
     return true;
   },
