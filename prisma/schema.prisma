@@ -214,6 +214,8 @@ model EstacaoRadio {
   usuarioId        String    @unique @map("usuario_id")
   nome             String
   capaUrl          String?   @map("capa_url")
+  // Bio/descrição opcional da estação, exibida no perfil e no seletor.
+  bio              String?   @map("bio")
   // Flag que indica se esta estação está publicada/disponível no
   // seletor de estações. Múltiplas estações podem estar publicadas
   // ao mesmo tempo — cada ouvinte escolhe qual quer ouvir.
