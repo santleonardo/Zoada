@@ -148,7 +148,7 @@ const MainScreen: React.FC = () => {
   const renderTopArtistHero = (artist: Artist & { totalPlays: number }) => (
     <button
       onClick={() => selectArtist(artist.id)}
-      className="group relative w-full h-[124px] rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform duration-200 mb-3"
+      className="group relative w-full h-[156px] rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform duration-200 mb-3"
     >
       {renderArtistBackdrop(artist)}
       <div
@@ -159,14 +159,14 @@ const MainScreen: React.FC = () => {
       {/* Numeral decorativo — reforça a leitura de "ranking" sem precisar de mais texto */}
       <span
         aria-hidden="true"
-        className="absolute -right-3 -bottom-8 font-black leading-none select-none text-white/[0.08]"
-        style={{ fontSize: 148 }}
+        className="absolute -right-4 -bottom-10 font-black leading-none select-none text-white/[0.08]"
+        style={{ fontSize: 180 }}
       >
         1
       </span>
 
-      <div className="relative h-full flex items-center gap-3.5 px-4">
-        <div className="relative flex-shrink-0 w-16 h-16">
+      <div className="relative h-full flex items-center gap-4 px-4">
+        <div className="relative flex-shrink-0 w-[76px] h-[76px]">
           <div
             className="absolute -inset-[3px] rounded-full"
             style={{ background: 'linear-gradient(135deg, #FDCB6E, #FF8C42, #E84393)' }}
@@ -180,22 +180,22 @@ const MainScreen: React.FC = () => {
           />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 mb-1">
-            <Flame size={11} className="text-[#FDCB6E]" fill="#FDCB6E" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#FDCB6E]">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Flame size={12} className="text-[#FDCB6E]" fill="#FDCB6E" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#FDCB6E]">
               Nº1 mais tocado
             </span>
           </div>
-          <p className="text-white font-bold text-[15px] truncate">{artist.name}</p>
-          <div className="flex items-center gap-1.5 mt-1.5">
+          <p className="text-white font-bold text-lg truncate">{artist.name}</p>
+          <div className="flex items-center gap-1.5 mt-2">
             {artist.genre && (
-              <span className="text-[10px] text-white/70 bg-white/10 px-2 py-0.5 rounded-full truncate max-w-[120px]">
+              <span className="text-[11px] text-white/70 bg-white/10 px-2 py-0.5 rounded-full truncate max-w-[130px]">
                 {artist.genre}
               </span>
             )}
-            <span className="flex items-center gap-1 text-[11px] text-white/55 font-medium">
-              <TrendingUp size={10} />
-              {formatNumber(artist.totalPlays)}
+            <span className="flex items-center gap-1 text-xs text-white/55 font-medium">
+              <TrendingUp size={11} />
+              {formatNumber(artist.totalPlays)} reproduções
             </span>
           </div>
         </div>
@@ -203,33 +203,35 @@ const MainScreen: React.FC = () => {
     </button>
   );
 
-  // Cartões compactos do 2º ao 5º lugar: badge de posição "flutuando" no
-  // canto do cartão (como um selo de medalha), avatar circular e o total
-  // de reproduções — tudo num grid 2 colunas, denso e fácil de escanear.
+  // Cartões do 2º ao 5º lugar: mesma linguagem "foto de fundo + texto por
+  // cima" dos cartões de faixa (bento/"Em alta"), só que com o selo de
+  // posição no lugar do botão de play — assim a seção pesa visualmente
+  // tanto quanto as vitrines de música ao redor, em vez de parecer uma
+  // lista secundária.
   const renderArtistRankCard = (artist: Artist & { totalPlays: number }, rank: number) => (
     <button
       key={artist.id}
       onClick={() => selectArtist(artist.id)}
-      className="relative flex items-center gap-2.5 p-3 pt-3.5 rounded-2xl bg-white shadow-sm hover:shadow-md active:scale-[0.97] transition-all duration-200 text-left"
+      className="group relative rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform duration-200 h-[108px]"
     >
+      {renderArtistBackdrop(artist)}
       <div
-        className="absolute -top-2 -left-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white"
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(180deg, rgba(10,8,20,0.05) 38%, rgba(10,8,20,0.88) 100%)' }}
+      />
+
+      <div
+        className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white/80 z-10"
         style={{ background: RANK_ACCENTS[rank] || RANK_FALLBACK }}
       >
         {rank}
       </div>
-      <CoverArt
-        title={artist.name}
-        artistName={artist.genre}
-        coverUrl={artist.avatar_url || artist.cover_url}
-        size="sm"
-        className="!w-11 !h-11 !max-w-none !rounded-full flex-shrink-0"
-      />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold text-[#1A1B25] truncate">{artist.name}</p>
-        <div className="flex items-center gap-1 mt-0.5">
-          <TrendingUp size={9} className="text-[#FF8C42] flex-shrink-0" />
-          <span className="text-[10px] text-black/40">{formatNumber(artist.totalPlays)}</span>
+
+      <div className="absolute bottom-0 left-0 right-0 p-2.5">
+        <p className="text-white text-[11px] font-semibold leading-tight truncate">{artist.name}</p>
+        <div className="flex items-center gap-1 mt-1">
+          <TrendingUp size={9} className="text-[#FDCB6E] flex-shrink-0" />
+          <span className="text-[9px] text-white/60 font-medium">{formatNumber(artist.totalPlays)}</span>
         </div>
       </div>
     </button>
@@ -550,12 +552,15 @@ const MainScreen: React.FC = () => {
         </div>
       )}
 
-      {/* Artistas mais populares: ranking pela soma de reproduções das
-          faixas de cada artista — 1º colocado em destaque (estilo parada
-          de sucessos) e os demais num grid compacto de "cartões-medalha"
-          logo abaixo da vitrine "Mais tocadas". */}
+      {/* Artistas mais populares: mesma moldura em destaque (fundo colorido
+          de ponta a ponta) da vitrine "Mais tocadas" logo acima, pra ter o
+          mesmo peso visual em vez de parecer uma lista secundária — 1º
+          colocado em destaque e os demais num grid de cartões-foto. */}
       {activeTab === 'tracks' && !search && topArtists.length > 0 && (
-        <div className="mb-6">
+        <div
+          className="mb-6 -mx-4 px-4 py-4 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, rgba(253,203,110,0.20), rgba(232,67,147,0.1) 55%, transparent)' }}
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
               <div
@@ -564,7 +569,7 @@ const MainScreen: React.FC = () => {
               >
                 <Flame size={11} className="text-white" fill="white" />
               </div>
-              <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide">Artistas mais populares</h2>
+              <h2 className="text-xs font-bold text-[#1A1B25] uppercase tracking-wide">Artistas mais populares</h2>
             </div>
             <span className="text-[10px] text-black/30 font-medium">por reproduções</span>
           </div>
@@ -572,7 +577,7 @@ const MainScreen: React.FC = () => {
           {renderTopArtistHero(topArtists[0])}
 
           {topArtists.length > 1 && (
-            <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="grid grid-cols-2 gap-3">
               {topArtists.slice(1, 5).map((artist, i) => renderArtistRankCard(artist, i + 2))}
             </div>
           )}
