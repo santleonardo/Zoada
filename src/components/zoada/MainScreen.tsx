@@ -366,7 +366,7 @@ const MainScreen: React.FC = () => {
 
     return (
       <div className="space-y-3.5">
-        {renderBentoTile(heroTrack, 'hero', {})}
+        <div className="-mx-4">{renderBentoTile(heroTrack, 'hero', {})}</div>
         {restTracks.length > 0 && (
           <div className="grid grid-cols-2 gap-3.5">
             {restTracks.map((track) => renderBentoTile(track, 'medium', {}))}
@@ -544,7 +544,7 @@ const MainScreen: React.FC = () => {
             <span className="text-[10px] text-black/30 font-medium">por reproduções</span>
           </div>
 
-          {renderTopArtistHero(topArtists[0])}
+          <div className="-mx-4">{renderTopArtistHero(topArtists[0])}</div>
 
           {topArtists.length > 1 && (
             <div className="grid grid-cols-2 gap-3">
