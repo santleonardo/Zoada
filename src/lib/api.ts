@@ -16,7 +16,7 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
-import type { Message, Track, TopListenedTrack, PublicUserProfile } from '@/types';
+import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation } from '@/types';
 
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
@@ -489,5 +489,117 @@ export async function registerTrackPlay(trackId: string): Promise<number | null>
   } catch (err) {
     console.warn('[registerTrackPlay] falha ao contabilizar reprodução:', err);
     return null;
+  }
+}
+
+// ============================================================
+// Estação de Rádio
+// ============================================================
+
+// Busca a estação globalmente ativa (pública, não precisa de autenticação).
+// Retorna null quando nenhuma estação está no ar.
+export async function fetchActiveRadioStation(): Promise<RadioStation | null> {
+  try {
+    const res = await apiFetch('/api/radio-station');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.station ?? null;
+  } catch (err) {
+    console.warn('[fetchActiveRadioStation] falha:', err);
+    return null;
+  }
+}
+
+// Busca a estação do usuário logado (exige autenticação).
+// Retorna null se o usuário ainda não criou uma estação.
+export async function fetchMyRadioStation(): Promise<RadioStation | null> {
+  try {
+    const res = await apiFetch('/api/radio-station?mine=1');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.station ?? null;
+  } catch (err) {
+    console.warn('[fetchMyRadioStation] falha:', err);
+    return null;
+  }
+}
+
+// Cria (ou atualiza, se já existir) a estação do usuário logado.
+export async function saveRadioStation(fields: {
+  name: string;
+  cover_url?: string | null;
+  track_ids: string[];
+}): Promise<RadioStation | null> {
+  try {
+    const res = await apiFetch('/api/radio-station', {
+      method: 'POST',
+      body: JSON.stringify(fields),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.station ?? null;
+  } catch (err) {
+    console.warn('[saveRadioStation] falha:', err);
+    return null;
+  }
+}
+
+// Ativa a estação do usuário logado (desativa qualquer outra ativa).
+export async function activateRadioStation(): Promise<RadioStation | null> {
+  try {
+    const res = await apiFetch('/api/radio-station', {
+      method: 'PATCH',
+      body: JSON.stringify({ action: 'activate' }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.station ?? null;
+  } catch (err) {
+    console.warn('[activateRadioStation] falha:', err);
+    return null;
+  }
+}
+
+// Desativa a estação do usuário logado (o app volta ao shuffle padrão).
+export async function deactivateRadioStation(): Promise<RadioStation | null> {
+  try {
+    const res = await apiFetch('/api/radio-station', {
+      method: 'PATCH',
+      body: JSON.stringify({ action: 'deactivate' }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.station ?? null;
+  } catch (err) {
+    console.warn('[deactivateRadioStation] falha:', err);
+    return null;
+  }
+}
+
+// Avança a faixa atual da estação (chamado quando a faixa atual termina).
+export async function advanceRadioStation(): Promise<RadioStation | null> {
+  try {
+    const res = await apiFetch('/api/radio-station', {
+      method: 'PATCH',
+      body: JSON.stringify({ action: 'advance' }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.station ?? null;
+  } catch (err) {
+    console.warn('[advanceRadioStation] falha:', err);
+    return null;
+  }
+}
+
+// Apaga a estação do usuário logado.
+export async function deleteRadioStation(): Promise<boolean> {
+  try {
+    const res = await apiFetch('/api/radio-station', { method: 'DELETE' });
+    if (!res.ok) return false;
+    return true;
+  } catch (err) {
+    console.warn('[deleteRadioStation] falha:', err);
+    return false;
   }
 }

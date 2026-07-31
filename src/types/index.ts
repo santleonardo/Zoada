@@ -124,6 +124,30 @@ export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-
 
 export type RadioTab = 'faixas' | 'explorar' | 'artistas';
 
+// Estação de rádio de um usuário. Cada usuário pode ter uma estação própria
+// com nome, capa opcional e uma lista ordenada de faixas. Quando ativada,
+// torna-se a estação global do app (só uma ativa por vez).
+export interface RadioStation {
+  id: string;
+  user_id: string;
+  name: string;
+  cover_url: string | null;
+  is_active: boolean;
+  // Faixa atual da transmissão (null até começar a tocar de verdade).
+  current_track_id: string | null;
+  // Timestamp ISO de quando a faixa atual começou (para sincronizar ouvintes).
+  current_track_started_at: string | null;
+  created_at: string;
+  // Dados do dono da estação (preenchido em algumas respostas).
+  owner?: {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+  };
+  // Faixas da estação, na ordem escolhida (preenchido ao buscar com detalhes).
+  tracks?: Track[];
+}
+
 // Resultado da busca de usuários por nome (aba "Fãs") — versão enxuta do
 // perfil público, só com o necessário pra listar/clicar num resultado.
 export interface UserSearchResult {

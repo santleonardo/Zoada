@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioTab } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile } from '@/lib/api';
+import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioTab, RadioStation } from '@/types';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchActiveRadioStation, advanceRadioStation } from '@/lib/api';
 
 // Abas da tela inicial ("Início"). 'fans' é a busca de outros usuários
 // por nome — sem conteúdo próprio na store, é só mais uma aba client-side
@@ -108,6 +108,9 @@ interface AppState {
   // Radio
   radioEnabled: boolean;
   radioTab: RadioTab;
+  // Estação de rádio globalmente ativa (null = nenhuma estação no ar,
+  // o rádio usa o shuffle padrão de todas as faixas do catálogo).
+  activeStation: RadioStation | null;
 
   // Actions - Auth
   setUser: (user: User | null, token?: string | null) => void;
@@ -175,6 +178,11 @@ interface AppState {
   startRadio: (tracks: Track[]) => void;
   stopRadio: () => void;
   setRadioTab: (tab: RadioTab) => void;
+  // Estação ativa: busca do servidor e guarda no estado.
+  loadActiveStation: () => Promise<void>;
+  // Avança a faixa atual da estação no servidor (chamado quando uma
+  // faixa termina de tocar e a estação está no ar).
+  advanceStationTrack: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -198,6 +206,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   radioEnabled: false,
   radioTab: 'faixas',
+  activeStation: null,
 
   player: {
     currentTrack: null,
@@ -741,4 +750,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setRadioTab: (tab) => set({ radioTab: tab }),
+
+  // Busca a estação globalmente ativa do servidor e guarda no estado.
+  // Chamado ao entrar na tela de Rádio — se existir uma estação no ar,
+  // o RadioScreen usa a fila dela em vez do shuffle genérico.
+  loadActiveStation: async () => {
+    const station = await fetchActiveRadioStation();
+    set({ activeStation: station });
+  },
+
+  // Avança a faixa atual da estação no servidor. Chamado (fire-and-forget)
+  // quando o player chega ao fim de uma faixa e a estação está ativa —
+  // assim o próximo ouvinte que entrar já encontra a faixa correta.
+  advanceStationTrack: async () => {
+    const station = get().activeStation;
+    if (!station?.is_active) return;
+    const updated = await advanceRadioStation();
+    if (updated) {
+      set({ activeStation: updated });
+    }
+  },
 }));
