@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { UploadCloud, Music2, CheckCircle2, XCircle, Loader2, ImagePlus, X } from 'lucide-react';
+import { UploadCloud, Music2, CheckCircle2, XCircle, Loader2, ImagePlus, X, ChevronDown } from 'lucide-react';
 import {
   listMyArtists,
   createArtist,
@@ -46,6 +46,10 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
   // por exemplo, alguém populando o catálogo com diferentes artistas
   // fictícios — então em vez de "o meu artista", o app deixa escolher com
   // qual artista (existente ou novo) o envio atual é.
+  // Seção fechada por padrão; usuário abre clicando no cabeçalho (ou ela
+  // abre sozinha quando alguém pede pra editar um artista específico, veja
+  // o efeito de focusArtistId mais abaixo).
+  const [isOpen, setIsOpen] = useState(false);
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [loadingArtists, setLoadingArtists] = useState(true);
   const [selectedArtistId, setSelectedArtistId] = useState<string>(NEW_ARTIST);
@@ -120,6 +124,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
       setSelectedArtistId(found.id);
       applyArtistToForm(found);
     }
+    setIsOpen(true);
     rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusArtistId, focusToken, artists]);
@@ -298,24 +303,38 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
 
   return (
     <div ref={rootRef} className="rounded-2xl bg-white shadow-sm p-5 mb-6">
-      <div className="flex items-center gap-2 mb-1">
-        <UploadCloud size={18} className="text-[#FF8C42]" />
-        <h3 className="text-lg font-semibold text-[#1A1B25]">Enviar Músicas</h3>
-      </div>
-      <p className="text-black/40 text-sm mb-4">
-        Áudio: MP3 ou WAV (o que o navegador tocar melhor é MP3). Capas: JPG, PNG ou WEBP.
-      </p>
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        className="flex items-center justify-between w-full mb-1"
+      >
+        <div className="flex items-center gap-2">
+          <UploadCloud size={18} className="text-[#FF8C42]" />
+          <h3 className="text-lg font-semibold text-[#1A1B25]">Enviar Músicas</h3>
+        </div>
+        <ChevronDown
+          size={18}
+          className={`text-black/40 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
 
-      {globalError && (
-        <p className="text-xs text-[#E84393] mb-3">{globalError}</p>
-      )}
-      {successMessage && (
-        <p className="text-xs text-[#00CEC9] mb-3">{successMessage}</p>
-      )}
+      {isOpen && (
+        <>
+          <p className="text-black/40 text-sm mb-4">
+            Áudio: MP3 ou WAV (o que o navegador tocar melhor é MP3). Capas: JPG, PNG ou WEBP.
+          </p>
 
-      {/* Escolha de artista: um existente (edita ele) ou um novo (cria um
-          registro separado, sem mexer nos outros). */}
-      {!loadingArtists && artists.length > 0 && (
+          {globalError && (
+            <p className="text-xs text-[#E84393] mb-3">{globalError}</p>
+          )}
+          {successMessage && (
+            <p className="text-xs text-[#00CEC9] mb-3">{successMessage}</p>
+          )}
+
+          {/* Escolha de artista: um existente (edita ele) ou um novo (cria um
+              registro separado, sem mexer nos outros). */}
+          {!loadingArtists && artists.length > 0 && (
         <div className="mb-3">
           <label className="block text-xs text-black/40 mb-1.5">Enviar como</label>
           <select
@@ -510,6 +529,8 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
             Limpar erros
           </GradientButton>
         </div>
+      )}
+        </>
       )}
     </div>
   );

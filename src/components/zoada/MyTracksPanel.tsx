@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Music2, Loader2, Check, X, Trash2, ListMusic, Pencil, ImagePlus } from 'lucide-react';
+import { Music2, Loader2, Check, X, Trash2, ListMusic, Pencil, ImagePlus, ChevronDown } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { deleteTrackFile, updateTrackInfo, uploadImageFile } from '@/lib/trackUpload';
 import { useAppStore } from '@/store/useAppStore';
@@ -20,6 +20,8 @@ interface MyTracksPanelProps {
  */
 const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ refreshKey }) => {
   const selectArtist = useAppStore((state) => state.selectArtist);
+  // Seção fechada por padrão; usuário abre clicando no cabeçalho.
+  const [isOpen, setIsOpen] = useState(false);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -128,28 +130,42 @@ const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ refreshKey }) => {
 
   return (
     <div className="rounded-2xl bg-white shadow-sm p-5 mb-6">
-      <div className="flex items-center justify-between mb-1">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        className="flex items-center justify-between w-full mb-1"
+      >
         <div className="flex items-center gap-2">
           <ListMusic size={18} className="text-[#00CEC9]" />
           <h3 className="text-lg font-semibold text-[#1A1B25]">Suas Músicas Enviadas</h3>
         </div>
-        {!loading && <span className="text-sm text-black/40">{tracks.length} faixas</span>}
-      </div>
-      <p className="text-black/40 text-sm mb-4">
-        Tudo que você já publicou, em todos os artistas da sua conta. Toque no lápis pra editar título/capa.
-      </p>
+        <div className="flex items-center gap-2">
+          {!loading && <span className="text-sm text-black/40">{tracks.length} faixas</span>}
+          <ChevronDown
+            size={18}
+            className={`text-black/40 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          />
+        </div>
+      </button>
 
-      {error && <p className="text-xs text-[#E84393] mb-3">{error}</p>}
+      {isOpen && (
+        <>
+          <p className="text-black/40 text-sm mb-4">
+            Tudo que você já publicou, em todos os artistas da sua conta. Toque no lápis pra editar título/capa.
+          </p>
 
-      <input
-        ref={editCoverInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        className="hidden"
-        onChange={(e) => handlePickEditCover(e.target.files?.[0] || null)}
-      />
+          {error && <p className="text-xs text-[#E84393] mb-3">{error}</p>}
 
-      {loading ? (
+          <input
+            ref={editCoverInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(e) => handlePickEditCover(e.target.files?.[0] || null)}
+          />
+
+          {loading ? (
         <p className="text-xs text-black/40">Carregando...</p>
       ) : tracks.length === 0 ? (
         <div className="rounded-xl bg-black/[0.03] p-6 text-center">
@@ -284,6 +300,8 @@ const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ refreshKey }) => {
             );
           })}
         </div>
+      )}
+        </>
       )}
     </div>
   );

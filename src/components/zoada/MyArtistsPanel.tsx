@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Users, Loader2, Check, X, Trash2, Mic2, Pencil } from 'lucide-react';
+import { Users, Loader2, Check, X, Trash2, Mic2, Pencil, ChevronDown } from 'lucide-react';
 import { listMyArtists, deleteArtistProfile } from '@/lib/trackUpload';
 import type { ArtistProfile } from '@/lib/trackUpload';
 
@@ -27,6 +27,8 @@ interface MyArtistsPanelProps {
  * seu próprio espaço, bem sinalizado, para não ser clicada por engano.
  */
 const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDeleted, onEditArtist }) => {
+  // Seção fechada por padrão; usuário abre clicando no cabeçalho.
+  const [isOpen, setIsOpen] = useState(false);
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -74,20 +76,34 @@ const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDel
 
   return (
     <div className="rounded-2xl bg-white shadow-sm p-5 mb-6">
-      <div className="flex items-center justify-between mb-1">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        className="flex items-center justify-between w-full mb-1"
+      >
         <div className="flex items-center gap-2">
           <Users size={18} className="text-[#E84393]" />
           <h3 className="text-lg font-semibold text-[#1A1B25]">Seus Artistas</h3>
         </div>
-        {!loading && <span className="text-sm text-black/40">{artists.length} artista{artists.length === 1 ? '' : 's'}</span>}
-      </div>
-      <p className="text-black/40 text-sm mb-4">
-        Apagar um artista apaga também todas as músicas publicadas por ele. Essa ação não pode ser desfeita.
-      </p>
+        <div className="flex items-center gap-2">
+          {!loading && <span className="text-sm text-black/40">{artists.length} artista{artists.length === 1 ? '' : 's'}</span>}
+          <ChevronDown
+            size={18}
+            className={`text-black/40 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          />
+        </div>
+      </button>
 
-      {error && <p className="text-xs text-[#E84393] mb-3">{error}</p>}
+      {isOpen && (
+        <>
+          <p className="text-black/40 text-sm mb-4">
+            Apagar um artista apaga também todas as músicas publicadas por ele. Essa ação não pode ser desfeita.
+          </p>
 
-      {loading ? (
+          {error && <p className="text-xs text-[#E84393] mb-3">{error}</p>}
+
+          {loading ? (
         <p className="text-xs text-black/40">Carregando...</p>
       ) : artists.length === 0 ? (
         <div className="rounded-xl bg-black/[0.03] p-6 text-center">
@@ -158,6 +174,8 @@ const MyArtistsPanel: React.FC<MyArtistsPanelProps> = ({ refreshKey, onArtistDel
             </div>
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   );

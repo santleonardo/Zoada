@@ -5,6 +5,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  ChevronDown,
   Flame,
   Music2,
   Camera,
@@ -39,6 +40,8 @@ const ProfileScreen: React.FC = () => {
   const [focusArtistId, setFocusArtistId] = useState<string | null>(null);
   const [focusToken, setFocusToken] = useState(0);
   const [topTracks, setTopTracks] = useState<TopListenedTrack[]>([]);
+  // Seção "Mais Ouvidas" fechada por padrão; usuário abre clicando no cabeçalho.
+  const [isTopTracksOpen, setIsTopTracksOpen] = useState(false);
 
   // Busca as músicas que o usuário mais repetiu (contador pessoal de
   // reproduções), já ordenadas da mais ouvida pra menos ouvida.
@@ -214,15 +217,26 @@ const ProfileScreen: React.FC = () => {
       {/* Mais ouvidas: top 10 músicas que o usuário mais repetiu, da mais
           pra menos ouvida (ex: 15x aparece antes de uma ouvida 10x). */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
+        <button
+          type="button"
+          onClick={() => setIsTopTracksOpen((prev) => !prev)}
+          aria-expanded={isTopTracksOpen}
+          className="flex items-center justify-between w-full mb-4"
+        >
           <div className="flex items-center gap-2">
             <Flame size={18} className="text-[#FF8C42]" fill="#FF8C42" />
             <h3 className="text-lg font-semibold text-[#1A1B25]">Mais Ouvidas</h3>
           </div>
-          <span className="text-sm text-black/40">{topTracks.length} faixas</span>
-        </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-black/40">{topTracks.length} faixas</span>
+            <ChevronDown
+              size={18}
+              className={`text-black/40 transition-transform ${isTopTracksOpen ? 'rotate-180' : ''}`}
+            />
+          </div>
+        </button>
 
-        {topTracks.length === 0 ? (
+        {isTopTracksOpen && (topTracks.length === 0 ? (
           <div className="rounded-2xl bg-white shadow-sm p-8 text-center">
             <Music2 size={40} className="text-black/15 mx-auto mb-3" />
             <p className="text-black/40 text-sm">Nenhuma música ouvida repetidamente ainda</p>
@@ -269,7 +283,7 @@ const ProfileScreen: React.FC = () => {
               </div>
             ))}
           </div>
-        )}
+        ))}
       </div>
 
       {/* Suas músicas enviadas (seção separada, com opção de editar e apagar) */}
