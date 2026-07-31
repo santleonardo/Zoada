@@ -36,6 +36,7 @@ model Usuario {
   reproducoes  Reproducao[]
   seguidores   SeguirUsuario[] @relation("Seguindo")
   seguidos     SeguirUsuario[] @relation("Seguidos")
+  estacoesRadio EstacaoRadio[]
 
   @@map("usuarios")
 }
@@ -83,6 +84,7 @@ model Faixa {
   comentarios Comentario[]
   mensagens  Mensagem[]
   reproducoes Reproducao[]
+  faixasEstacao FaixaEstacao[]
 
   @@map("faixas")
 }
@@ -199,4 +201,50 @@ model Mensagem {
   @@index([createdAt])
   @@index([faixaId])
   @@map("mensagens")
+}
+
+// ---------- Estação de Rádio (cada usuário pode ter uma) ----------
+// Permite que um usuário crie sua própria estação com uma lista ordenada
+// de faixas. Quando "ativada", ela se torna a estação global do app —
+// só pode existir uma estação ativa por vez.
+model EstacaoRadio {
+  id               String    @id @default(cuid())
+  usuarioId        String    @map("usuario_id")
+  nome             String
+  capaUrl          String?   @map("capa_url")
+  // Flag que indica se esta é a estação globalmente ativa. Só uma estação
+  // no app inteiro pode ter ativa=true por vez.
+  ativa            Boolean   @default(false)
+  // Faixa atual da transmissão + timestamp de quando ela começou a tocar.
+  // Usado para sincronizar os ouvintes: ao entrar, cada cliente calcula
+  // qual faixa deveria estar tocando com base no tempo decorrido.
+  faixaAtualId     String?   @map("faixa_atual_id")
+  faixaAtualInicio DateTime? @map("faixa_atual_inicio")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  usuario      Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  faixasEstacao FaixaEstacao[]
+
+  @@map("estacoes_radio")
+}
+
+// ---------- Faixas de uma Estação de Rádio (lista ordenada) ----------
+// Tabela de junção entre EstacaoRadio e Faixa, com campo `ordem` pra
+// preservar a ordem escolhida pelo dono da estação. onDelete Cascade
+// nas duas pontas: se a estação ou a faixa for apagada, a entrada
+// some junto (sem quebrar a estação).
+model FaixaEstacao {
+  id        String   @id @default(cuid())
+  estacaoId String   @map("estacao_id")
+  faixaId   String   @map("faixa_id")
+  ordem     Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  estacao EstacaoRadio @relation(fields: [estacaoId], references: [id], onDelete: Cascade)
+  faixa   Faixa        @relation(fields: [faixaId], references: [id], onDelete: Cascade)
+
+  @@unique([estacaoId, faixaId])
+  @@index([estacaoId])
+  @@map("faixas_estacao")
 }
