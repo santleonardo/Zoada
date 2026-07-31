@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Play, Pause, SkipForward, SkipBack, Radio, Star, Music2, TrendingUp, Heart, MessageCircle, Send, RadioTower } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { Search, Play, Pause, Radio, Star, Music2, TrendingUp, Heart, MessageCircle, Send, ChevronLeft, ChevronRight, RadioTower } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from 'sonner';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
@@ -9,6 +9,10 @@ import type { Track, Artist, RadioTab } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import { cn, formatNumber } from '@/lib/utils';
+
+// Estação padrão do Zôada (sempre disponível, nunca substituída).
+// ID especial que o dial usa para representar o shuffle padrão.
+const DEFAULT_STATION_ID = '__default__';
 
 const RadioScreen: React.FC = () => {
   const {
@@ -34,8 +38,11 @@ const RadioScreen: React.FC = () => {
     user,
     lastCountedPlay,
     queue,
-    activeStation,
-    loadActiveStation,
+    publishedStations,
+    loadPublishedStations,
+    selectedStationId,
+    selectedStation,
+    selectStation,
     advanceStationTrack,
   } = useAppStore();
 
@@ -48,9 +55,9 @@ const RadioScreen: React.FC = () => {
   const progressRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const hasAutoStarted = useRef(false);
+  const [switchingStation, setSwitchingStation] = useState(false);
 
-  // Busca o chat geral da rádio uma vez, ao entrar na tela — é uma conversa
-  // aberta de quem está ouvindo, não muda conforme a faixa toca.
+  // Busca o chat geral da rádio uma vez, ao entrar na tela.
   useEffect(() => {
     loadRadioComments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,7 +71,7 @@ const RadioScreen: React.FC = () => {
     );
   }, [lastCountedPlay]);
 
-  // Fetch tracks and artists from API
+  // Fetch tracks, artists e estações publicadas da API
   useEffect(() => {
     fetch('/api/tracks')
       .then((res) => res.json())
@@ -79,81 +86,135 @@ const RadioScreen: React.FC = () => {
         if (Array.isArray(data.artists) && data.artists.length > 0) setArtists(data.artists);
       })
       .catch(() => {});
-  }, []);
 
-  // Busca a estação globalmente ativa ao entrar na tela — se existir, o
-  // rádio toca a fila dela em vez do shuffle genérico.
-  useEffect(() => {
-    loadActiveStation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    loadPublishedStations();
+  }, [loadPublishedStations]);
 
-  // Auto-start radio when screen first loads. Se existe uma estação
-  // ativa com faixas, usa a fila ordenada dela; senão, faz o shuffle
-  // padrão de todas as faixas do catálogo.
+  // Dial: lista de estações disponíveis (padrão + publicadas)
+  const dialStations = useMemo((): Array<{ id: string; name: string; subtitle?: string; cover_url?: string | null }> => {
+    const list: Array<{ id: string; name: string; subtitle?: string; cover_url?: string | null }> = [
+      { id: DEFAULT_STATION_ID, name: 'Rádio Zôada', subtitle: 'Shuffle infinito' },
+    ];
+    for (const s of publishedStations) {
+      list.push({
+        id: s.id,
+        name: s.name,
+        subtitle: s.owner?.name,
+        cover_url: s.cover_url,
+      });
+    }
+    return list;
+  }, [publishedStations]);
+
+  // Índice atual no dial (reflete selectedStationId)
+  const dialIndex = useMemo(() => {
+    const effectiveId = selectedStationId || DEFAULT_STATION_ID;
+    const idx = dialStations.findIndex((s) => s.id === effectiveId);
+    return idx >= 0 ? idx : 0;
+  }, [selectedStationId, dialStations]);
+
+  const dialStation = dialStations[dialIndex];
+  const isDefaultStation = !selectedStationId;
+
+  // Navega no dial
+  const dialPrev = useCallback(() => {
+    const prev = dialIndex <= 0 ? dialStations.length - 1 : dialIndex - 1;
+    const st = dialStations[prev];
+    switchToStation(st.id);
+  }, [dialIndex, dialStations]);
+
+  const dialNext = useCallback(() => {
+    const next = dialIndex >= dialStations.length - 1 ? 0 : dialIndex + 1;
+    const st = dialStations[next];
+    switchToStation(st.id);
+  }, [dialIndex, dialStations]);
+
+  // Troca de estação: carrega a fila e ajusta o player.
+  const switchToStation = useCallback(async (stationId: string) => {
+    setSwitchingStation(true);
+    try {
+      if (stationId === DEFAULT_STATION_ID) {
+        // Volta pro shuffle padrão.
+        await selectStation(null);
+        if (!radioEnabled || !isPlaying) {
+          // Se o rádio já estava tocando, re-inicia com shuffle.
+          if (radioEnabled) {
+            const currentTracks = tracks.length > 0 ? tracks : DEMO_TRACKS;
+            startRadio(currentTracks);
+          }
+        }
+      } else {
+        // Busca dados da estação com faixas.
+        await selectStation(stationId);
+        const station = useAppStore.getState().selectedStation;
+        if (station?.tracks && station.tracks.length > 0) {
+          const stationTracks = station.tracks;
+
+          // Calcula qual faixa deveria estar tocando (sincronização).
+          let startIndex = 0;
+          if (station.current_track_started_at && station.current_track_id) {
+            const startedAt = new Date(station.current_track_started_at).getTime();
+            const elapsedMs = Date.now() - startedAt;
+            let accumulated = 0;
+            for (let i = 0; i < stationTracks.length; i++) {
+              accumulated += (stationTracks[i].duration || 0) * 1000;
+              if (accumulated > elapsedMs) {
+                startIndex = i;
+                break;
+              }
+              if (i === stationTracks.length - 1) startIndex = i;
+            }
+          }
+
+          const startingTrack = stationTracks[startIndex];
+          const state = useAppStore.getState();
+          useAppStore.setState({
+            radioEnabled: true,
+            shuffleEnabled: false,
+            repeatMode: 'all',
+            queue: stationTracks,
+            queueIndex: startIndex,
+            shuffleBag: [],
+            player: {
+              ...state.player,
+              currentTrack: startingTrack,
+              isPlaying: true,
+              progress: 0,
+            },
+          });
+        }
+      }
+    } finally {
+      setSwitchingStation(false);
+    }
+  }, [selectStation, startRadio, radioEnabled, isPlaying, tracks]);
+
+  // Auto-start radio com a estação selecionada (ou default).
   useEffect(() => {
     if (hasAutoStarted.current) return;
     if (tracks.length === 0) return;
 
-    const stationTracks = activeStation?.tracks;
-    if (activeStation?.is_active && stationTracks && stationTracks.length > 0) {
-      hasAutoStarted.current = true;
+    hasAutoStarted.current = true;
 
-      // Calcula qual faixa deveria estar tocando com base no tempo
-      // decorrido desde que a transmissão começou (sincronização simples
-      // — suficiente pra "todo mundo ouve a mesma rádio").
-      let startIndex = 0;
-      if (activeStation.current_track_started_at && activeStation.current_track_id) {
-        const startedAt = new Date(activeStation.current_track_started_at).getTime();
-        const elapsedMs = Date.now() - startedAt;
-        let accumulated = 0;
-        for (let i = 0; i < stationTracks.length; i++) {
-          accumulated += (stationTracks[i].duration || 0) * 1000;
-          if (accumulated > elapsedMs) {
-            startIndex = i;
-            break;
-          }
-          if (i === stationTracks.length - 1) startIndex = i;
-        }
-      }
-
-      const startingTrack = stationTracks[startIndex];
-      // Começa tocando a fila da estação em ordem (sem shuffle).
-      const state = useAppStore.getState();
-      useAppStore.setState({
-        radioEnabled: true,
-        shuffleEnabled: false,
-        repeatMode: 'all',
-        queue: stationTracks,
-        queueIndex: startIndex,
-        shuffleBag: [],
-        player: {
-          ...state.player,
-          currentTrack: startingTrack,
-          isPlaying: true,
-          progress: 0,
-        },
-      });
-    } else {
-      // Nenhuma estação ativa: shuffle padrão de todo o catálogo.
-      hasAutoStarted.current = true;
+    // Sempre começa com a estação padrão (shuffle).
+    // Se o usuário já tinha selecionado outra estação previamente,
+    // o selectStation já foi chamado e o RadioScreen renderiza com ela.
+    if (!selectedStationId) {
       startRadio(tracks);
     }
-  }, [tracks.length, activeStation]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tracks.length, selectedStationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Quando a estação está ativa e avança de faixa (fim natural), avisa
+  // Quando a estação selecionada avança de faixa (fim natural), avisa
   // o servidor pra sincronizar os outros ouvintes — fire-and-forget.
   const prevTrackIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!activeStation?.is_active || !currentTrack) return;
+    if (!selectedStationId || !currentTrack) return;
     const prevId = prevTrackIdRef.current;
     prevTrackIdRef.current = currentTrack.id;
-    // Só avisa o servidor se tínhamos uma faixa anterior (não é o
-    // início) E a faixa mudou — isso indica que o player avançou.
     if (prevId && prevId !== currentTrack.id) {
       advanceStationTrack();
     }
-  }, [currentTrack?.id, activeStation?.is_active, advanceStationTrack]);
+  }, [currentTrack?.id, selectedStationId, advanceStationTrack]);
 
   const favoriteTracks = useMemo(() => {
     return tracks.filter((t) => favorites.includes(t.id));
@@ -184,8 +245,6 @@ const RadioScreen: React.FC = () => {
     setIsSendingComment(false);
 
     if (!ok) {
-      // Falhou de verdade — devolve o texto pro campo e avisa o usuário,
-      // em vez de fingir que o comentário foi salvo.
       setNewComment(content);
       toast.error('Não foi possível enviar o comentário. Tente novamente.');
     }
@@ -373,22 +432,24 @@ const RadioScreen: React.FC = () => {
                 'w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg',
                 radioEnabled ? 'bg-white/20 backdrop-blur-sm pulse-glow' : 'bg-white/30'
               )}>
-                {activeStation?.is_active ? (
-                  <RadioTower size={24} className="text-white" fill="white" />
-                ) : (
+                {isDefaultStation ? (
                   <Radio size={24} className="text-white" fill={radioEnabled ? 'white' : 'none'} />
+                ) : (
+                  <RadioTower size={24} className="text-white" fill="white" />
                 )}
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white tracking-tight">
-                  {activeStation?.is_active ? activeStation.name : 'Rádio Zoada'}
+                  {dialStation?.name || 'Rádio Zôada'}
                 </h1>
                 <p className="text-white/70 text-xs mt-0.5">
-                  {radioEnabled
-                    ? (activeStation?.is_active && activeStation.owner
-                      ? `Estação de ${activeStation.owner.name} — ${queueLength} faixas`
-                      : `${queueLength} músicas em shuffle infinito`)
-                    : 'Toque para iniciar a rádio'
+                  {isDefaultStation
+                    ? (radioEnabled
+                      ? `${queueLength} músicas em shuffle infinito`
+                      : 'Toque para iniciar a rádio')
+                    : (selectedStation?.owner
+                      ? `Estação de ${selectedStation.owner.name} — ${queueLength} faixas`
+                      : `${queueLength} faixas`)
                   }
                 </p>
               </div>
@@ -400,7 +461,12 @@ const RadioScreen: React.FC = () => {
                 if (radioEnabled) {
                   stopRadio();
                 } else if (tracks.length > 0) {
-                  startRadio(tracks);
+                  if (isDefaultStation) {
+                    startRadio(tracks);
+                  } else {
+                    // Re-toca a estação selecionada.
+                    switchToStation(selectedStationId!);
+                  }
                 }
               }}
               className={cn(
@@ -423,6 +489,78 @@ const RadioScreen: React.FC = () => {
               )}
             </button>
           </div>
+
+          {/* ========== STATION DIAL / SELECTOR ========== */}
+          {dialStations.length > 1 && (
+            <div className="mt-4">
+              {/* Seletor horizontal com setas */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={dialPrev}
+                  disabled={switchingStation}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-30 active:scale-90 flex-shrink-0"
+                  aria-label="Estação anterior"
+                >
+                  <ChevronLeft size={16} className="text-white" />
+                </button>
+
+                <div className="flex-1 overflow-hidden">
+                  <div className="flex items-center justify-center gap-2 px-2">
+                    {switchingStation ? (
+                      <div className="w-10 h-10 rounded-xl bg-white/10 animate-pulse" />
+                    ) : dialStation?.cover_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={dialStation.cover_url}
+                        alt={dialStation.name}
+                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
+                        <Radio size={16} className="text-white/60" />
+                      </div>
+                    )}
+                    <div className="min-w-0 text-center">
+                      <p className="text-sm font-semibold text-white truncate max-w-[160px]">
+                        {dialStation?.name || 'Rádio Zôada'}
+                      </p>
+                      {dialStation?.subtitle && (
+                        <p className="text-[10px] text-white/50 truncate max-w-[160px]">
+                          {dialStation.subtitle}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={dialNext}
+                  disabled={switchingStation}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-30 active:scale-90 flex-shrink-0"
+                  aria-label="Próxima estação"
+                >
+                  <ChevronRight size={16} className="text-white" />
+                </button>
+              </div>
+
+              {/* Indicadores de posição no dial */}
+              {dialStations.length > 1 && (
+                <div className="flex justify-center gap-1 mt-2">
+                  {dialStations.map((st, i) => (
+                    <div
+                      key={st.id}
+                      className={cn(
+                        'w-1.5 h-1.5 rounded-full transition-all duration-300',
+                        i === dialIndex
+                          ? 'bg-white w-4'
+                          : 'bg-white/30'
+                      )}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Now Playing Mini Bar */}
           {currentTrack && (

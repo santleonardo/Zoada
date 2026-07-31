@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Radio, Loader2, Check, X, Trash2, ChevronDown, Plus, GripVertical, ImagePlus, RadioTower, VolumeX } from 'lucide-react';
-import { fetchMyRadioStation, saveRadioStation, activateRadioStation, deactivateRadioStation, deleteRadioStation, fetchAllTracks } from '@/lib/api';
+import { fetchMyRadioStation, saveRadioStation, publishRadioStation, unpublishRadioStation, deleteRadioStation, fetchAllTracks } from '@/lib/api';
 import { uploadImageFile } from '@/lib/trackUpload';
 import type { RadioStation, Track } from '@/types';
 import CoverArt from './CoverArt';
@@ -17,7 +17,7 @@ interface MyRadioStationPanelProps {
  * Painel de criação/gestão da estação de rádio do usuário. Segue o mesmo
  * padrão visual/estrutural de MyArtistsPanel (accordion fechado por padrão,
  * loading state, tratamento de erro). Cada usuário pode ter UMA estação —
- * se já existir, o painel mostra as opções de editar/ativar/desativar/apagar;
+ * se já existir, o painel mostra as opções de editar/publicar/despublicar/apagar;
  * se não existir, mostra o formulário de criação.
  */
 const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey }) => {
@@ -43,7 +43,7 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Confirmação de ativar/desativar
+  // Confirmação de publicar/despublicar
   const [togglingActive, setTogglingActive] = useState(false);
 
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -157,35 +157,35 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
     }
   };
 
-  const handleActivate = async () => {
+  const handlePublish = async () => {
     setTogglingActive(true);
     setError(null);
     try {
-      const updated = await activateRadioStation();
+      const updated = await publishRadioStation();
       if (updated) {
         setStation(updated);
       } else {
-        setError('Falha ao ativar a estação. Tente novamente.');
+        setError('Falha ao publicar a estação. Tente novamente.');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao ativar a estação');
+      setError(err instanceof Error ? err.message : 'Erro ao publicar a estação');
     } finally {
       setTogglingActive(false);
     }
   };
 
-  const handleDeactivate = async () => {
+  const handleUnpublish = async () => {
     setTogglingActive(true);
     setError(null);
     try {
-      const updated = await deactivateRadioStation();
+      const updated = await unpublishRadioStation();
       if (updated) {
         setStation(updated);
       } else {
-        setError('Falha ao desativar a estação. Tente novamente.');
+        setError('Falha ao despublicar a estação. Tente novamente.');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao desativar a estação');
+      setError(err instanceof Error ? err.message : 'Erro ao despublicar a estação');
     } finally {
       setTogglingActive(false);
     }
@@ -229,9 +229,9 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
           <h3 className="text-lg font-semibold text-[#1A1B25]">Minha Estação de Rádio</h3>
         </div>
         <div className="flex items-center gap-2">
-          {station?.is_active && (
+          {station?.is_published && (
             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-              Ao vivo
+              Publicada
             </span>
           )}
           {!loading && station && (
@@ -265,17 +265,17 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[#1A1B25] truncate">{station.name}</p>
                   <p className="text-xs text-black/40">
-                    {station.is_active ? 'Estação ativa — tocando para todo mundo' : 'Estação criada — não está no ar'}
+                    {station.is_published ? 'Publicada — disponível no seletor de estações' : 'Criada — não está publicada'}
                   </p>
                 </div>
               </div>
 
               {/* Ações da estação */}
               <div className="space-y-2">
-                {/* Ativar / Desativar */}
-                {station.is_active ? (
+                {/* Publicar / Despublicar */}
+                {station.is_published ? (
                   <button
-                    onClick={handleDeactivate}
+                    onClick={handleUnpublish}
                     disabled={togglingActive}
                     className="flex items-center gap-3 w-full p-3 rounded-xl bg-red-50 hover:bg-red-100 transition-colors text-left disabled:opacity-50"
                   >
@@ -285,13 +285,13 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
                       <VolumeX size={18} className="text-red-500" />
                     )}
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-red-700">Tirar do ar</p>
-                      <p className="text-[11px] text-red-500">O rádio volta ao shuffle padrão</p>
+                      <p className="text-sm font-medium text-red-700">Despublicar</p>
+                      <p className="text-[11px] text-red-500">Sai do seletor de estações</p>
                     </div>
                   </button>
                 ) : (
                   <button
-                    onClick={handleActivate}
+                    onClick={handlePublish}
                     disabled={togglingActive || (station.tracks?.length || 0) === 0}
                     className="flex items-center gap-3 w-full p-3 rounded-xl bg-green-50 hover:bg-green-100 transition-colors text-left disabled:opacity-50"
                   >
@@ -302,7 +302,7 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
                     )}
                     <div className="flex-1">
                       <p className="text-sm font-medium text-green-700">Colocar no ar</p>
-                      <p className="text-[11px] text-green-600">Sua estação toca para todo mundo</p>
+                      <p className="text-[11px] text-green-600">Disponibiliza no seletor de estações</p>
                     </div>
                   </button>
                 )}

@@ -12,7 +12,7 @@ function stationToResponse(estacao: any, includeOwner = false, includeTracks = f
     user_id: estacao.usuarioId,
     name: estacao.nome,
     cover_url: estacao.capaUrl,
-    is_active: estacao.ativa,
+    is_published: estacao.publicada,
     current_track_id: estacao.faixaAtualId,
     current_track_started_at: estacao.faixaAtualInicio?.toISOString() ?? null,
     created_at: estacao.createdAt.toISOString(),
@@ -53,15 +53,18 @@ function stationToResponse(estacao: any, includeOwner = false, includeTracks = f
 
 // ============================================================
 // GET /api/radio-station
-// ?mine=1         → estação do usuário logado (autenticado)
-// (sem query)     → estação globalmente ativa (público)
+// ?mine=1             → estação do usuário logado (autenticado)
+// ?published=1        → lista todas as estações publicadas (público)
+// ?station_id=xxx     → dados de uma estação específica com faixas (público)
+// (sem query)          → retorna { stations: [] } vazio (não existe mais
+//                       "estação global ativa")
 // ============================================================
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
 
+    // --- Estação do próprio usuário ---
     if (searchParams.get('mine') === '1') {
-      // --- Estação do próprio usuário ---
       if (!isNeonConfigured) {
         return NextResponse.json({ station: null });
       }
@@ -87,29 +90,54 @@ export async function GET(request: Request) {
       return NextResponse.json({ station: stationToResponse(estacao, false, true) });
     }
 
-    // --- Estação globalmente ativa (pública) ---
-    if (!isNeonConfigured) {
-      return NextResponse.json({ station: null });
-    }
+    // --- Lista todas as estações publicadas (público) ---
+    if (searchParams.get('published') === '1') {
+      if (!isNeonConfigured) {
+        return NextResponse.json({ stations: [] });
+      }
 
-    const estacao = await db.estacaoRadio.findFirst({
-      where: { ativa: true },
-      include: {
-        usuario: { select: { id: true, name: true, avatarUrl: true } },
-        faixasEstacao: {
-          include: { faixa: { include: { artista: { select: { nome: true } } } } },
+      const estacoes = await db.estacaoRadio.findMany({
+        where: { publicada: true },
+        include: {
+          usuario: { select: { id: true, name: true, avatarUrl: true } },
         },
-      },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
 
-    if (!estacao) {
-      return NextResponse.json({ station: null });
+      return NextResponse.json({
+        stations: estacoes.map((e) => stationToResponse(e, true, false)),
+      });
     }
 
-    return NextResponse.json({ station: stationToResponse(estacao, true, true) });
+    // --- Dados de uma estação específica (com faixas, para tocar) ---
+    const stationId = searchParams.get('station_id');
+    if (stationId) {
+      if (!isNeonConfigured) {
+        return NextResponse.json({ station: null });
+      }
+
+      const estacao = await db.estacaoRadio.findUnique({
+        where: { id: stationId },
+        include: {
+          usuario: { select: { id: true, name: true, avatarUrl: true } },
+          faixasEstacao: {
+            include: { faixa: { include: { artista: { select: { nome: true } } } } },
+          },
+        },
+      });
+
+      if (!estacao || !estacao.publicada) {
+        return NextResponse.json({ station: null });
+      }
+
+      return NextResponse.json({ station: stationToResponse(estacao, true, true) });
+    }
+
+    // Sem query params — não existe mais "estação global ativa"
+    return NextResponse.json({ stations: [] });
   } catch (error) {
     console.error('[RADIO STATION GET]', error);
-    return NextResponse.json({ error: 'Erro ao buscar estação' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao buscar estações' }, { status: 500 });
   }
 }
 
@@ -146,7 +174,6 @@ export async function POST(request: Request) {
       select: { id: true },
     });
     const validIds = new Set(existingTracks.map((t) => t.id));
-    // Filtra só os IDs que existem de verdade (ignora os que foram apagados).
     const validTrackIds = track_ids.filter((id: string) => validIds.has(id));
 
     if (validTrackIds.length === 0) {
@@ -173,8 +200,6 @@ export async function POST(request: Request) {
     });
 
     // Substitui a lista de faixas da estação pela nova lista ordenada.
-    // Deleta as entradas antigas e cria as novas — é a abordagem mais
-    // simples e consistente com o padrão do projeto.
     await db.faixaEstacao.deleteMany({ where: { estacaoId: estacao.id } });
 
     await db.faixaEstacao.createMany({
@@ -207,9 +232,9 @@ export async function POST(request: Request) {
 
 // ============================================================
 // PATCH /api/radio-station
-// { "action": "activate" } → ativa esta estação (desativa qualquer outra)
-// { "action": "deactivate" } → desativa esta estação
-// { "action": "advance" } → avança a faixa atual da estação (quando uma faixa termina)
+// { "action": "publish" }   → publica a estação (disponível no seletor)
+// { "action": "unpublish" } → remove do seletor (mas não apaga)
+// { "action": "advance" }   → avança a faixa atual (quando uma termina)
 // ============================================================
 export async function PATCH(request: Request) {
   try {
@@ -238,14 +263,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Estação não encontrada' }, { status: 404 });
     }
 
-    if (action === 'activate') {
-      // Desativa qualquer outra estação que esteja ativa no momento.
-      await db.estacaoRadio.updateMany({
-        where: { ativa: true },
-        data: { ativa: false },
-      });
-
-      // Ativa esta estação e define a primeira faixa como atual.
+    if (action === 'publish') {
+      // Publica a estação (disponível no seletor). NÃO despublica outras —
+      // múltiplas estações podem coexistir publicadas.
       const faixasOrdenadas = estacao.faixasEstacao
         .filter((fe) => fe.faixa !== null)
         .sort((a, b) => a.ordem - b.ordem);
@@ -253,7 +273,7 @@ export async function PATCH(request: Request) {
       const updated = await db.estacaoRadio.update({
         where: { id: estacao.id },
         data: {
-          ativa: true,
+          publicada: true,
           faixaAtualId: faixasOrdenadas.length > 0 ? faixasOrdenadas[0].faixaId : null,
           faixaAtualInicio: faixasOrdenadas.length > 0 ? new Date() : null,
         },
@@ -268,11 +288,12 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ station: stationToResponse(updated, true, true) });
     }
 
-    if (action === 'deactivate') {
+    if (action === 'unpublish') {
+      // Despublica a estação (sai do seletor). NÃO afeta outras estações.
       const updated = await db.estacaoRadio.update({
         where: { id: estacao.id },
         data: {
-          ativa: false,
+          publicada: false,
           faixaAtualId: null,
           faixaAtualInicio: null,
         },
@@ -283,8 +304,8 @@ export async function PATCH(request: Request) {
 
     if (action === 'advance') {
       // Avança para a próxima faixa da estação. Chamado pelo cliente quando
-      // a faixa atual termina de tocar. Só faz sentido se a estação está ativa.
-      if (!estacao.ativa || !estacao.faixaAtualId) {
+      // a faixa atual termina de tocar.
+      if (!estacao.publicada || !estacao.faixaAtualId) {
         return NextResponse.json({ station: stationToResponse(estacao) });
       }
 
@@ -310,7 +331,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ station: stationToResponse(updated) });
     }
 
-    return NextResponse.json({ error: 'Ação inválida. Use "activate", "deactivate" ou "advance".' }, { status: 400 });
+    return NextResponse.json({ error: 'Ação inválida. Use "publish", "unpublish" ou "advance".' }, { status: 400 });
   } catch (error) {
     console.error('[RADIO STATION PATCH]', error);
     return NextResponse.json({ error: 'Erro ao atualizar estação' }, { status: 500 });
@@ -320,7 +341,7 @@ export async function PATCH(request: Request) {
 // ============================================================
 // DELETE /api/radio-station
 // Apaga a estação do usuário logado (e todas as FaixaEstacao em cascata).
-// Se a estação estava ativa, volta ao shuffle padrão para todo mundo.
+// Não afeta outras estações nem a estação padrão.
 // ============================================================
 export async function DELETE(request: Request) {
   try {
@@ -333,7 +354,6 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    // findUnique para confirmar que existe antes de apagar.
     const estacao = await db.estacaoRadio.findUnique({
       where: { usuarioId: userId },
     });

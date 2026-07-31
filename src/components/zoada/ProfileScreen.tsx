@@ -315,7 +315,7 @@ const ProfileScreen: React.FC = () => {
         }}
       />
 
-      {/* Estação de rádio pessoal: criar/editar/ativar/desativar/apagar. */}
+      {/* Estação de rádio pessoal: criar/editar/publicar/despublicar/apagar. */}
       <MyRadioStationPanel />
 
       {/* Settings */}
