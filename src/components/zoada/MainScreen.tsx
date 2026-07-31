@@ -1,21 +1,44 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, TrendingUp, Play, Music2, Star, Flame } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
+import { Search, TrendingUp, Play, Music2, Star, Flame, Users, HeartHandshake } from 'lucide-react';
+import { useAppStore, type MainTab } from '@/store/useAppStore';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
-import type { Track, Artist } from '@/types';
+import type { Track, Artist, UserSearchResult } from '@/types';
+import { searchUsers } from '@/lib/api';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import { cn, formatNumber } from '@/lib/utils';
 
-type Tab = 'tracks' | 'artists' | 'favorites';
+type Tab = MainTab;
 
 const MainScreen: React.FC = () => {
-  const { playTrack, player, selectArtist, mainTab: activeTab, setMainTab: setActiveTab, favorites, toggleFavorite, lastCountedPlay } = useAppStore();
+  const { playTrack, player, selectArtist, selectUser, mainTab: activeTab, setMainTab: setActiveTab, favorites, toggleFavorite, lastCountedPlay, user } = useAppStore();
   const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
   const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
+  const [fanResults, setFanResults] = useState<UserSearchResult[]>([]);
+  const [isSearchingFans, setIsSearchingFans] = useState(false);
+
+  // Busca usuários por nome na aba "Fãs" — com um pequeno debounce pra não
+  // disparar uma chamada a cada tecla digitada. Só roda quando a aba
+  // "fans" está ativa, pra não gastar requisição enquanto o usuário navega
+  // pelas outras abas com um texto de busca já digitado.
+  useEffect(() => {
+    if (activeTab !== 'fans') return;
+    if (!search.trim()) {
+      setFanResults([]);
+      setIsSearchingFans(false);
+      return;
+    }
+    setIsSearchingFans(true);
+    const timeout = setTimeout(() => {
+      searchUsers(search)
+        .then(setFanResults)
+        .finally(() => setIsSearchingFans(false));
+    }, 350);
+    return () => clearTimeout(timeout);
+  }, [activeTab, search]);
 
   // Mantém o número de reproduções exibido em sincronia assim que uma
   // reprodução é contabilizada de verdade (ver audioEngine.ts), sem
@@ -470,11 +493,13 @@ const MainScreen: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold gradient-text">
-              {activeTab === 'favorites' ? 'Favoritos' : 'Explorar'}
+              {activeTab === 'favorites' ? 'Favoritos' : activeTab === 'fans' ? 'Fãs' : 'Explorar'}
             </h1>
             <p className="text-black/40 text-sm mt-0.5">
               {activeTab === 'favorites'
                 ? `${favoriteTracks.length} música${favoriteTracks.length !== 1 ? 's' : ''} salva${favoriteTracks.length !== 1 ? 's' : ''}`
+                : activeTab === 'fans'
+                ? 'Encontre outros fãs pelo nome'
                 : 'Descubra novos artistas'}
             </p>
           </div>
@@ -493,7 +518,7 @@ const MainScreen: React.FC = () => {
         <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/25" />
         <input
           type="text"
-          placeholder="Buscar músicas, artistas..."
+          placeholder={activeTab === 'fans' ? 'Buscar usuários por nome...' : 'Buscar músicas, artistas...'}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="!pl-8 !py-1.5 !text-xs"
@@ -502,7 +527,7 @@ const MainScreen: React.FC = () => {
 
       {/* Tabs: também reduzidas, só pra navegação, sem chamar atenção. */}
       <div className="flex gap-1 mb-3">
-        {(['tracks', 'favorites', 'artists'] as Tab[]).map((tab) => (
+        {(['fans', 'tracks', 'favorites', 'artists'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -513,10 +538,70 @@ const MainScreen: React.FC = () => {
                 : 'bg-black/5 text-black/40 hover:bg-black/10 hover:text-black/60'
             )}
           >
-            {tab === 'tracks' ? '🎵 Faixas' : tab === 'favorites' ? '⭐ Favoritos' : '🎤 Artistas'}
+            {tab === 'fans' ? '💜 Fãs' : tab === 'tracks' ? '🎵 Faixas' : tab === 'favorites' ? '⭐ Favoritos' : '🎤 Artistas'}
           </button>
         ))}
       </div>
+
+      {/* Fãs: busca de outros usuários por nome. */}
+      {activeTab === 'fans' && (
+        <div className="space-y-2">
+          {!user && (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                <Users size={28} className="text-black/20" />
+              </div>
+              <p className="text-black/40 text-sm font-medium">Entre na sua conta para buscar outros fãs</p>
+            </div>
+          )}
+
+          {user && !search.trim() && (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                <HeartHandshake size={28} className="text-black/20" />
+              </div>
+              <p className="text-black/40 text-sm font-medium">Digite um nome para encontrar outros fãs</p>
+            </div>
+          )}
+
+          {user && search.trim() && isSearchingFans && (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-black/40 text-sm">Buscando...</p>
+            </div>
+          )}
+
+          {user && search.trim() && !isSearchingFans && fanResults.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                <Users size={28} className="text-black/20" />
+              </div>
+              <p className="text-black/40 text-sm font-medium">Nenhum fã encontrado com esse nome</p>
+            </div>
+          )}
+
+          {user && !isSearchingFans && fanResults.map((fan) => (
+            <button
+              key={fan.id}
+              onClick={() => selectUser(fan.id)}
+              className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
+            >
+              <CoverArt
+                title={fan.name}
+                artistName=""
+                coverUrl={fan.avatar_url || ''}
+                size="sm"
+                className="!w-12 !h-12 !max-w-none !rounded-full flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-[#1A1B25] truncate">{fan.name}</p>
+              </div>
+              <div className="p-2 rounded-full bg-black/5" aria-label="Ver perfil do usuário">
+                <Users size={16} className="text-black/50" />
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Mais tocadas: vitrine em destaque no topo da tela inicial, em
           formato bento (cartões de tamanhos variados) pra dar bem mais
