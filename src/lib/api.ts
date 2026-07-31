@@ -496,16 +496,28 @@ export async function registerTrackPlay(trackId: string): Promise<number | null>
 // Estação de Rádio
 // ============================================================
 
-// Busca a estação globalmente ativa (pública, não precisa de autenticação).
-// Retorna null quando nenhuma estação está no ar.
-export async function fetchActiveRadioStation(): Promise<RadioStation | null> {
+// Busca todas as estações publicadas (público, sem autenticação).
+export async function fetchPublishedRadioStations(): Promise<RadioStation[]> {
   try {
-    const res = await apiFetch('/api/radio-station');
+    const res = await apiFetch('/api/radio-station?published=1');
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.stations) ? data.stations : [];
+  } catch (err) {
+    console.warn('[fetchPublishedRadioStations] falha:', err);
+    return [];
+  }
+}
+
+// Busca os dados completos de uma estação (com faixas) pelo ID.
+export async function fetchRadioStationById(stationId: string): Promise<RadioStation | null> {
+  try {
+    const res = await apiFetch(`/api/radio-station?station_id=${encodeURIComponent(stationId)}`);
     if (!res.ok) return null;
     const data = await res.json();
     return data.station ?? null;
   } catch (err) {
-    console.warn('[fetchActiveRadioStation] falha:', err);
+    console.warn('[fetchRadioStationById] falha:', err);
     return null;
   }
 }
@@ -544,34 +556,34 @@ export async function saveRadioStation(fields: {
   }
 }
 
-// Ativa a estação do usuário logado (desativa qualquer outra ativa).
-export async function activateRadioStation(): Promise<RadioStation | null> {
+// Publica a estação do usuário logado (disponível no seletor).
+export async function publishRadioStation(): Promise<RadioStation | null> {
   try {
     const res = await apiFetch('/api/radio-station', {
       method: 'PATCH',
-      body: JSON.stringify({ action: 'activate' }),
+      body: JSON.stringify({ action: 'publish' }),
     });
     if (!res.ok) return null;
     const data = await res.json();
     return data.station ?? null;
   } catch (err) {
-    console.warn('[activateRadioStation] falha:', err);
+    console.warn('[publishRadioStation] falha:', err);
     return null;
   }
 }
 
-// Desativa a estação do usuário logado (o app volta ao shuffle padrão).
-export async function deactivateRadioStation(): Promise<RadioStation | null> {
+// Despublica a estação do usuário logado (sai do seletor).
+export async function unpublishRadioStation(): Promise<RadioStation | null> {
   try {
     const res = await apiFetch('/api/radio-station', {
       method: 'PATCH',
-      body: JSON.stringify({ action: 'deactivate' }),
+      body: JSON.stringify({ action: 'unpublish' }),
     });
     if (!res.ok) return null;
     const data = await res.json();
     return data.station ?? null;
   } catch (err) {
-    console.warn('[deactivateRadioStation] falha:', err);
+    console.warn('[unpublishRadioStation] falha:', err);
     return null;
   }
 }

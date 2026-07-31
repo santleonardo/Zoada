@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioTab, RadioStation } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchActiveRadioStation, advanceRadioStation } from '@/lib/api';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchPublishedRadioStations, fetchRadioStationById, advanceRadioStation } from '@/lib/api';
 
 // Abas da tela inicial ("Início"). 'fans' é a busca de outros usuários
 // por nome — sem conteúdo próprio na store, é só mais uma aba client-side
@@ -108,9 +108,14 @@ interface AppState {
   // Radio
   radioEnabled: boolean;
   radioTab: RadioTab;
-  // Estação de rádio globalmente ativa (null = nenhuma estação no ar,
-  // o rádio usa o shuffle padrão de todas as faixas do catálogo).
-  activeStation: RadioStation | null;
+  // Lista de estações publicadas disponíveis no seletor.
+  publishedStations: RadioStation[];
+  // ID da estação selecionada pelo ouvinte (null = estação padrão Zôada).
+  // Cada usuário escolhe sua estação independentemente.
+  selectedStationId: string | null;
+  // Dados completos da estação selecionada (com faixas), carregados
+  // sob demanda quando o usuário seleciona uma estação no dial.
+  selectedStation: RadioStation | null;
 
   // Actions - Auth
   setUser: (user: User | null, token?: string | null) => void;
@@ -178,10 +183,11 @@ interface AppState {
   startRadio: (tracks: Track[]) => void;
   stopRadio: () => void;
   setRadioTab: (tab: RadioTab) => void;
-  // Estação ativa: busca do servidor e guarda no estado.
-  loadActiveStation: () => Promise<void>;
-  // Avança a faixa atual da estação no servidor (chamado quando uma
-  // faixa termina de tocar e a estação está no ar).
+  // Busca estações publicadas do servidor.
+  loadPublishedStations: () => Promise<void>;
+  // Seleciona uma estação pelo ID (null = volta pra estação padrão Zôada).
+  selectStation: (stationId: string | null) => Promise<void>;
+  // Avança a faixa atual da estação selecionada no servidor (fire-and-forget).
   advanceStationTrack: () => Promise<void>;
 }
 
@@ -206,7 +212,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   radioEnabled: false,
   radioTab: 'faixas',
-  activeStation: null,
+  publishedStations: [],
+  selectedStationId: null,
+  selectedStation: null,
 
   player: {
     currentTrack: null,
@@ -751,23 +759,42 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setRadioTab: (tab) => set({ radioTab: tab }),
 
-  // Busca a estação globalmente ativa do servidor e guarda no estado.
-  // Chamado ao entrar na tela de Rádio — se existir uma estação no ar,
-  // o RadioScreen usa a fila dela em vez do shuffle genérico.
-  loadActiveStation: async () => {
-    const station = await fetchActiveRadioStation();
-    set({ activeStation: station });
+  // Busca todas as estações publicadas do servidor e guarda na lista.
+  loadPublishedStations: async () => {
+    const stations = await fetchPublishedRadioStations();
+    set({ publishedStations: stations });
   },
 
-  // Avança a faixa atual da estação no servidor. Chamado (fire-and-forget)
-  // quando o player chega ao fim de uma faixa e a estação está ativa —
-  // assim o próximo ouvinte que entrar já encontra a faixa correta.
+  // Seleciona uma estação para ouvir. Se stationId for null, volta pra
+  // estação padrão (shuffle Zôada). Carrega os dados completos da estação
+  // (com faixas) do servidor, calcula o progresso e atualiza o player.
+  selectStation: async (stationId) => {
+    if (!stationId) {
+      // Volta pra estação padrão — o RadioScreen vai detectar a mudança
+      // e re-iniciar o shuffle.
+      set({ selectedStationId: null, selectedStation: null });
+      return;
+    }
+
+    // Busca dados completos da estação (com faixas)
+    const station = await fetchRadioStationById(stationId);
+    if (!station || !station.tracks || station.tracks.length === 0) {
+      // Falhou ou estação sem faixas — volta pra padrão.
+      set({ selectedStationId: null, selectedStation: null });
+      return;
+    }
+
+    set({ selectedStationId: stationId, selectedStation: station });
+  },
+
+  // Avança a faixa atual da estação selecionada no servidor. Chamado
+  // (fire-and-forget) quando o player chega ao fim de uma faixa.
   advanceStationTrack: async () => {
-    const station = get().activeStation;
-    if (!station?.is_active) return;
+    const stationId = get().selectedStationId;
+    if (!stationId) return;
     const updated = await advanceRadioStation();
     if (updated) {
-      set({ activeStation: updated });
+      set({ selectedStation: updated });
     }
   },
 }));
