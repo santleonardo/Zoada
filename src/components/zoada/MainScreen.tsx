@@ -148,12 +148,12 @@ const MainScreen: React.FC = () => {
   const renderTopArtistHero = (artist: Artist & { totalPlays: number }) => (
     <button
       onClick={() => selectArtist(artist.id)}
-      className="group relative w-full h-[156px] rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform duration-200 mb-3"
+      className="group relative w-full aspect-square rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform duration-200 mb-3"
     >
       {renderArtistBackdrop(artist)}
       <div
         className="absolute inset-0"
-        style={{ background: 'linear-gradient(110deg, rgba(10,8,20,0.90) 0%, rgba(10,8,20,0.62) 42%, rgba(10,8,20,0.22) 100%)' }}
+        style={{ background: 'linear-gradient(180deg, rgba(10,8,20,0.05) 35%, rgba(10,8,20,0.92) 100%)' }}
       />
 
       {/* Numeral decorativo — reforça a leitura de "ranking" sem precisar de mais texto */}
@@ -165,39 +165,24 @@ const MainScreen: React.FC = () => {
         1
       </span>
 
-      <div className="relative h-full flex items-center gap-4 px-4">
-        <div className="relative flex-shrink-0 w-[76px] h-[76px]">
-          <div
-            className="absolute -inset-[3px] rounded-full"
-            style={{ background: 'linear-gradient(135deg, #FDCB6E, #FF8C42, #E84393)' }}
-          />
-          <CoverArt
-            title={artist.name}
-            artistName={artist.genre}
-            coverUrl={artist.avatar_url || artist.cover_url}
-            size="sm"
-            className="!absolute !inset-[3px] !w-auto !h-auto !max-w-none !rounded-full !shadow-none"
-          />
+      <div className="absolute bottom-0 left-0 right-0 p-4">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Flame size={12} className="text-[#FDCB6E]" fill="#FDCB6E" />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#FDCB6E]">
+            Nº1 mais tocado
+          </span>
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Flame size={12} className="text-[#FDCB6E]" fill="#FDCB6E" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#FDCB6E]">
-              Nº1 mais tocado
+        <p className="text-white font-bold text-lg truncate">{artist.name}</p>
+        <div className="flex items-center gap-1.5 mt-2">
+          {artist.genre && (
+            <span className="text-[11px] text-white/70 bg-white/10 px-2 py-0.5 rounded-full truncate max-w-[130px]">
+              {artist.genre}
             </span>
-          </div>
-          <p className="text-white font-bold text-lg truncate">{artist.name}</p>
-          <div className="flex items-center gap-1.5 mt-2">
-            {artist.genre && (
-              <span className="text-[11px] text-white/70 bg-white/10 px-2 py-0.5 rounded-full truncate max-w-[130px]">
-                {artist.genre}
-              </span>
-            )}
-            <span className="flex items-center gap-1 text-xs text-white/55 font-medium">
-              <TrendingUp size={11} />
-              {formatNumber(artist.totalPlays)} reproduções
-            </span>
-          </div>
+          )}
+          <span className="flex items-center gap-1 text-xs text-white/55 font-medium">
+            <TrendingUp size={11} />
+            {formatNumber(artist.totalPlays)} reproduções
+          </span>
         </div>
       </div>
     </button>
@@ -212,7 +197,7 @@ const MainScreen: React.FC = () => {
     <button
       key={artist.id}
       onClick={() => selectArtist(artist.id)}
-      className="group relative rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform duration-200 h-[108px]"
+      className="group relative rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform duration-200 aspect-square"
     >
       {renderArtistBackdrop(artist)}
       <div
@@ -278,7 +263,7 @@ const MainScreen: React.FC = () => {
         onClick={() => playTrack(track, topTracks)}
         style={style}
         className={cn(
-          'group relative rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform duration-200',
+          'group relative aspect-square rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform duration-200',
           isCurrentTrack && 'ring-2 ring-[#FF8C42] shadow-lg shadow-[#FF8C42]/30'
         )}
       >
@@ -376,31 +361,16 @@ const MainScreen: React.FC = () => {
   // pequenos abaixo — dá muito mais peso visual do que uma lista.
   const renderMostPlayedBento = () => {
     const heroTrack = topTracks[0];
-    const mediumTracks = topTracks.slice(1, 3);
-    const smallTracks = topTracks.slice(3, 7);
+    const restTracks = topTracks.slice(1, 7);
     if (!heroTrack) return null;
 
-    const rowTemplate = smallTracks.length > 0 ? '156px 156px 122px' : '196px 196px';
-
     return (
-      <div
-        className="grid gap-3.5"
-        style={{ gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: rowTemplate }}
-      >
-        {renderBentoTile(heroTrack, 'hero', {
-          gridColumn: mediumTracks.length > 0 ? '1 / 3' : '1 / 5',
-          gridRow: '1 / 3',
-        })}
-        {mediumTracks.map((track, i) =>
-          renderBentoTile(track, 'medium', {
-            gridColumn: '3 / 5',
-            gridRow: mediumTracks.length === 1 ? '1 / 3' : `${i + 1} / ${i + 2}`,
-          })
-        )}
-        {smallTracks.map((track) =>
-          renderBentoTile(track, 'small', {
-            gridRow: '3 / 4',
-          })
+      <div className="space-y-3.5">
+        {renderBentoTile(heroTrack, 'hero', {})}
+        {restTracks.length > 0 && (
+          <div className="grid grid-cols-2 gap-3.5">
+            {restTracks.map((track) => renderBentoTile(track, 'medium', {}))}
+          </div>
         )}
       </div>
     );
