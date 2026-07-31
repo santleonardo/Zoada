@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, TrendingUp, Play, Music2, Star, Users } from 'lucide-react';
+import { Search, TrendingUp, Play, Music2, Star, Flame } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
 import type { Track, Artist } from '@/types';
@@ -95,7 +95,7 @@ const MainScreen: React.FC = () => {
       .map((a) => ({ ...a, totalPlays: playsByArtist.get(a.id) || 0 }))
       .filter((a) => a.totalPlays > 0)
       .sort((a, b) => b.totalPlays - a.totalPlays)
-      .slice(0, 6);
+      .slice(0, 5);
   }, [artists, tracks]);
 
   const handlePlayTrack = (track: Track) => {
@@ -115,6 +115,125 @@ const MainScreen: React.FC = () => {
     e.stopPropagation();
     selectArtist(artistId);
   };
+
+  // Acentos por posição no ranking de artistas: ouro/prata/bronze pra quem
+  // chegou no pódio, cinza neutro pro resto — a mesma linguagem visual de
+  // uma parada de sucessos, sem precisar escrever "1º", "2º" por extenso.
+  const RANK_ACCENTS: Record<number, string> = {
+    2: 'linear-gradient(135deg, #E4E7ED, #9AA0B4)',
+    3: 'linear-gradient(135deg, #E3A86B, #B9713A)',
+  };
+  const RANK_FALLBACK = 'linear-gradient(135deg, #C7CAD6, #9498A8)';
+
+  // Capa de fundo do cartão de artista: mesmo esquema de cores determinístico
+  // das faixas, mas usando a capa (ou avatar, se não houver capa) do artista.
+  const renderArtistBackdrop = (artist: Artist) => {
+    const hash = artist.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const colors = COVER_COLORS[hash % COVER_COLORS.length];
+    const img = artist.cover_url || artist.avatar_url;
+    return (
+      <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}>
+        {img && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        )}
+      </div>
+    );
+  };
+
+  // Cartão em destaque do 1º colocado: uma faixa horizontal com a capa do
+  // artista ao fundo e um numeral gigante e translúcido — o mesmo tipo de
+  // "hero" que a vitrine de faixas usa, mas com identidade própria (ouro,
+  // não laranja) pra deixar claro que é outro tipo de ranking.
+  const renderTopArtistHero = (artist: Artist & { totalPlays: number }) => (
+    <button
+      onClick={() => selectArtist(artist.id)}
+      className="group relative w-full h-[124px] rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform duration-200 mb-3"
+    >
+      {renderArtistBackdrop(artist)}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(110deg, rgba(10,8,20,0.90) 0%, rgba(10,8,20,0.62) 42%, rgba(10,8,20,0.22) 100%)' }}
+      />
+
+      {/* Numeral decorativo — reforça a leitura de "ranking" sem precisar de mais texto */}
+      <span
+        aria-hidden="true"
+        className="absolute -right-3 -bottom-8 font-black leading-none select-none text-white/[0.08]"
+        style={{ fontSize: 148 }}
+      >
+        1
+      </span>
+
+      <div className="relative h-full flex items-center gap-3.5 px-4">
+        <div className="relative flex-shrink-0 w-16 h-16">
+          <div
+            className="absolute -inset-[3px] rounded-full"
+            style={{ background: 'linear-gradient(135deg, #FDCB6E, #FF8C42, #E84393)' }}
+          />
+          <CoverArt
+            title={artist.name}
+            artistName={artist.genre}
+            coverUrl={artist.avatar_url || artist.cover_url}
+            size="sm"
+            className="!absolute !inset-[3px] !w-auto !h-auto !max-w-none !rounded-full !shadow-none"
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Flame size={11} className="text-[#FDCB6E]" fill="#FDCB6E" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#FDCB6E]">
+              Nº1 mais tocado
+            </span>
+          </div>
+          <p className="text-white font-bold text-[15px] truncate">{artist.name}</p>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            {artist.genre && (
+              <span className="text-[10px] text-white/70 bg-white/10 px-2 py-0.5 rounded-full truncate max-w-[120px]">
+                {artist.genre}
+              </span>
+            )}
+            <span className="flex items-center gap-1 text-[11px] text-white/55 font-medium">
+              <TrendingUp size={10} />
+              {formatNumber(artist.totalPlays)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+
+  // Cartões compactos do 2º ao 5º lugar: badge de posição "flutuando" no
+  // canto do cartão (como um selo de medalha), avatar circular e o total
+  // de reproduções — tudo num grid 2 colunas, denso e fácil de escanear.
+  const renderArtistRankCard = (artist: Artist & { totalPlays: number }, rank: number) => (
+    <button
+      key={artist.id}
+      onClick={() => selectArtist(artist.id)}
+      className="relative flex items-center gap-2.5 p-3 pt-3.5 rounded-2xl bg-white shadow-sm hover:shadow-md active:scale-[0.97] transition-all duration-200 text-left"
+    >
+      <div
+        className="absolute -top-2 -left-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white"
+        style={{ background: RANK_ACCENTS[rank] || RANK_FALLBACK }}
+      >
+        {rank}
+      </div>
+      <CoverArt
+        title={artist.name}
+        artistName={artist.genre}
+        coverUrl={artist.avatar_url || artist.cover_url}
+        size="sm"
+        className="!w-11 !h-11 !max-w-none !rounded-full flex-shrink-0"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold text-[#1A1B25] truncate">{artist.name}</p>
+        <div className="flex items-center gap-1 mt-0.5">
+          <TrendingUp size={9} className="text-[#FF8C42] flex-shrink-0" />
+          <span className="text-[10px] text-black/40">{formatNumber(artist.totalPlays)}</span>
+        </div>
+      </div>
+    </button>
+  );
 
 
 
@@ -432,40 +551,31 @@ const MainScreen: React.FC = () => {
       )}
 
       {/* Artistas mais populares: ranking pela soma de reproduções das
-          faixas de cada artista, em grid — logo abaixo da vitrine "Mais
-          tocadas", como um segundo destaque na tela inicial. */}
+          faixas de cada artista — 1º colocado em destaque (estilo parada
+          de sucessos) e os demais num grid compacto de "cartões-medalha"
+          logo abaixo da vitrine "Mais tocadas". */}
       {activeTab === 'tracks' && !search && topArtists.length > 0 && (
         <div className="mb-6">
-          <div className="flex items-center gap-1.5 mb-3">
-            <div className="w-5 h-5 rounded-md gradient-bg flex items-center justify-center flex-shrink-0">
-              <Users size={11} className="text-white" />
-            </div>
-            <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide">Artistas mais populares</h2>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {topArtists.map((artist) => (
-              <button
-                key={artist.id}
-                onClick={() => selectArtist(artist.id)}
-                className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm active:scale-[0.97] transition-all text-center"
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5">
+              <div
+                className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #FDCB6E, #FF8C42)' }}
               >
-                <CoverArt
-                  title={artist.name}
-                  artistName={artist.genre}
-                  coverUrl={artist.avatar_url || artist.cover_url}
-                  size="sm"
-                  className="!w-16 !h-16 !max-w-none !rounded-full"
-                />
-                <div className="min-w-0 w-full">
-                  <p className="text-xs font-semibold text-[#1A1B25] truncate">{artist.name}</p>
-                  <div className="flex items-center justify-center gap-1 mt-0.5">
-                    <TrendingUp size={9} className="text-[#FF8C42] flex-shrink-0" />
-                    <span className="text-[10px] text-black/40">{formatNumber(artist.totalPlays)}</span>
-                  </div>
-                </div>
-              </button>
-            ))}
+                <Flame size={11} className="text-white" fill="white" />
+              </div>
+              <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide">Artistas mais populares</h2>
+            </div>
+            <span className="text-[10px] text-black/30 font-medium">por reproduções</span>
           </div>
+
+          {renderTopArtistHero(topArtists[0])}
+
+          {topArtists.length > 1 && (
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              {topArtists.slice(1, 5).map((artist, i) => renderArtistRankCard(artist, i + 2))}
+            </div>
+          )}
         </div>
       )}
 
