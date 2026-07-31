@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Play, Pause, SkipForward, SkipBack, Radio, Star, Music2, TrendingUp, Heart, MessageCircle, Send, Broadcast } from 'lucide-react';
+import { Search, Play, Pause, SkipForward, SkipBack, Radio, Star, Music2, TrendingUp, Heart, MessageCircle, Send, RadioTower } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from 'sonner';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
@@ -374,7 +374,7 @@ const RadioScreen: React.FC = () => {
                 radioEnabled ? 'bg-white/20 backdrop-blur-sm pulse-glow' : 'bg-white/30'
               )}>
                 {activeStation?.is_active ? (
-                  <Broadcast size={24} className="text-white" fill="white" />
+                  <RadioTower size={24} className="text-white" fill="white" />
                 ) : (
                   <Radio size={24} className="text-white" fill={radioEnabled ? 'white' : 'none'} />
                 )}

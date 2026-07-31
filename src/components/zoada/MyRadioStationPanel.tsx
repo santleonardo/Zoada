@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Radio, Loader2, Check, X, Trash2, ChevronDown, Plus, GripVertical, ImagePlus, Broadcast, RadioOff } from 'lucide-react';
+import { Radio, Loader2, Check, X, Trash2, ChevronDown, Plus, GripVertical, ImagePlus, RadioTower, VolumeX } from 'lucide-react';
 import { fetchMyRadioStation, saveRadioStation, activateRadioStation, deactivateRadioStation, deleteRadioStation, fetchAllTracks } from '@/lib/api';
 import { uploadImageFile } from '@/lib/trackUpload';
 import type { RadioStation, Track } from '@/types';
@@ -282,7 +282,7 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
                     {togglingActive ? (
                       <Loader2 size={18} className="text-red-500 animate-spin" />
                     ) : (
-                      <RadioOff size={18} className="text-red-500" />
+                      <VolumeX size={18} className="text-red-500" />
                     )}
                     <div className="flex-1">
                       <p className="text-sm font-medium text-red-700">Tirar do ar</p>
@@ -298,7 +298,7 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
                     {togglingActive ? (
                       <Loader2 size={18} className="text-green-600 animate-spin" />
                     ) : (
-                      <Broadcast size={18} className="text-green-600" />
+                      <RadioTower size={18} className="text-green-600" />
                     )}
                     <div className="flex-1">
                       <p className="text-sm font-medium text-green-700">Colocar no ar</p>
