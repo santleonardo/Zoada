@@ -75,6 +75,11 @@ model Faixa {
   artistaId   String   @map("artista_id")
   coverUrl    String?  @map("cover_url")
   audioUrl    String?  @map("audio_url")
+  // Versão "economia de dados" da faixa (mesma música, bitrate mais baixo,
+  // gerada no navegador do artista no momento do upload com ffmpeg.wasm).
+  // Null para faixas enviadas antes dessa funcionalidade existir — nesse
+  // caso o player cai de volta pra audioUrl mesmo em modo economia.
+  audioUrlLow String?  @map("audio_url_low")
   duracao     Int      @default(0) @map("duracao") // segundos
   playsCount  Int      @default(0) @map("plays_count")
   createdAt   DateTime @default(now()) @map("created_at")
