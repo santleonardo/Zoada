@@ -105,6 +105,10 @@ export interface Post {
   // Quantidade de comentários na thread dessa postagem (preenchido pelo
   // GET /api/posts). Pode vir undefined em respostas mais antigas/enxutas.
   comments_count?: number;
+  // Reação de coração na postagem em si (o OP que inicia a thread) —
+  // quantidade total e se o usuário logado já reagiu (null se não autenticado).
+  likes_count?: number;
+  liked_by_me?: boolean | null;
 }
 
 // Comentário na thread de uma postagem do feed (aba "Fãs" e feed do

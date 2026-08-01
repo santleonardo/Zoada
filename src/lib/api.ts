@@ -709,6 +709,25 @@ export async function deletePost(postId: string): Promise<boolean> {
   }
 }
 
+// Reage (coração) ou remove a reação da postagem em si (o OP que inicia a
+// thread) — toggle. Retorna o estado real após a operação.
+export async function togglePostLike(postId: string): Promise<{
+  liked: boolean;
+  likes_count: number;
+} | null> {
+  try {
+    const res = await apiFetch('/api/post-likes', {
+      method: 'POST',
+      body: JSON.stringify({ post_id: postId }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[togglePostLike] falha ao reagir à postagem:', err);
+    return null;
+  }
+}
+
 // Busca a thread de comentários de uma postagem do feed (pública).
 export async function fetchPostComments(postId: string): Promise<PostComment[]> {
   try {
