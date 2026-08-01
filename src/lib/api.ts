@@ -103,6 +103,21 @@ export async function fetchUserLikes(userId: string): Promise<Array<{ id: string
   }
 }
 
+// Busca as faixas favoritadas (estrela) reais do usuário no servidor —
+// diferente de curtidas, e agora persistido no servidor (não só no
+// localStorage do aparelho) pra também contar no ranking "Mais tocadas".
+export async function fetchUserFavorites(userId: string): Promise<Array<{ id: string; user_id: string; track_id: string; created_at: string }>> {
+  try {
+    const res = await apiFetch(`/api/favorites?user_id=${encodeURIComponent(userId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.favorites) ? data.favorites : [];
+  } catch (err) {
+    console.warn('[fetchUserFavorites] falha ao buscar favoritos:', err);
+    return [];
+  }
+}
+
 // Busca as músicas que um usuário mais ouviu (contador pessoal, não a
 // contagem global da faixa), já ordenadas da mais pra menos ouvida.
 // Sem `userId`: busca do usuário logado (autenticado). Com `userId`:
@@ -197,6 +212,23 @@ export async function toggleTrackLike(trackId: string): Promise<{
     return await res.json();
   } catch (err) {
     console.warn('[toggleTrackLike] falha ao curtir/descurtir:', err);
+    return null;
+  }
+}
+
+export async function toggleTrackFavorite(trackId: string): Promise<{
+  favorited: boolean;
+  favorite?: { id: string; user_id: string; track_id: string; created_at: string };
+} | null> {
+  try {
+    const res = await apiFetch('/api/favorites', {
+      method: 'POST',
+      body: JSON.stringify({ track_id: trackId }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[toggleTrackFavorite] falha ao favoritar/desfavoritar:', err);
     return null;
   }
 }
