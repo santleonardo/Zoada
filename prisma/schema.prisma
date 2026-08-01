@@ -29,6 +29,7 @@ model Usuario {
   curtidas     Curtida[]
   favoritos    Favorito[]
   comentarios  Comentario[]
+  comentariosPostagem ComentarioPostagem[]
   comentariosRadio ComentarioRadio[]
   enviado      Mensagem[] @relation("Enviadas")
   recebido     Mensagem[] @relation("Recebidas")
@@ -213,10 +214,29 @@ model Postagem {
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   faixa   Faixa?  @relation(fields: [faixaId], references: [id], onDelete: SetNull)
+  comentarios ComentarioPostagem[]
 
   @@index([usuarioId])
   @@index([createdAt])
   @@map("postagens")
+}
+
+// ---------- Comentários de postagem (thread no feed) ----------
+// Diferente de Comentario (comentário numa FAIXA, mostrado no player), este
+// é o comentário numa POSTAGEM do feed (aba "Fãs" e feed do perfil) — forma
+// uma thread simples, em ordem cronológica, por baixo de cada postagem.
+model ComentarioPostagem {
+  id         String   @id @default(cuid())
+  usuarioId  String   @map("usuario_id")
+  postagemId String   @map("postagem_id")
+  conteudo   String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  postagem Postagem @relation(fields: [postagemId], references: [id], onDelete: Cascade)
+
+  @@index([postagemId])
+  @@map("comentarios_postagem")
 }
 
 // ---------- Comentários gerais da rádio (chat, sem vínculo com faixa) ----------
