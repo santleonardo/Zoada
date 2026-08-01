@@ -3,70 +3,95 @@ import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
 
-// GET /api/posts?user_id=xxx  -> postagens (músicas compartilhadas no feed)
-//                                 de UM usuário, mais recente primeiro.
-//                                 Público: não exige login pra ver o feed
-//                                 de alguém (é uma vitrine, como o perfil).
+// Formata uma postagem do banco (com faixa e usuário incluídos) no
+// formato que o frontend espera.
+function formatPost(p: {
+  id: string;
+  usuarioId: string;
+  faixaId: string | null;
+  legenda: string | null;
+  createdAt: Date;
+  usuario: { id: string; name: string; avatarUrl: string | null };
+  faixa: {
+    id: string;
+    titulo: string;
+    artistaId: string;
+    coverUrl: string | null;
+    audioUrl: string | null;
+    duracao: number;
+    playsCount: number;
+    createdAt: Date;
+    artista: { id: string; nome: string; avatarUrl: string | null };
+  } | null;
+}) {
+  return {
+    id: p.id,
+    user_id: p.usuarioId,
+    track_id: p.faixaId,
+    content: p.legenda,
+    created_at: p.createdAt.toISOString(),
+    user: {
+      id: p.usuario.id,
+      name: p.usuario.name,
+      avatar_url: p.usuario.avatarUrl,
+    },
+    track: p.faixa
+      ? {
+          id: p.faixa.id,
+          title: p.faixa.titulo,
+          artist_id: p.faixa.artistaId,
+          artist_name: p.faixa.artista.nome,
+          cover_url: p.faixa.coverUrl || p.faixa.artista.avatarUrl || null,
+          audio_url: p.faixa.audioUrl,
+          duration: p.faixa.duracao,
+          plays_count: p.faixa.playsCount,
+          created_at: p.faixa.createdAt.toISOString(),
+        }
+      : null,
+  };
+}
+
+const postInclude = {
+  faixa: {
+    include: {
+      artista: { select: { id: true, nome: true, avatarUrl: true } },
+    },
+  },
+  usuario: { select: { id: true, name: true, avatarUrl: true } },
+} as const;
+
+// GET /api/posts?user_id=xxx  -> postagens de UM usuário (feed do perfil dele).
+// GET /api/posts              -> feed geral (postagens mais recentes de TODOS
+//                                 os usuários), usado na aba "Fãs".
+// Público em ambos os casos — não exige login, igual ao resto do perfil.
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('user_id');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'user_id é obrigatório' }, { status: 400 });
-    }
+    const limitParam = parseInt(searchParams.get('limit') || '', 10);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 30;
 
     if (!isNeonConfigured) {
       return NextResponse.json({ posts: [] });
     }
 
     const postagens = await db.postagem.findMany({
-      where: { usuarioId: userId },
+      where: userId ? { usuarioId: userId } : undefined,
       orderBy: { createdAt: 'desc' },
-      include: {
-        faixa: {
-          include: {
-            artista: { select: { id: true, nome: true, avatarUrl: true } },
-          },
-        },
-        usuario: { select: { id: true, name: true, avatarUrl: true } },
-      },
+      take: userId ? undefined : limit,
+      include: postInclude,
     });
 
-    const posts = postagens.map((p) => ({
-      id: p.id,
-      user_id: p.usuarioId,
-      track_id: p.faixaId,
-      caption: p.legenda,
-      created_at: p.createdAt.toISOString(),
-      user: {
-        id: p.usuario.id,
-        name: p.usuario.name,
-        avatar_url: p.usuario.avatarUrl,
-      },
-      track: {
-        id: p.faixa.id,
-        title: p.faixa.titulo,
-        artist_id: p.faixa.artistaId,
-        artist_name: p.faixa.artista.nome,
-        cover_url: p.faixa.coverUrl || p.faixa.artista.avatarUrl || null,
-        audio_url: p.faixa.audioUrl,
-        duration: p.faixa.duracao,
-        plays_count: p.faixa.playsCount,
-        created_at: p.faixa.createdAt.toISOString(),
-      },
-    }));
-
-    return NextResponse.json({ posts });
+    return NextResponse.json({ posts: postagens.map(formatPost) });
   } catch (error) {
     console.error('[POSTS GET]', error);
     return NextResponse.json({ error: 'Erro ao buscar postagens' }, { status: 500 });
   }
 }
 
-// POST /api/posts — Posta uma faixa no feed do usuário logado, com
-// legenda opcional. Uma mesma faixa pode ser postada mais de uma vez
-// (cada postagem é independente, como um "repost" novo).
+// POST /api/posts — Cria uma postagem no feed do usuário logado. Precisa
+// de pelo menos um dos dois: track_id (compartilhar uma música, com
+// legenda/conteúdo opcional) ou content (post livre, só texto).
 export async function POST(request: Request) {
   try {
     const userId = await authenticateRequest(request);
@@ -78,60 +103,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
     }
 
-    const { track_id, caption } = await request.json();
-    if (!track_id) {
-      return NextResponse.json({ error: 'track_id é obrigatório' }, { status: 400 });
+    const { track_id, content } = await request.json();
+    const trimmedContent = typeof content === 'string' ? content.trim().slice(0, 280) : '';
+
+    if (!track_id && !trimmedContent) {
+      return NextResponse.json(
+        { error: 'A postagem precisa de uma música ou de um texto' },
+        { status: 400 }
+      );
     }
 
-    const faixa = await db.faixa.findUnique({
-      where: { id: track_id },
-      include: { artista: { select: { id: true, nome: true, avatarUrl: true } } },
-    });
-    if (!faixa) {
-      return NextResponse.json({ error: 'Faixa não encontrada' }, { status: 404 });
+    if (track_id) {
+      const faixaExiste = await db.faixa.findUnique({ where: { id: track_id }, select: { id: true } });
+      if (!faixaExiste) {
+        return NextResponse.json({ error: 'Faixa não encontrada' }, { status: 404 });
+      }
     }
-
-    const trimmedCaption = typeof caption === 'string' ? caption.trim().slice(0, 280) : '';
 
     const postagem = await db.postagem.create({
       data: {
         usuarioId: userId,
-        faixaId: track_id,
-        legenda: trimmedCaption || null,
+        faixaId: track_id || null,
+        legenda: trimmedContent || null,
       },
+      include: postInclude,
     });
 
-    const usuario = await db.usuario.findUnique({
-      where: { id: userId },
-      select: { id: true, name: true, avatarUrl: true },
-    });
-
-    return NextResponse.json({
-      post: {
-        id: postagem.id,
-        user_id: postagem.usuarioId,
-        track_id: postagem.faixaId,
-        caption: postagem.legenda,
-        created_at: postagem.createdAt.toISOString(),
-        user: usuario
-          ? { id: usuario.id, name: usuario.name, avatar_url: usuario.avatarUrl }
-          : null,
-        track: {
-          id: faixa.id,
-          title: faixa.titulo,
-          artist_id: faixa.artistaId,
-          artist_name: faixa.artista.nome,
-          cover_url: faixa.coverUrl || faixa.artista.avatarUrl || null,
-          audio_url: faixa.audioUrl,
-          duration: faixa.duracao,
-          plays_count: faixa.playsCount,
-          created_at: faixa.createdAt.toISOString(),
-        },
-      },
-    }, { status: 201 });
+    return NextResponse.json({ post: formatPost(postagem) }, { status: 201 });
   } catch (error) {
     console.error('[POSTS POST]', error);
-    return NextResponse.json({ error: 'Erro ao postar no feed' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao postar' }, { status: 500 });
   }
 }
 

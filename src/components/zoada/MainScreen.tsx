@@ -4,10 +4,12 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search, TrendingUp, Play, Music2, Star, Flame, Users, HeartHandshake, Radio as RadioIcon } from 'lucide-react';
 import { useAppStore, type MainTab } from '@/store/useAppStore';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
-import type { Track, Artist, UserSearchResult, RadioStation } from '@/types';
-import { searchUsers } from '@/lib/api';
+import type { Track, Artist, UserSearchResult, RadioStation, Post } from '@/types';
+import { searchUsers, fetchGlobalFeed } from '@/lib/api';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
+import PostCard from './PostCard';
+import PostComposer from './PostComposer';
 import { cn, formatNumber } from '@/lib/utils';
 
 type Tab = MainTab;
@@ -24,6 +26,8 @@ const MainScreen: React.FC = () => {
   const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
   const [fanResults, setFanResults] = useState<UserSearchResult[]>([]);
   const [isSearchingFans, setIsSearchingFans] = useState(false);
+  const [globalFeed, setGlobalFeed] = useState<Post[]>([]);
+  const [isLoadingFeed, setIsLoadingFeed] = useState(false);
 
   // Busca usuários por nome na aba "Fãs" — com um pequeno debounce pra não
   // disparar uma chamada a cada tecla digitada. Só roda quando a aba
@@ -43,6 +47,17 @@ const MainScreen: React.FC = () => {
         .finally(() => setIsSearchingFans(false));
     }, 350);
     return () => clearTimeout(timeout);
+  }, [activeTab, search]);
+
+  // Feed geral: postagens mais recentes de todo mundo, mostrado na aba
+  // "Fãs" quando não há busca ativa (é o estado padrão dessa aba agora,
+  // em vez do placeholder "digite um nome").
+  useEffect(() => {
+    if (activeTab !== 'fans' || search.trim()) return;
+    setIsLoadingFeed(true);
+    fetchGlobalFeed(30)
+      .then(setGlobalFeed)
+      .finally(() => setIsLoadingFeed(false));
   }, [activeTab, search]);
 
   // Mantém o número de reproduções exibido em sincronia assim que uma
@@ -648,7 +663,7 @@ const MainScreen: React.FC = () => {
               {activeTab === 'favorites'
                 ? `${favoriteTracks.length} música${favoriteTracks.length !== 1 ? 's' : ''} salva${favoriteTracks.length !== 1 ? 's' : ''}`
                 : activeTab === 'fans'
-                ? 'Encontre outros fãs pelo nome'
+                ? 'Feed geral e busca de outros fãs'
                 : 'Descubra novos artistas'}
             </p>
           </div>
@@ -705,12 +720,35 @@ const MainScreen: React.FC = () => {
           )}
 
           {user && !search.trim() && (
-            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
-                <HeartHandshake size={28} className="text-black/20" />
-              </div>
-              <p className="text-black/40 text-sm font-medium">Digite um nome para encontrar outros fãs</p>
-            </div>
+            <>
+              <PostComposer
+                onPosted={(post) => setGlobalFeed((prev) => [post, ...prev])}
+                placeholder="Poste qualquer coisa para seus fãs..."
+              />
+
+              {isLoadingFeed ? (
+                <p className="text-center text-black/40 text-sm py-6">Carregando feed...</p>
+              ) : globalFeed.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                    <HeartHandshake size={28} className="text-black/20" />
+                  </div>
+                  <p className="text-black/40 text-sm font-medium">Ninguém postou nada ainda. Seja o primeiro!</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {globalFeed.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      showAuthor
+                      isOwner={post.user_id === user.id}
+                      onDeleted={(id) => setGlobalFeed((prev) => prev.filter((p) => p.id !== id))}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
 
           {user && search.trim() && isSearchingFans && (
