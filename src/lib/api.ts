@@ -694,3 +694,22 @@ export async function deletePost(postId: string): Promise<boolean> {
     return false;
   }
 }
+
+// Liga/desliga a reação de coração numa postagem do feed (threads da aba
+// Fãs) — única reação disponível, sem cardápio de emojis. Retorna o novo
+// estado e a contagem atualizada, ou null se a chamada falhar (o
+// chamador reverte o estado otimista nesse caso).
+export async function togglePostReaction(postId: string): Promise<{ reacted: boolean; likes_count: number } | null> {
+  try {
+    const res = await apiFetch('/api/posts', {
+      method: 'PATCH',
+      body: JSON.stringify({ post_id: postId }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { reacted: Boolean(data.reacted), likes_count: Number(data.likes_count) || 0 };
+  } catch (err) {
+    console.warn('[togglePostReaction] falha ao reagir à postagem:', err);
+    return null;
+  }
+}
