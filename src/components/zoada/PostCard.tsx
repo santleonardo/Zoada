@@ -2,11 +2,13 @@
 
 import React, { useState } from 'react';
 import { Play, Trash2, Check, X, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
-import { deletePost } from '@/lib/api';
+import { deletePost, togglePostLike } from '@/lib/api';
 import type { Post } from '@/types';
 import CoverArt from './CoverArt';
 import PostCommentThread from './PostCommentThread';
+import ReactionHeart from './ReactionHeart';
 
 interface PostCardProps {
   post: Post;
@@ -19,10 +21,43 @@ interface PostCardProps {
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post, showAuthor = false, isOwner = false, onDeleted }) => {
+  const user = useAppStore((state) => state.user);
   const playTrack = useAppStore((state) => state.playTrack);
   const selectUser = useAppStore((state) => state.selectUser);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Estado local da reação de coração no OP — começa com o que veio do
+  // GET /api/posts e é atualizado otimisticamente ao clicar.
+  const [liked, setLiked] = useState(!!post.liked_by_me);
+  const [likesCount, setLikesCount] = useState(post.likes_count || 0);
+  const [isReacting, setIsReacting] = useState(false);
+
+  const handleReact = async () => {
+    if (!user) {
+      toast.error('Entre na sua conta para reagir');
+      return;
+    }
+    if (isReacting) return;
+
+    const wasLiked = liked;
+    const previousCount = likesCount;
+    setLiked(!wasLiked);
+    setLikesCount(Math.max(0, previousCount + (wasLiked ? -1 : 1)));
+    setIsReacting(true);
+
+    const result = await togglePostLike(post.id);
+    setIsReacting(false);
+
+    if (!result) {
+      setLiked(wasLiked);
+      setLikesCount(previousCount);
+      toast.error('Não foi possível reagir. Tente novamente.');
+      return;
+    }
+
+    setLiked(result.liked);
+    setLikesCount(result.likes_count);
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -168,6 +203,21 @@ const PostCard: React.FC<PostCardProps> = ({ post, showAuthor = false, isOwner =
           )}
         </div>
       )}
+
+      <div className="flex items-center gap-3 mt-1.5 px-0.5">
+        <button
+          type="button"
+          onClick={handleReact}
+          className={`flex items-center gap-1 -ml-0.5 px-1 py-0.5 rounded-full transition-transform active:scale-90 ${
+            liked ? 'text-[#E84393]' : 'text-black/40 hover:text-[#E84393]'
+          }`}
+          aria-label={liked ? 'Remover reação' : 'Reagir com coração'}
+          aria-pressed={liked}
+        >
+          <ReactionHeart id={post.id} active={liked} size={15} />
+          {likesCount > 0 && <span className="text-xs font-medium">{likesCount}</span>}
+        </button>
+      </div>
 
       <PostCommentThread postId={post.id} initialCount={post.comments_count} />
 
