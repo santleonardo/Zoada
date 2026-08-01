@@ -5,7 +5,8 @@ import { Search, Play, Pause, Radio, Star, Music2, TrendingUp, Heart, MessageCir
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from 'sonner';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
-import type { Track, Artist, RadioTab } from '@/types';
+import { apiFetch, fetchMyRadioStation } from '@/lib/api';
+import type { Track, Artist, RadioTab, RadioStation } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import { cn, formatNumber } from '@/lib/utils';
@@ -50,6 +51,8 @@ const RadioScreen: React.FC = () => {
   const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
   const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
+  const [myTracks, setMyTracks] = useState<Track[]>([]);
+  const [myStation, setMyStation] = useState<RadioStation | null>(null);
   const [newComment, setNewComment] = useState('');
   const [isSendingComment, setIsSendingComment] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -89,6 +92,26 @@ const RadioScreen: React.FC = () => {
 
     loadPublishedStations();
   }, [loadPublishedStations]);
+
+  // Busca as faixas e a estação do PRÓPRIO usuário logado, pra mostrar na
+  // aba Explorar ("Suas faixas" / "Sua rádio"). Sem login, essas listas
+  // ficam vazias e as seções simplesmente não aparecem.
+  useEffect(() => {
+    if (!user) {
+      setMyTracks([]);
+      setMyStation(null);
+      return;
+    }
+
+    apiFetch('/api/tracks?mine=1')
+      .then((res) => (res.ok ? res.json() : { tracks: [] }))
+      .then((data) => setMyTracks(Array.isArray(data.tracks) ? data.tracks : []))
+      .catch(() => setMyTracks([]));
+
+    fetchMyRadioStation()
+      .then((station) => setMyStation(station))
+      .catch(() => setMyStation(null));
+  }, [user]);
 
   // Dial: lista de estações disponíveis (padrão + publicadas)
   const dialStations = useMemo((): Array<{ id: string; name: string; subtitle?: string; cover_url?: string | null }> => {
@@ -784,6 +807,49 @@ const RadioScreen: React.FC = () => {
               <p className="text-2xl font-bold text-[#1A1B25]">{queueLength}</p>
             </div>
           </div>
+
+          {/* Sua rádio (estação criada pelo usuário logado) */}
+          {user && myStation && (
+            <div>
+              <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide mb-3">Sua rádio</h2>
+              <button
+                onClick={() => {
+                  if (myStation.is_published) {
+                    switchToStation(myStation.id);
+                  } else {
+                    toast.info('Publique sua estação para ouvi-la no dial da rádio.');
+                  }
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
+              >
+                <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-[#FF8C42]/20 to-[#E84393]/20">
+                  {myStation.cover_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={myStation.cover_url} alt={myStation.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <RadioTower size={18} className="text-[#FF8C42]" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[#1A1B25] truncate">{myStation.name}</p>
+                  <p className="text-xs text-black/40 truncate">
+                    {myStation.tracks_count ?? 0} faixas · {myStation.is_published ? 'Publicada' : 'Não publicada'}
+                  </p>
+                </div>
+                <Play size={16} className="text-[#FF8C42] flex-shrink-0" />
+              </button>
+            </div>
+          )}
+
+          {/* Suas faixas enviadas */}
+          {user && myTracks.length > 0 && (
+            <div>
+              <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide mb-3">Suas faixas</h2>
+              <div className="space-y-2">
+                {myTracks.map((track, i) => renderTrackRow(track, i))}
+              </div>
+            </div>
+          )}
 
           {/* Trending / Top tracks */}
           <div>
