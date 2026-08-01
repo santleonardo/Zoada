@@ -1,16 +1,22 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { UploadCloud, Music2, CheckCircle2, XCircle, Loader2, ImagePlus, X, ChevronDown } from 'lucide-react';
+import { UploadCloud, Music2, CheckCircle2, XCircle, Loader2, ImagePlus, X, ChevronDown, AlertTriangle } from 'lucide-react';
 import {
   listMyArtists,
   createArtist,
   updateMyArtistProfile,
   uploadImageFile,
   uploadTrackFile,
+  estimateBitrateKbps,
   type ArtistProfile,
 } from '@/lib/trackUpload';
 import GradientButton from './GradientButton';
+
+// Bitrate mínimo recomendado. Abaixo disso, avisamos o artista antes do
+// envio (não bloqueia — é só um alerta, já que às vezes é a única versão
+// que a pessoa tem da música).
+const MIN_RECOMMENDED_KBPS = 256;
 
 interface TrackItem {
   file: File;
@@ -20,6 +26,9 @@ interface TrackItem {
   status: 'pending' | 'uploading' | 'done' | 'error';
   error?: string;
   statusText?: string;
+  // undefined = ainda checando; null = não deu pra estimar (ex: falha ao
+  // ler metadados); number = bitrate estimado em kbps.
+  bitrateKbps?: number | null;
 }
 
 interface UploadMusicPanelProps {
@@ -149,8 +158,26 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
       coverFile: null,
       coverPreview: null,
       status: 'pending',
+      bitrateKbps: undefined,
     }));
     setItems((prev) => [...prev, ...newItems]);
+
+    // Estima o bitrate de cada arquivo em segundo plano (lê metadados no
+    // navegador, não sobe nada) e atualiza o item correspondente assim que
+    // o resultado chega — sem travar a tela enquanto isso.
+    newItems.forEach((newItem) => {
+      estimateBitrateKbps(newItem.file)
+        .then((kbps) => {
+          setItems((prev) =>
+            prev.map((it) => (it.file === newItem.file ? { ...it, bitrateKbps: kbps } : it))
+          );
+        })
+        .catch(() => {
+          setItems((prev) =>
+            prev.map((it) => (it.file === newItem.file ? { ...it, bitrateKbps: null } : it))
+          );
+        });
+    });
   };
 
   const handlePickTrackCover = (index: number, file: File | null) => {
@@ -476,13 +503,23 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
                 onChange={(e) => handlePickTrackCover(idx, e.target.files?.[0] || null)}
               />
 
-              <input
-                type="text"
-                value={item.title}
-                onChange={(e) => updateTitle(idx, e.target.value)}
-                disabled={item.status !== 'pending'}
-                className="flex-1 min-w-0 !py-1.5 !text-sm"
-              />
+              <div className="flex-1 min-w-0">
+                <input
+                  type="text"
+                  value={item.title}
+                  onChange={(e) => updateTitle(idx, e.target.value)}
+                  disabled={item.status !== 'pending'}
+                  className="w-full !py-1.5 !text-sm"
+                />
+                {item.status === 'pending' &&
+                  item.bitrateKbps != null &&
+                  item.bitrateKbps < MIN_RECOMMENDED_KBPS && (
+                    <p className="flex items-center gap-1 text-[10px] text-[#E17055] mt-1 leading-tight">
+                      <AlertTriangle size={11} className="flex-shrink-0" />
+                      ~{item.bitrateKbps}kbps — recomendamos 256kbps ou mais para melhor qualidade
+                    </p>
+                  )}
+              </div>
 
               {item.status === 'pending' && (
                 <button onClick={() => removeItem(idx)} aria-label="Remover" className="text-black/30 hover:text-black/60">
