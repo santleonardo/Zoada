@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { MessageCircle, Send, Loader2 } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Trash2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchPostComments, postPostComment } from '@/lib/api';
+import { fetchPostComments, postPostComment, deletePostComment } from '@/lib/api';
 import type { PostComment } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +31,9 @@ const PostCommentThread: React.FC<PostCommentThreadProps> = ({ postId, initialCo
   const [count, setCount] = useState(initialCount);
   const [newComment, setNewComment] = useState('');
   const [isSending, setIsSending] = useState(false);
+  // ID do comentário com o "apagar?" aberto (só um por vez) + ID em processo de apagar.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || loaded) return;
@@ -69,6 +72,21 @@ const PostCommentThread: React.FC<PostCommentThreadProps> = ({ postId, initialCo
 
     setComments((prev) => [...prev, result]);
     setCount((prev) => prev + 1);
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    setDeletingId(commentId);
+    const ok = await deletePostComment(commentId);
+    setDeletingId(null);
+    setConfirmDeleteId(null);
+
+    if (!ok) {
+      toast.error('Não foi possível apagar o comentário. Tente novamente.');
+      return;
+    }
+
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+    setCount((prev) => Math.max(0, prev - 1));
   };
 
   return (
@@ -149,6 +167,39 @@ const PostCommentThread: React.FC<PostCommentThreadProps> = ({ postId, initialCo
                       {comment.content}
                     </p>
                   </div>
+
+                  {isMe && (
+                    <div className="flex items-center flex-shrink-0">
+                      {deletingId === comment.id ? (
+                        <Loader2 size={12} className="text-black/30 animate-spin" />
+                      ) : confirmDeleteId === comment.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleDeleteComment(comment.id)}
+                            aria-label="Confirmar exclusão"
+                            className="p-1 rounded-full bg-[#E84393]/20 text-[#E84393] hover:bg-[#E84393]/30"
+                          >
+                            <Check size={11} />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            aria-label="Cancelar"
+                            className="p-1 rounded-full bg-black/5 text-black/50 hover:bg-black/10"
+                          >
+                            <X size={11} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(comment.id)}
+                          aria-label="Apagar comentário"
+                          className="p-1 rounded-full text-black/20 hover:text-[#E84393] hover:bg-[#E84393]/10"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
