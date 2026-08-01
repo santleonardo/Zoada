@@ -22,6 +22,7 @@ import UploadMusicPanel from './UploadMusicPanel';
 import MyTracksPanel from './MyTracksPanel';
 import MyArtistsPanel from './MyArtistsPanel';
 import MyRadioStationPanel from './MyRadioStationPanel';
+import UserFeedPanel from './UserFeedPanel';
 
 const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, selectArtist, setUser, authToken } = useAppStore();
@@ -286,6 +287,9 @@ const ProfileScreen: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Seu feed: músicas que você postou no próprio perfil, com opção de apagar. */}
+      <UserFeedPanel userId={user.id} isSelf />
 
       {/* Suas músicas enviadas (seção separada, com opção de editar e apagar) */}
       <MyTracksPanel refreshKey={tracksRefreshKey} />

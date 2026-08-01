@@ -18,11 +18,12 @@ import {
   Star,
   X,
   Search,
+  Newspaper,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
 import { toast } from 'sonner';
-import { fetchConversations, sendMessageApi, searchUsers } from '@/lib/api';
+import { fetchConversations, sendMessageApi, searchUsers, createPost } from '@/lib/api';
 import type { Conversation, User, Track } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -45,6 +46,7 @@ const PlayerScreen: React.FC = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showSendToChat, setShowSendToChat] = useState(false);
+  const [showPostToFeed, setShowPostToFeed] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
 
   const isLiked = currentTrack ? likes.some((l) => l.track_id === currentTrack.id) : false;
@@ -450,11 +452,19 @@ const PlayerScreen: React.FC = () => {
             setShowShareSheet(false);
             setShowSendToChat(true);
           }}
+          onPostToFeed={() => {
+            setShowShareSheet(false);
+            setShowPostToFeed(true);
+          }}
         />
       )}
 
       {showSendToChat && currentTrack && (
         <SendToChatPanel track={currentTrack} onClose={() => setShowSendToChat(false)} />
+      )}
+
+      {showPostToFeed && currentTrack && (
+        <PostToFeedModal track={currentTrack} onClose={() => setShowPostToFeed(false)} />
       )}
     </div>
   );
@@ -469,7 +479,8 @@ const ShareOptionsSheet: React.FC<{
   onClose: () => void;
   onExternalShare: () => void;
   onSendToChat: () => void;
-}> = ({ onClose, onExternalShare, onSendToChat }) => {
+  onPostToFeed: () => void;
+}> = ({ onClose, onExternalShare, onSendToChat, onPostToFeed }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
@@ -488,6 +499,19 @@ const ShareOptionsSheet: React.FC<{
         </div>
 
         <div className="px-5 pb-6 space-y-2">
+          <button
+            onClick={onPostToFeed}
+            className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left active:scale-[0.98]"
+          >
+            <div className="w-10 h-10 rounded-full bg-[#6C5CE7] flex items-center justify-center flex-shrink-0">
+              <Newspaper size={18} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#1A1B25]">Postar no feed</p>
+              <p className="text-xs text-black/40">Compartilhar essa música no seu perfil</p>
+            </div>
+          </button>
+
           <button
             onClick={onSendToChat}
             className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left active:scale-[0.98]"
@@ -512,6 +536,92 @@ const ShareOptionsSheet: React.FC<{
               <p className="text-sm font-semibold text-[#1A1B25]">Compartilhar link</p>
               <p className="text-xs text-black/40">Fora do app (WhatsApp, redes sociais, etc.)</p>
             </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Modal de "Postar no feed": legenda opcional antes de publicar a faixa
+// atual no próprio perfil. Mesma mecânica do SendToChatPanel (mostra a
+// faixa no topo), só que sem escolher destinatário — vai direto pro feed
+// de quem está postando.
+const PostToFeedModal: React.FC<{ track: Track; onClose: () => void }> = ({ track, onClose }) => {
+  const { user } = useAppStore();
+  const [caption, setCaption] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
+
+  const handlePost = async () => {
+    if (isPosting) return;
+    if (!user) {
+      toast.error('Você precisa estar logado para postar no feed.');
+      return;
+    }
+    setIsPosting(true);
+    const post = await createPost(track.id, caption.trim());
+    setIsPosting(false);
+
+    if (!post) {
+      toast.error('Não foi possível postar no feed. Tente novamente.');
+      return;
+    }
+
+    toast.success('Música postada no seu feed!');
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="w-full max-w-lg bg-[#F7F7FB] rounded-t-3xl safe-bottom"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <h2 className="text-lg font-bold text-[#1A1B25]">Postar no feed</h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-black/5 transition-colors"
+            aria-label="Fechar"
+          >
+            <X size={18} className="text-black/50" />
+          </button>
+        </div>
+
+        <div className="px-5 pb-3">
+          <div className="flex items-center gap-3 bg-white rounded-2xl p-2.5 shadow-sm">
+            <CoverArt title={track.title} artistName={track.artist_name} coverUrl={track.cover_url} size="sm" className="w-11 h-11 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#1A1B25] truncate">{track.title}</p>
+              <p className="text-xs text-black/40 truncate">{track.artist_name}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5">
+          <textarea
+            value={caption}
+            onChange={(e) => setCaption(e.target.value.slice(0, 280))}
+            placeholder="Escreva uma legenda (opcional)..."
+            rows={3}
+            disabled={isPosting}
+            className="w-full !py-2.5 !text-sm resize-none"
+          />
+          <p className="text-[11px] text-black/30 text-right mt-1">{caption.length}/280</p>
+        </div>
+
+        <div className="px-5 pb-6">
+          <button
+            onClick={handlePost}
+            disabled={isPosting}
+            className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl gradient-bg text-white font-semibold shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
+          >
+            {isPosting ? (
+              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Newspaper size={18} />
+            )}
+            Postar no feed
           </button>
         </div>
       </div>

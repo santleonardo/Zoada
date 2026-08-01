@@ -8,6 +8,7 @@ import { isOnline, formatLastSeen } from '@/lib/presence';
 import { formatNumber } from '@/lib/utils';
 import type { PublicUserProfile, TopListenedTrack } from '@/types';
 import CoverArt from './CoverArt';
+import UserFeedPanel from './UserFeedPanel';
 
 /**
  * Perfil público de OUTRO usuário — aberto quando alguém clica no nome de
@@ -278,6 +279,9 @@ const UserProfileScreen: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Feed: músicas postadas por esse usuário no próprio perfil. */}
+          <UserFeedPanel userId={profile.id} isSelf={isSelf} />
 
           {/* Artistas criados por esse usuário */}
           <div className="flex items-center gap-2 mb-3">
