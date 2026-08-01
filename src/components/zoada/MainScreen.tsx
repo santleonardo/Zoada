@@ -721,12 +721,11 @@ const MainScreen: React.FC = () => {
       {/* Mais tocadas: vitrine em destaque no topo da tela inicial, em
           formato bento (cartões de tamanhos variados) pra dar bem mais
           peso visual do que uma lista horizontal comum. Só na aba de
-          faixas e fora de uma busca (é destaque, não resultado filtrado). */}
+          faixas e fora de uma busca (é destaque, não resultado filtrado).
+          Cartão branco neutro — a cor fica só no selo do ícone, pra não
+          competir com as capas das faixas logo abaixo. */}
       {activeTab === 'tracks' && !search && topTracks.length > 0 && (
-        <div
-          className="mb-6 -mx-4 px-4 py-4 relative overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, rgba(232,67,147,0.15), rgba(108,92,231,0.1) 60%, transparent)' }}
-        >
+        <div className="mb-5 p-3.5 rounded-3xl bg-white border border-black/[0.04] shadow-sm">
           <div className="flex items-center gap-1.5 mb-3">
             <div className="w-5 h-5 rounded-md gradient-bg flex items-center justify-center flex-shrink-0">
               <TrendingUp size={11} className="text-white" />
@@ -737,29 +736,23 @@ const MainScreen: React.FC = () => {
         </div>
       )}
 
-      {/* Artistas mais populares: mesma moldura em destaque (fundo colorido
-          de ponta a ponta) da vitrine "Mais tocadas" logo acima, pra ter o
-          mesmo peso visual em vez de parecer uma lista secundária — 1º
-          colocado em destaque e os demais num grid de cartões-foto. */}
+      {/* Artistas mais populares: mesma moldura (cartão branco neutro) da
+          vitrine "Mais tocadas" logo acima, pra ter o mesmo peso visual em
+          vez de parecer uma lista secundária — só o selo do ícone muda de
+          cor. 1º colocado em destaque e os demais num grid de cartões-foto. */}
       {activeTab === 'tracks' && !search && topArtists.length > 0 && (
-        <div
-          className="mb-6 -mx-4 px-4 py-4 relative overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, rgba(253,203,110,0.20), rgba(232,67,147,0.1) 55%, transparent)' }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5">
-              <div
-                className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, #FDCB6E, #FF8C42)' }}
-              >
-                <Flame size={11} className="text-white" fill="white" />
-              </div>
-              <h2 className="text-xs font-bold text-[#1A1B25] uppercase tracking-wide">Artistas mais populares</h2>
+        <div className="mb-5 p-3.5 rounded-3xl bg-white border border-black/[0.04] shadow-sm">
+          <div className="flex items-center gap-1.5 mb-3">
+            <div
+              className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #FDCB6E, #FF8C42)' }}
+            >
+              <Flame size={11} className="text-white" fill="white" />
             </div>
-            <span className="text-[10px] text-black/30 font-medium">por reproduções</span>
+            <h2 className="text-xs font-bold text-[#1A1B25] uppercase tracking-wide">Artistas mais populares</h2>
           </div>
 
-          <div className="-mx-4">{renderTopArtistHero(topArtists[0])}</div>
+          {renderTopArtistHero(topArtists[0])}
 
           {topArtists.length > 1 && (
             <div className="grid grid-cols-2 gap-3">
@@ -769,25 +762,19 @@ const MainScreen: React.FC = () => {
         </div>
       )}
 
-      {/* Estações mais tocadas: ranking top 7, mesma moldura em destaque
+      {/* Estações mais tocadas: ranking top 7, mesma moldura (cartão branco)
           das vitrines acima (1ª colocada em hero + 2ª a 7ª num grid de
           cartões-foto). Clicar já sintoniza a estação e leva pra Rádio. */}
       {activeTab === 'tracks' && !search && topStations.length > 0 && (
-        <div
-          className="mb-6 -mx-4 px-4 py-4 relative overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, rgba(232,67,147,0.20), rgba(108,92,231,0.12) 55%, transparent)' }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5">
-              <div
-                className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, #E84393, #6C5CE7)' }}
-              >
-                <RadioIcon size={11} className="text-white" />
-              </div>
-              <h2 className="text-xs font-bold text-[#1A1B25] uppercase tracking-wide">Estações mais tocadas</h2>
+        <div className="mb-5 p-3.5 rounded-3xl bg-white border border-black/[0.04] shadow-sm">
+          <div className="flex items-center gap-1.5 mb-3">
+            <div
+              className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #E84393, #6C5CE7)' }}
+            >
+              <RadioIcon size={11} className="text-white" />
             </div>
-            <span className="text-[10px] text-black/30 font-medium">por reproduções</span>
+            <h2 className="text-xs font-bold text-[#1A1B25] uppercase tracking-wide">Estações mais tocadas</h2>
           </div>
 
           {renderTopStationHero(topStations[0])}
@@ -804,7 +791,7 @@ const MainScreen: React.FC = () => {
       {activeTab === 'tracks' && (
         <>
           {!search && (
-            <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide mb-3">Em alta</h2>
+            <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide mb-3">Todas as músicas</h2>
           )}
           <div className="grid grid-cols-2 gap-3">
             {filteredTracks.map((track) => renderTrackCard(track, filteredTracks))}
