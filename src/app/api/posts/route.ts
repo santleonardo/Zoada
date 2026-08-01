@@ -18,6 +18,7 @@ function formatPost(p: {
     artistaId: string;
     coverUrl: string | null;
     audioUrl: string | null;
+    audioUrlLow: string | null;
     duracao: number;
     playsCount: number;
     createdAt: Date;
@@ -43,6 +44,7 @@ function formatPost(p: {
           artist_name: p.faixa.artista.nome,
           cover_url: p.faixa.coverUrl || p.faixa.artista.avatarUrl || null,
           audio_url: p.faixa.audioUrl,
+          audio_url_low: p.faixa.audioUrlLow,
           duration: p.faixa.duracao,
           plays_count: p.faixa.playsCount,
           created_at: p.faixa.createdAt.toISOString(),

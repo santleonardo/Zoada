@@ -23,6 +23,7 @@ import MyTracksPanel from './MyTracksPanel';
 import MyArtistsPanel from './MyArtistsPanel';
 import MyRadioStationPanel from './MyRadioStationPanel';
 import UserFeedPanel from './UserFeedPanel';
+import AudioQualityDialog from './AudioQualityDialog';
 
 const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, selectArtist, setUser, authToken } = useAppStore();
@@ -34,6 +35,7 @@ const ProfileScreen: React.FC = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const profileCardRef = useRef<HTMLDivElement>(null);
+  const [audioQualityOpen, setAudioQualityOpen] = useState(false);
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
   const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
   // Controla o pedido de "editar este artista" vindo do painel "Seus
@@ -327,7 +329,7 @@ const ProfileScreen: React.FC = () => {
         <h3 className="text-lg font-semibold text-[#1A1B25] mb-3">Configurações</h3>
         {[
           { icon: <Settings size={18} />, label: 'Notificações' },
-          { icon: <Music2 size={18} />, label: 'Qualidade de áudio' },
+          { icon: <Music2 size={18} />, label: 'Qualidade de áudio', onClick: () => setAudioQualityOpen(true) },
           { icon: <Edit3 size={18} />, label: 'Editar perfil', onClick: handleStartEdit },
         ].map((item) => (
           <button
@@ -346,6 +348,8 @@ const ProfileScreen: React.FC = () => {
 
       {/* Bottom spacing */}
       <div className="h-32" />
+
+      <AudioQualityDialog open={audioQualityOpen} onClose={() => setAudioQualityOpen(false)} />
     </div>
   );
 };

@@ -48,6 +48,7 @@ export async function GET(request: Request) {
       // Se a faixa não tem capa própria, usa a foto do artista como fallback
       cover_url: f.coverUrl || f.artista.avatarUrl || null,
       audio_url: f.audioUrl,
+      audio_url_low: f.audioUrlLow,
       duration: f.duracao,
       plays_count: f.playsCount,
       created_at: f.createdAt.toISOString(),
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
     }
 
-    const { titulo, artistaId, coverUrl, audioUrl, duracao } = await request.json();
+    const { titulo, artistaId, coverUrl, audioUrl, audioUrlLow, duracao } = await request.json();
 
     if (!titulo || !artistaId) {
       return NextResponse.json({ error: 'titulo e artistaId são obrigatórios' }, { status: 400 });
@@ -96,6 +97,7 @@ export async function POST(request: Request) {
         artistaId,
         coverUrl: coverUrl || null,
         audioUrl: audioUrl || null,
+        audioUrlLow: audioUrlLow || null,
         duracao: duracao || 0,
       },
       include: { artista: { select: { nome: true, avatarUrl: true } } },
@@ -108,6 +110,7 @@ export async function POST(request: Request) {
       artist_name: faixa.artista.nome,
       cover_url: faixa.coverUrl || faixa.artista.avatarUrl || null,
       audio_url: faixa.audioUrl,
+      audio_url_low: faixa.audioUrlLow,
       duration: faixa.duracao,
       plays_count: faixa.playsCount,
       created_at: faixa.createdAt.toISOString(),
@@ -224,6 +227,7 @@ export async function PUT(request: Request) {
       artist_name: faixa.artista.nome,
       cover_url: faixa.coverUrl || faixa.artista.avatarUrl || null,
       audio_url: faixa.audioUrl,
+      audio_url_low: faixa.audioUrlLow,
       duration: faixa.duracao,
       plays_count: faixa.playsCount,
       created_at: faixa.createdAt.toISOString(),
@@ -267,11 +271,15 @@ export async function DELETE(request: Request) {
 
     if (isR2Configured) {
       const audioKey = faixa.audioUrl ? keyFromPublicUrl(faixa.audioUrl) : null;
+      const audioLowKey = faixa.audioUrlLow ? keyFromPublicUrl(faixa.audioUrlLow) : null;
       const coverKey = faixa.coverUrl ? keyFromPublicUrl(faixa.coverUrl) : null;
 
       await Promise.all([
         audioKey
           ? deleteFromR2(audioKey).catch((err) => console.warn('[TRACKS DELETE] falha ao apagar áudio no R2:', err))
+          : null,
+        audioLowKey
+          ? deleteFromR2(audioLowKey).catch((err) => console.warn('[TRACKS DELETE] falha ao apagar áudio (economia) no R2:', err))
           : null,
         coverKey
           ? deleteFromR2(coverKey).catch((err) => console.warn('[TRACKS DELETE] falha ao apagar capa no R2:', err))

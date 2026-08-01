@@ -56,6 +56,7 @@ function stationToResponse(estacao: any, includeOwner = false, includeTracks = f
           artist_name: faixa.artista?.nome || '',
           cover_url: faixa.coverUrl || '',
           audio_url: faixa.audioUrl || '',
+          audio_url_low: faixa.audioUrlLow || null,
           duration: faixa.duracao,
           plays_count: faixa.playsCount,
           created_at: faixa.createdAt.toISOString(),

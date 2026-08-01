@@ -209,6 +209,7 @@ export async function DELETE(request: Request) {
         artista.coverUrl ? keyFromPublicUrl(artista.coverUrl) : null,
         ...artista.faixas.flatMap((f) => [
           f.audioUrl ? keyFromPublicUrl(f.audioUrl) : null,
+          f.audioUrlLow ? keyFromPublicUrl(f.audioUrlLow) : null,
           f.coverUrl ? keyFromPublicUrl(f.coverUrl) : null,
         ]),
       ].filter((k): k is string => !!k);

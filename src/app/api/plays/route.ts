@@ -60,6 +60,7 @@ export async function GET(request: Request) {
         artist_name: r.faixa.artista.nome,
         cover_url: r.faixa.coverUrl || r.faixa.artista.avatarUrl || null,
         audio_url: r.faixa.audioUrl,
+        audio_url_low: r.faixa.audioUrlLow,
         duration: r.faixa.duracao,
         plays_count: r.faixa.playsCount,
         created_at: r.faixa.createdAt.toISOString(),

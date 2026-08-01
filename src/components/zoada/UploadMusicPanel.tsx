@@ -19,6 +19,7 @@ interface TrackItem {
   coverPreview: string | null;
   status: 'pending' | 'uploading' | 'done' | 'error';
   error?: string;
+  statusText?: string;
 }
 
 interface UploadMusicPanelProps {
@@ -254,7 +255,9 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
           const item = items[i];
           let trackCoverUrl: string | undefined;
           if (item.coverFile) trackCoverUrl = await uploadImageFile(item.coverFile, 'track-covers');
-          await uploadTrackFile(item.file, targetArtistId, item.title || item.file.name, trackCoverUrl);
+          await uploadTrackFile(item.file, targetArtistId, item.title || item.file.name, trackCoverUrl, (message) => {
+            setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, statusText: message } : it)));
+          });
           successCount++;
           setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, status: 'done' } : it)));
         } catch (err) {
@@ -486,7 +489,14 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
                   <X size={16} />
                 </button>
               )}
-              {item.status === 'uploading' && <Loader2 size={16} className="text-[#FF8C42] animate-spin flex-shrink-0" />}
+              {item.status === 'uploading' && (
+                <span className="flex items-center gap-1.5 flex-shrink-0">
+                  {item.statusText && (
+                    <span className="text-[10px] text-black/35 max-w-[120px] truncate">{item.statusText}</span>
+                  )}
+                  <Loader2 size={16} className="text-[#FF8C42] animate-spin flex-shrink-0" />
+                </span>
+              )}
               {item.status === 'done' && <CheckCircle2 size={16} className="text-[#00CEC9] flex-shrink-0" />}
               {item.status === 'error' && (
                 <button

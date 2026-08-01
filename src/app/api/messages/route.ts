@@ -14,6 +14,7 @@ function mapFaixaToTrack(
     artistaId: string;
     coverUrl: string | null;
     audioUrl: string | null;
+    audioUrlLow: string | null;
     duracao: number;
     playsCount: number;
     createdAt: Date;
@@ -28,6 +29,7 @@ function mapFaixaToTrack(
     artist_name: faixa.artista.nome,
     cover_url: faixa.coverUrl || faixa.artista.avatarUrl || '',
     audio_url: faixa.audioUrl || '',
+    audio_url_low: faixa.audioUrlLow || null,
     duration: faixa.duracao,
     plays_count: faixa.playsCount,
     created_at: faixa.createdAt.toISOString(),
