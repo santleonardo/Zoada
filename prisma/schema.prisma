@@ -38,7 +38,6 @@ model Usuario {
   seguidos     SeguirUsuario[] @relation("Seguidos")
   estacoesRadio EstacaoRadio[]
   postagens    Postagem[]
-  curtidasPostagem CurtidaPostagem[]
 
   @@map("usuarios")
 }
@@ -192,28 +191,10 @@ model Postagem {
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   faixa   Faixa?  @relation(fields: [faixaId], references: [id], onDelete: SetNull)
-  curtidas CurtidaPostagem[]
 
   @@index([usuarioId])
   @@index([createdAt])
   @@map("postagens")
-}
-
-// ---------- Curtidas de Postagem (reação de coração nas threads da aba Fãs) ----------
-// Única reação disponível (sem cardápio de emojis): qualquer fã pode dar
-// coração numa postagem, uma vez cada. @@unique impede curtir 2x.
-model CurtidaPostagem {
-  id         String   @id @default(cuid())
-  usuarioId  String   @map("usuario_id")
-  postagemId String   @map("postagem_id")
-  createdAt  DateTime @default(now()) @map("created_at")
-
-  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  postagem Postagem @relation(fields: [postagemId], references: [id], onDelete: Cascade)
-
-  @@unique([usuarioId, postagemId])
-  @@index([postagemId])
-  @@map("curtidas_postagem")
 }
 
 // ---------- Comentários gerais da rádio (chat, sem vínculo com faixa) ----------
@@ -241,9 +222,6 @@ model Mensagem {
   // mensagem continua existindo (só perde o link tocável).
   faixaId       String?  @map("faixa_id")
   lida          Boolean  @default(false)
-  // Reação de coração na mensagem (única reação disponível — sem cardápio
-  // de emojis, só um toggle simples de "curti essa mensagem").
-  coracao       Boolean  @default(false) @map("coracao")
   createdAt     DateTime @default(now()) @map("created_at")
 
   remetente  Usuario @relation("Enviadas", fields: [remetenteId], references: [id], onDelete: Cascade)
