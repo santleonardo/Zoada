@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Play, Trash2, Check, X, Loader2, Heart } from 'lucide-react';
+import { Play, Trash2, Check, X, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { deletePost, togglePostReaction } from '@/lib/api';
+import { deletePost } from '@/lib/api';
 import type { Post } from '@/types';
 import CoverArt from './CoverArt';
 
@@ -22,31 +22,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, showAuthor = false, isOwner =
   const selectUser = useAppStore((state) => state.selectUser);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [reacted, setReacted] = useState(post.reacted);
-  const [likesCount, setLikesCount] = useState(post.likes_count);
-  const [reacting, setReacting] = useState(false);
-
-  // Dá (ou tira) o coração na postagem — única reação disponível aqui,
-  // sem cardápio de emojis. Atualiza a tela na hora (otimista) e desfaz
-  // se a chamada ao servidor falhar (ex: sessão expirada).
-  const handleToggleReaction = async () => {
-    if (reacting) return;
-    setReacting(true);
-    const prevReacted = reacted;
-    const prevCount = likesCount;
-    setReacted(!prevReacted);
-    setLikesCount(prevReacted ? prevCount - 1 : prevCount + 1);
-
-    const result = await togglePostReaction(post.id);
-    if (result === null) {
-      setReacted(prevReacted);
-      setLikesCount(prevCount);
-    } else {
-      setReacted(result.reacted);
-      setLikesCount(result.likes_count);
-    }
-    setReacting(false);
-  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -193,40 +168,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, showAuthor = false, isOwner =
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-1.5 px-0.5">
-        <button
-          type="button"
-          onClick={handleToggleReaction}
-          disabled={reacting}
-          aria-label={reacted ? 'Remover reação de coração' : 'Reagir com coração'}
-          className="flex items-center gap-1.5 py-1 pr-2 -ml-0.5 rounded-full active:scale-90 transition-transform disabled:opacity-60"
-        >
-          <svg width="0" height="0" className="absolute">
-            <defs>
-              <linearGradient id="zoadaPostHeartGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#FF8C42" />
-                <stop offset="50%" stopColor="#E84393" />
-                <stop offset="100%" stopColor="#6C5CE7" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <Heart
-            size={16}
-            fill={reacted ? 'url(#zoadaPostHeartGradient)' : 'none'}
-            stroke={reacted ? 'none' : 'currentColor'}
-            className={reacted ? '' : 'text-black/30'}
-          />
-          {likesCount > 0 && (
-            <span className={reacted ? 'text-xs font-semibold text-[#E84393]' : 'text-xs text-black/40'}>
-              {likesCount}
-            </span>
-          )}
-        </button>
-
-        <p className="text-[11px] text-black/30">
-          {new Date(post.created_at).toLocaleDateString('pt-BR')}
-        </p>
-      </div>
+      <p className="text-[11px] text-black/30 mt-1.5 px-0.5">
+        {new Date(post.created_at).toLocaleDateString('pt-BR')}
+      </p>
     </div>
   );
 };
