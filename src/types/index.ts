@@ -52,6 +52,16 @@ export interface Track {
   duration: number;
   plays_count: number;
   created_at: string;
+  // Contadores usados no ranking "Mais tocadas" da Início, além de
+  // plays_count: curtidas, favoritos, comentários, compartilhamentos
+  // (faixa enviada numa conversa) e postagens no feed. Preenchidos pelo
+  // endpoint de listagem de faixas (GET /api/tracks) — podem vir undefined
+  // em respostas mais antigas/enxutas (ex: criação/edição de faixa).
+  likes_count?: number;
+  favorites_count?: number;
+  comments_count?: number;
+  shares_count?: number;
+  posts_count?: number;
 }
 
 // Faixa mais ouvida PELO USUÁRIO LOGADO (usado no "Mais ouvidas" do
@@ -62,6 +72,17 @@ export interface TopListenedTrack extends Track {
 }
 
 export interface Like {
+  id: string;
+  user_id: string;
+  track_id: string;
+  created_at: string;
+  track?: Track;
+}
+
+// Faixa salva pelo usuário na aba "Favoritos" (estrela) — diferente de Like
+// (ação de "curtir"). Persistido no servidor pra também contar no ranking
+// "Mais tocadas" da Início.
+export interface Favorite {
   id: string;
   user_id: string;
   track_id: string;
@@ -80,6 +101,20 @@ export interface Post {
   content: string | null;
   created_at: string;
   track?: Track | null;
+  user?: { id: string; name: string; avatar_url: string | null } | null;
+  // Quantidade de comentários na thread dessa postagem (preenchido pelo
+  // GET /api/posts). Pode vir undefined em respostas mais antigas/enxutas.
+  comments_count?: number;
+}
+
+// Comentário na thread de uma postagem do feed (aba "Fãs" e feed do
+// perfil) — diferente de Comment, que é o comentário numa FAIXA.
+export interface PostComment {
+  id: string;
+  user_id: string;
+  post_id: string;
+  content: string;
+  created_at: string;
   user?: { id: string; name: string; avatar_url: string | null } | null;
 }
 
