@@ -167,21 +167,25 @@ model Comentario {
   @@map("comentarios")
 }
 
-// ---------- Postagens (usuário compartilha uma faixa no próprio feed) ----------
+// ---------- Postagens (usuário compartilha uma faixa e/ou um texto no próprio feed) ----------
 // Diferente de Curtida (like privado) e de Mensagem com faixa (compartilhado
 // só com um contato), uma Postagem é pública: aparece no perfil do usuário
-// pra qualquer visitante ver, como um "repost" da música com uma legenda
-// opcional. onDelete Cascade nas duas pontas: some junto se o usuário ou a
-// faixa original forem apagados.
+// (e no feed geral da aba Fãs) pra qualquer visitante ver. Pode ser: só uma
+// música (com legenda opcional), só um texto (post livre, sem faixa), ou os
+// dois juntos. onDelete SetNull na faixa: se a faixa original for apagada,
+// a postagem continua existindo (só perde o link tocável) — onDelete
+// Cascade no usuário: se a conta for apagada, as postagens somem junto.
 model Postagem {
   id        String   @id @default(cuid())
   usuarioId String   @map("usuario_id")
-  faixaId   String   @map("faixa_id")
+  faixaId   String?  @map("faixa_id")
+  // Texto da postagem — legenda da música (quando há faixa) ou o conteúdo
+  // inteiro de um post livre (quando não há faixa).
   legenda   String?  @map("legenda")
   createdAt DateTime @default(now()) @map("created_at")
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  faixa   Faixa   @relation(fields: [faixaId], references: [id], onDelete: Cascade)
+  faixa   Faixa?  @relation(fields: [faixaId], references: [id], onDelete: SetNull)
 
   @@index([usuarioId])
   @@index([createdAt])
