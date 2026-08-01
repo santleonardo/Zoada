@@ -15,6 +15,7 @@ import ArtistProfileScreen from '@/components/zoada/ArtistProfileScreen';
 import UserProfileScreen from '@/components/zoada/UserProfileScreen';
 import ChatScreen from '@/components/zoada/ChatScreen';
 import RadioScreen from '@/components/zoada/RadioScreen';
+import ExploreScreen from '@/components/zoada/ExploreScreen';
 import BottomNav from '@/components/zoada/BottomNav';
 import MiniPlayer from '@/components/zoada/MiniPlayer';
 
@@ -145,6 +146,8 @@ export default function Home() {
         return <ChatScreen />;
       case 'radio':
         return <RadioScreen />;
+      case 'explore':
+        return <ExploreScreen />;
       default:
         return <MainScreen />;
     }

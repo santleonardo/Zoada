@@ -1,56 +1,45 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, Play, Pause, Radio, Star, Music2, TrendingUp, MessageCircle, Send, ChevronLeft, ChevronRight, RadioTower, Users } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Play, Pause, Radio, MessageCircle, Send, ChevronLeft, ChevronRight, RadioTower } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from 'sonner';
-import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
-import { searchUsers } from '@/lib/api';
-import type { Track, Artist, RadioTab, UserSearchResult } from '@/types';
-import CoverArt from './CoverArt';
+import { DEMO_TRACKS, COVER_COLORS } from '@/lib/demo-data';
+import type { Track } from '@/types';
 import Equalizer from './Equalizer';
-import { cn, formatNumber } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 // Estação padrão do Zôada (sempre disponível, nunca substituída).
 // ID especial que o dial usa para representar o shuffle padrão.
 const DEFAULT_STATION_ID = '__default__';
 
+// Tela exclusiva do sistema de Rádio: player, estação atual, dial de
+// seleção de estação, informações da transmissão, chat/comentários da
+// rádio. Não é responsável por descoberta de conteúdo — isso é papel da
+// tela Explorar (ver ExploreScreen.tsx).
 const RadioScreen: React.FC = () => {
   const {
     player,
     radioEnabled,
-    radioTab,
-    setRadioTab,
     startRadio,
     stopRadio,
-    playTrack,
-    togglePlay,
-    nextTrack,
-    prevTrack,
-    toggleFavorite,
-    toggleLike,
-    selectArtist,
-    selectUser,
-    favorites,
-    likes,
     radioComments,
     loadRadioComments,
     sendRadioComment,
     user,
-    lastCountedPlay,
+    selectUser,
     queue,
     publishedStations,
     loadPublishedStations,
     selectedStationId,
     selectedStation,
     selectStation,
+    tuneIntoStation,
     advanceStationTrack,
   } = useAppStore();
 
   const { currentTrack, isPlaying, progress, duration } = player;
-  const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
-  const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
   const [newComment, setNewComment] = useState('');
   const [isSendingComment, setIsSendingComment] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -58,29 +47,14 @@ const RadioScreen: React.FC = () => {
   const hasAutoStarted = useRef(false);
   const [switchingStation, setSwitchingStation] = useState(false);
 
-  // Sub-seção ativa dentro da aba Explorar: músicas, estações, artistas
-  // ou usuários — Explorar é o hub geral de navegação pelo app, então
-  // fica dividido nessas 4 categorias.
-  type ExploreSection = 'musicas' | 'estacoes' | 'artistas' | 'usuarios';
-  const [exploreSection, setExploreSection] = useState<ExploreSection>('musicas');
-  const [userResults, setUserResults] = useState<UserSearchResult[]>([]);
-  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
-
   // Busca o chat geral da rádio uma vez, ao entrar na tela.
   useEffect(() => {
     loadRadioComments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync play counts when counted
-  useEffect(() => {
-    if (!lastCountedPlay) return;
-    setTracks((prev) =>
-      prev.map((t) => (t.id === lastCountedPlay.trackId ? { ...t, plays_count: t.plays_count + 1 } : t))
-    );
-  }, [lastCountedPlay]);
-
-  // Fetch tracks, artists e estações publicadas da API
+  // Busca as faixas (usadas como fallback do shuffle padrão) e as
+  // estações publicadas (usadas no dial).
   useEffect(() => {
     fetch('/api/tracks')
       .then((res) => res.json())
@@ -89,34 +63,8 @@ const RadioScreen: React.FC = () => {
       })
       .catch(() => {});
 
-    fetch('/api/artists')
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.artists) && data.artists.length > 0) setArtists(data.artists);
-      })
-      .catch(() => {});
-
     loadPublishedStations();
   }, [loadPublishedStations]);
-
-  // Busca usuários por nome quando a sub-seção "Usuários" da aba Explorar
-  // está ativa — com um pequeno debounce pra não disparar uma chamada a
-  // cada tecla digitada.
-  useEffect(() => {
-    if (radioTab !== 'explorar' || exploreSection !== 'usuarios') return;
-    if (!search.trim()) {
-      setUserResults([]);
-      setIsSearchingUsers(false);
-      return;
-    }
-    setIsSearchingUsers(true);
-    const timeout = setTimeout(() => {
-      searchUsers(search)
-        .then(setUserResults)
-        .finally(() => setIsSearchingUsers(false));
-    }, 350);
-    return () => clearTimeout(timeout);
-  }, [radioTab, exploreSection, search]);
 
   // Dial: lista de estações disponíveis (padrão + publicadas)
   const dialStations = useMemo((): Array<{ id: string; name: string; subtitle?: string; cover_url?: string | null }> => {
@@ -144,78 +92,39 @@ const RadioScreen: React.FC = () => {
   const dialStation = dialStations[dialIndex];
   const isDefaultStation = !selectedStationId;
 
+  // Troca de estação: reaproveita a mesma action da store usada em
+  // qualquer outro lugar do app (ex: card da Início, tela Explorar) pra
+  // sintonizar e montar a fila/player. A estação padrão é o único caso
+  // especial, já que ela não existe no servidor.
+  const switchToStation = useCallback(async (stationId: string) => {
+    setSwitchingStation(true);
+    try {
+      if (stationId === DEFAULT_STATION_ID) {
+        await selectStation(null);
+        if (radioEnabled) {
+          const currentTracks = tracks.length > 0 ? tracks : DEMO_TRACKS;
+          startRadio(currentTracks);
+        }
+      } else {
+        await tuneIntoStation(stationId);
+      }
+    } finally {
+      setSwitchingStation(false);
+    }
+  }, [selectStation, tuneIntoStation, startRadio, radioEnabled, tracks]);
+
   // Navega no dial
   const dialPrev = useCallback(() => {
     const prev = dialIndex <= 0 ? dialStations.length - 1 : dialIndex - 1;
     const st = dialStations[prev];
     switchToStation(st.id);
-  }, [dialIndex, dialStations]);
+  }, [dialIndex, dialStations, switchToStation]);
 
   const dialNext = useCallback(() => {
     const next = dialIndex >= dialStations.length - 1 ? 0 : dialIndex + 1;
     const st = dialStations[next];
     switchToStation(st.id);
-  }, [dialIndex, dialStations]);
-
-  // Troca de estação: carrega a fila e ajusta o player.
-  const switchToStation = useCallback(async (stationId: string) => {
-    setSwitchingStation(true);
-    try {
-      if (stationId === DEFAULT_STATION_ID) {
-        // Volta pro shuffle padrão.
-        await selectStation(null);
-        if (!radioEnabled || !isPlaying) {
-          // Se o rádio já estava tocando, re-inicia com shuffle.
-          if (radioEnabled) {
-            const currentTracks = tracks.length > 0 ? tracks : DEMO_TRACKS;
-            startRadio(currentTracks);
-          }
-        }
-      } else {
-        // Busca dados da estação com faixas.
-        await selectStation(stationId);
-        const station = useAppStore.getState().selectedStation;
-        if (station?.tracks && station.tracks.length > 0) {
-          const stationTracks = station.tracks;
-
-          // Calcula qual faixa deveria estar tocando (sincronização).
-          let startIndex = 0;
-          if (station.current_track_started_at && station.current_track_id) {
-            const startedAt = new Date(station.current_track_started_at).getTime();
-            const elapsedMs = Date.now() - startedAt;
-            let accumulated = 0;
-            for (let i = 0; i < stationTracks.length; i++) {
-              accumulated += (stationTracks[i].duration || 0) * 1000;
-              if (accumulated > elapsedMs) {
-                startIndex = i;
-                break;
-              }
-              if (i === stationTracks.length - 1) startIndex = i;
-            }
-          }
-
-          const startingTrack = stationTracks[startIndex];
-          const state = useAppStore.getState();
-          useAppStore.setState({
-            radioEnabled: true,
-            shuffleEnabled: false,
-            repeatMode: 'all',
-            queue: stationTracks,
-            queueIndex: startIndex,
-            shuffleBag: [],
-            player: {
-              ...state.player,
-              currentTrack: startingTrack,
-              isPlaying: true,
-              progress: 0,
-            },
-          });
-        }
-      }
-    } finally {
-      setSwitchingStation(false);
-    }
-  }, [selectStation, startRadio, radioEnabled, isPlaying, tracks]);
+  }, [dialIndex, dialStations, switchToStation]);
 
   // Auto-start radio com a estação selecionada (ou default).
   useEffect(() => {
@@ -243,28 +152,6 @@ const RadioScreen: React.FC = () => {
       advanceStationTrack();
     }
   }, [currentTrack?.id, selectedStationId, advanceStationTrack]);
-
-  const filteredTracks = useMemo(() => {
-    if (!search) return tracks;
-    const q = search.toLowerCase();
-    return tracks.filter(
-      (t) => t.title.toLowerCase().includes(q) || t.artist_name.toLowerCase().includes(q)
-    );
-  }, [search, tracks]);
-
-  const filteredArtists = useMemo(() => {
-    if (!search) return artists;
-    const q = search.toLowerCase();
-    return artists.filter((a) => a.name.toLowerCase().includes(q));
-  }, [search, artists]);
-
-  const filteredStations = useMemo(() => {
-    if (!search) return publishedStations;
-    const q = search.toLowerCase();
-    return publishedStations.filter(
-      (s) => s.name.toLowerCase().includes(q) || (s.owner?.name || '').toLowerCase().includes(q)
-    );
-  }, [search, publishedStations]);
 
   const handleSendComment = async () => {
     if (!newComment.trim() || isSendingComment) return;
@@ -314,115 +201,18 @@ const RadioScreen: React.FC = () => {
     };
   }, [handleProgressInteraction]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleToggleFavorite = (e: React.MouseEvent, trackId: string) => {
-    e.stopPropagation();
-    toggleFavorite(trackId);
-  };
-
-  const handleGoToArtist = (e: React.MouseEvent, artistId: string) => {
-    e.stopPropagation();
-    selectArtist(artistId);
-  };
-
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const isLiked = currentTrack ? likes.some((l) => l.track_id === currentTrack.id) : false;
-  const isFav = currentTrack ? favorites.includes(currentTrack.id) : false;
   const coverColors = currentTrack
     ? COVER_COLORS[currentTrack.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % COVER_COLORS.length]
     : ['#FF8C42', '#E84393'];
 
   // Radio queue stats
   const queueLength = queue.length;
-  const currentQueueIndex = useAppStore.getState().queueIndex;
-
-  const tabs: { key: RadioTab; label: string; icon: string }[] = [
-    { key: 'faixas', label: 'Faixas', icon: '🎵' },
-    { key: 'explorar', label: 'Explorar', icon: '🔍' },
-    { key: 'artistas', label: 'Artistas', icon: '🎤' },
-  ];
-
-  const renderTrackRow = (track: Track, index: number) => {
-    const isCurrentTrack = player.currentTrack?.id === track.id;
-    const isTrackFav = favorites.includes(track.id);
-
-    return (
-      <button
-        key={track.id}
-        onClick={() => playTrack(track, filteredTracks)}
-        className={cn(
-          'w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-200 active:scale-[0.98] text-left',
-          isCurrentTrack
-            ? 'bg-gradient-to-r from-[#FF8C42]/10 via-[#E84393]/5 to-transparent ring-1 ring-[#FF8C42]/20'
-            : 'bg-white hover:bg-[#F2F2F8] shadow-sm'
-        )}
-      >
-        {/* Track number / Equalizer */}
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden"
-          style={{ background: `linear-gradient(135deg, ${coverColors[0]}20, ${coverColors[1]}20)` }}
-        >
-          {isCurrentTrack && isPlaying ? (
-            <Equalizer barCount={3} height={20} barWidth={3} gap={1.5} />
-          ) : (
-            <span className={cn('text-sm font-bold', isCurrentTrack ? 'text-[#FF8C42]' : 'text-black/30')}>
-              {isCurrentTrack ? (
-                <Play size={16} className="text-[#FF8C42] ml-0.5" fill="#FF8C42" />
-              ) : (
-                index + 1
-              )}
-            </span>
-          )}
-        </div>
-
-        {/* Cover mini */}
-        <div
-          className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 relative"
-          style={{ background: `linear-gradient(135deg, ${COVER_COLORS[(track.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % COVER_COLORS.length][0]}dd, ${COVER_COLORS[(track.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % COVER_COLORS.length][1]}dd)` }}
-        >
-          {track.cover_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className={cn('text-sm font-semibold truncate', isCurrentTrack ? 'text-[#FF8C42]' : 'text-[#1A1B25]')}>
-            {track.title}
-          </p>
-          <button
-            type="button"
-            onClick={(e) => track.artist_id && handleGoToArtist(e, track.artist_id)}
-            className="text-xs text-black/40 hover:text-[#FF8C42] hover:underline transition-colors truncate block text-left"
-          >
-            {track.artist_name}
-          </button>
-        </div>
-
-        {/* Stats */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <TrendingUp size={10} className="text-black/25" />
-          <span className="text-[10px] text-black/30">{formatNumber(track.plays_count)}</span>
-        </div>
-
-        {/* Favorite */}
-        <button
-          onClick={(e) => handleToggleFavorite(e, track.id)}
-          className="p-1.5 rounded-full hover:bg-black/5 transition-colors flex-shrink-0"
-          aria-label={isTrackFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-        >
-          <Star
-            size={14}
-            className={cn(isTrackFav ? 'fill-[#FFD700] text-[#FFD700]' : 'text-black/20')}
-          />
-        </button>
-      </button>
-    );
-  };
 
   return (
     <div className="px-4 pt-4 pb-4 min-h-screen">
@@ -644,10 +434,7 @@ const RadioScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Comentários gerais da rádio (chat aberto, sem vínculo com faixa).
-          Não aparece na aba Explorar — lá o foco é navegar pelo app
-          (músicas, estações, artistas, usuários), não o chat da rádio. */}
-      {radioTab !== 'explorar' && (
+      {/* Comentários gerais da rádio (chat aberto, sem vínculo com faixa). */}
       <div className="bg-white rounded-2xl shadow-sm p-4 mb-5">
         <div className="flex items-center gap-2 mb-3">
           <MessageCircle size={16} className="text-[#FF8C42]" />
@@ -728,281 +515,6 @@ const RadioScreen: React.FC = () => {
           </button>
         </div>
       </div>
-      )}
-
-      {/* Search */}
-      <div className="mb-3">
-        <div className="relative">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/25" />
-          <input
-            type="text"
-            placeholder={
-              radioTab === 'explorar'
-                ? exploreSection === 'estacoes'
-                  ? 'Buscar estações...'
-                  : exploreSection === 'artistas'
-                  ? 'Buscar artistas...'
-                  : exploreSection === 'usuarios'
-                  ? 'Buscar usuários por nome...'
-                  : 'Buscar músicas...'
-                : `Buscar ${radioTab === 'artistas' ? 'artistas' : 'músicas'}...`
-            }
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="!pl-10 !py-2.5 !text-sm !rounded-xl"
-          />
-        </div>
-      </div>
-
-      {/* Radio Tabs */}
-      <div className="flex gap-1.5 mb-4">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setRadioTab(tab.key)}
-            className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 no-select',
-              radioTab === tab.key
-                ? 'gradient-bg text-white shadow-md shadow-[#FF8C42]/20'
-                : 'bg-white text-black/40 hover:bg-black/5 hover:text-black/60 shadow-sm'
-            )}
-          >
-            <span className="text-xs">{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Faixas Tab */}
-      {radioTab === 'faixas' && (
-        <div className="space-y-2">
-          {filteredTracks.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
-                <Music2 size={28} className="text-black/20" />
-              </div>
-              <p className="text-black/40 text-sm font-medium">Nenhuma faixa encontrada</p>
-            </div>
-          )}
-          {filteredTracks.map((track, i) => renderTrackRow(track, i))}
-        </div>
-      )}
-
-      {/* Explorar Tab */}
-      {radioTab === 'explorar' && (
-        <div className="space-y-4">
-          {/* Sub-navegação: músicas, estações, artistas, usuários */}
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-            {(
-              [
-                { key: 'musicas', label: 'Músicas', icon: '🎵' },
-                { key: 'estacoes', label: 'Estações', icon: '📻' },
-                { key: 'artistas', label: 'Artistas', icon: '🎤' },
-                { key: 'usuarios', label: 'Usuários', icon: '👤' },
-              ] as { key: ExploreSection; label: string; icon: string }[]
-            ).map((sec) => (
-              <button
-                key={sec.key}
-                onClick={() => setExploreSection(sec.key)}
-                className={cn(
-                  'flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-200 no-select',
-                  exploreSection === sec.key
-                    ? 'gradient-bg text-white shadow-md shadow-[#FF8C42]/20'
-                    : 'bg-white text-black/40 hover:bg-black/5 hover:text-black/60 shadow-sm'
-                )}
-              >
-                <span>{sec.icon}</span>
-                <span>{sec.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Músicas: todas as faixas do app */}
-          {exploreSection === 'musicas' && (
-            <div className="space-y-2">
-              {filteredTracks.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
-                    <Music2 size={28} className="text-black/20" />
-                  </div>
-                  <p className="text-black/40 text-sm font-medium">Nenhuma faixa encontrada</p>
-                </div>
-              )}
-              {filteredTracks.map((track, i) => renderTrackRow(track, i))}
-            </div>
-          )}
-
-          {/* Estações: rádios publicadas por usuários */}
-          {exploreSection === 'estacoes' && (
-            <div className="space-y-2">
-              {filteredStations.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
-                    <RadioTower size={28} className="text-black/20" />
-                  </div>
-                  <p className="text-black/40 text-sm font-medium">Nenhuma estação publicada ainda</p>
-                </div>
-              )}
-              {filteredStations.map((station) => (
-                <button
-                  key={station.id}
-                  onClick={() => switchToStation(station.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
-                >
-                  <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-[#FF8C42]/20 to-[#E84393]/20">
-                    {station.cover_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={station.cover_url} alt={station.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <RadioTower size={18} className="text-[#FF8C42]" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#1A1B25] truncate">{station.name}</p>
-                    <p className="text-xs text-black/40 truncate">
-                      {station.owner?.name ? `${station.owner.name} · ` : ''}
-                      {station.tracks_count ?? 0} faixas
-                    </p>
-                  </div>
-                  <Play size={16} className="text-[#FF8C42] flex-shrink-0" />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Artistas */}
-          {exploreSection === 'artistas' && (
-            <div className="space-y-3">
-              {filteredArtists.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
-                    <Music2 size={28} className="text-black/20" />
-                  </div>
-                  <p className="text-black/40 text-sm font-medium">Nenhum artista encontrado</p>
-                </div>
-              )}
-              {filteredArtists.map((artist) => (
-                <button
-                  key={artist.id}
-                  onClick={() => selectArtist(artist.id)}
-                  className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
-                >
-                  <CoverArt
-                    title={artist.name}
-                    artistName={artist.genre}
-                    coverUrl={artist.avatar_url || artist.cover_url}
-                    size="sm"
-                    className="!w-14 !h-14 !max-w-none !rounded-xl flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[#1A1B25] truncate">{artist.name}</p>
-                    <p className="text-sm text-black/40">{artist.genre}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-black/50">{formatNumber(artist.followers_count)}</p>
-                    <p className="text-[10px] text-black/30">seguidores</p>
-                  </div>
-                  <div className="p-2 rounded-full bg-black/5" aria-label="Ver perfil do artista">
-                    <Music2 size={16} className="text-black/50" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Usuários */}
-          {exploreSection === 'usuarios' && (
-            <div className="space-y-2">
-              {!user && (
-                <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
-                    <Users size={28} className="text-black/20" />
-                  </div>
-                  <p className="text-black/40 text-sm font-medium">Entre na sua conta para buscar outros usuários</p>
-                </div>
-              )}
-
-              {user && !search.trim() && (
-                <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
-                    <Users size={28} className="text-black/20" />
-                  </div>
-                  <p className="text-black/40 text-sm font-medium">Digite um nome pra buscar usuários</p>
-                </div>
-              )}
-
-              {user && search.trim() && isSearchingUsers && (
-                <div className="flex items-center justify-center py-12">
-                  <p className="text-black/40 text-sm">Buscando...</p>
-                </div>
-              )}
-
-              {user && search.trim() && !isSearchingUsers && userResults.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
-                    <Users size={28} className="text-black/20" />
-                  </div>
-                  <p className="text-black/40 text-sm font-medium">Nenhum usuário encontrado com esse nome</p>
-                </div>
-              )}
-
-              {user && !isSearchingUsers && userResults.map((result) => (
-                <button
-                  key={result.id}
-                  onClick={() => selectUser(result.id)}
-                  className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
-                >
-                  <CoverArt
-                    title={result.name}
-                    artistName=""
-                    coverUrl={result.avatar_url || ''}
-                    size="sm"
-                    className="!w-12 !h-12 !max-w-none !rounded-full flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[#1A1B25] truncate">{result.name}</p>
-                  </div>
-                  <div className="p-2 rounded-full bg-black/5" aria-label="Ver perfil do usuário">
-                    <Users size={16} className="text-black/50" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Artistas Tab */}
-      {radioTab === 'artistas' && (
-        <div className="space-y-3">
-          {filteredArtists.map((artist) => (
-            <button
-              key={artist.id}
-              onClick={() => selectArtist(artist.id)}
-              className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
-            >
-              <CoverArt
-                title={artist.name}
-                artistName={artist.genre}
-                coverUrl={artist.avatar_url || artist.cover_url}
-                size="sm"
-                className="!w-14 !h-14 !max-w-none !rounded-xl flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-[#1A1B25] truncate">{artist.name}</p>
-                <p className="text-sm text-black/40">{artist.genre}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-black/50">{formatNumber(artist.followers_count)}</p>
-                <p className="text-[10px] text-black/30">seguidores</p>
-              </div>
-              <div className="p-2 rounded-full bg-black/5" aria-label="Ver perfil do artista">
-                <Music2 size={16} className="text-black/50" />
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Bottom spacing */}
       <div className="h-32" />

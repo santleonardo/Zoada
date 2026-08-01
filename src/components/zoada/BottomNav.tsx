@@ -3,7 +3,7 @@
 import React from 'react';
 import { Home, Disc3, MessageCircle, User, Radio } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import type { Screen, RadioTab } from '@/types';
+import type { Screen } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -11,22 +11,18 @@ interface NavItem {
   label: string;
   screen: Screen;
   tab?: 'tracks' | 'artists';
-  // Quando o item leva pra tela de Rádio, indica em qual sub-aba dela deve
-  // abrir (ex: "Explorar" deve cair direto na aba Explorar da rádio, não
-  // na aba padrão "Faixas").
-  radioTab?: RadioTab;
 }
 
 const navItems: NavItem[] = [
   { icon: <Home size={18} />, label: 'Início', screen: 'main', tab: 'tracks' },
   { icon: <Radio size={18} />, label: 'Rádio', screen: 'radio' },
-  { icon: <Disc3 size={18} />, label: 'Explorar', screen: 'radio', radioTab: 'explorar' },
+  { icon: <Disc3 size={18} />, label: 'Explorar', screen: 'explore' },
   { icon: <MessageCircle size={18} />, label: 'Chat', screen: 'chat' },
   { icon: <User size={18} />, label: 'Perfil', screen: 'profile' },
 ];
 
 const BottomNav: React.FC = () => {
-  const { currentScreen, mainTab, radioTab, navigate, setRadioTab, player } = useAppStore();
+  const { currentScreen, mainTab, navigate, player } = useAppStore();
   const hasActiveTrack = !!player.currentTrack;
 
   return (
@@ -47,21 +43,14 @@ const BottomNav: React.FC = () => {
               ? currentScreen === 'chat' || currentScreen === 'chat-conversation'
               : item.screen === 'profile'
               ? currentScreen === 'profile'
-              : item.screen === 'radio'
-              ? currentScreen === 'radio' && (item.radioTab ? radioTab === item.radioTab : radioTab !== 'explorar')
               : item.tab
               ? currentScreen === 'main' && mainTab === item.tab
-              : currentScreen === 'main';
+              : currentScreen === item.screen;
 
           return (
             <button
               key={item.label}
-              onClick={() => {
-                navigate(item.screen, item.tab);
-                if (item.screen === 'radio' && item.radioTab) {
-                  setRadioTab(item.radioTab);
-                }
-              }}
+              onClick={() => navigate(item.screen, item.tab)}
               className={cn(
                 'flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200 no-select',
                 isActive
