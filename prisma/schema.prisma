@@ -30,6 +30,7 @@ model Usuario {
   favoritos    Favorito[]
   comentarios  Comentario[]
   comentariosPostagem ComentarioPostagem[]
+  curtidasComentarioPostagem CurtidaComentarioPostagem[]
   comentariosRadio ComentarioRadio[]
   enviado      Mensagem[] @relation("Enviadas")
   recebido     Mensagem[] @relation("Recebidas")
@@ -234,9 +235,28 @@ model ComentarioPostagem {
 
   usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   postagem Postagem @relation(fields: [postagemId], references: [id], onDelete: Cascade)
+  curtidas CurtidaComentarioPostagem[]
 
   @@index([postagemId])
   @@map("comentarios_postagem")
+}
+
+// ---------- Reações (coração) nos comentários da thread de postagem ----------
+// Reação simples de "coração" (as cores da logo) num comentário da thread do
+// feed — diferente de Curtida (que é sobre FAIXA). Um usuário só pode reagir
+// uma vez por comentário (toggle liga/desliga).
+model CurtidaComentarioPostagem {
+  id           String   @id @default(cuid())
+  usuarioId    String   @map("usuario_id")
+  comentarioId String   @map("comentario_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  usuario    Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  comentario ComentarioPostagem @relation(fields: [comentarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, comentarioId])
+  @@index([comentarioId])
+  @@map("curtidas_comentario_postagem")
 }
 
 // ---------- Comentários gerais da rádio (chat, sem vínculo com faixa) ----------
