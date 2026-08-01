@@ -17,6 +17,7 @@ const MainScreen: React.FC = () => {
     playTrack, player, selectArtist, selectUser, mainTab: activeTab, setMainTab: setActiveTab,
     favorites, toggleFavorite, lastCountedPlay, user,
     publishedStations, loadPublishedStations, tuneIntoStation, navigate,
+    selectStation, startRadio,
   } = useAppStore();
   const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
@@ -129,19 +130,52 @@ const MainScreen: React.FC = () => {
       .slice(0, 5);
   }, [artists, tracks]);
 
+  // ID especial da estação oficial do app — mesmo ID que o dial da tela
+  // de Rádio usa pro shuffle padrão (ver DEFAULT_STATION_ID em RadioScreen).
+  const OFFICIAL_STATION_ID = '__default__';
+
+  // Estação oficial "Zôada": não vem do servidor, é montada aqui com o
+  // catálogo completo. Serve de estação-coringa pra "Estações mais
+  // ouvidas" nunca ficar vazia — se nenhum usuário tiver estação
+  // publicada com reprodução (ex: todo mundo despublicou a própria),
+  // ela aparece como a mais ouvida por padrão.
+  const officialStation: RadioStation = useMemo(() => ({
+    id: OFFICIAL_STATION_ID,
+    user_id: 'official',
+    name: 'Zôada',
+    cover_url: null,
+    bio: null,
+    is_published: true,
+    current_track_id: null,
+    current_track_started_at: null,
+    created_at: '',
+    owner: { id: 'official', name: 'Estação oficial', avatar_url: null },
+    total_plays: tracks.reduce((sum, t) => sum + (t.plays_count || 0), 0),
+    tracks_count: tracks.length,
+  }), [tracks]);
+
   // Top 7 estações de rádio mais tocadas (soma de plays_count das faixas
   // de cada estação, já vem ordenado do servidor — só garantimos o corte
-  // aqui e ignoramos estações sem nenhuma reprodução ainda).
+  // aqui e ignoramos estações sem nenhuma reprodução ainda). Sem nenhuma
+  // estação de usuário disponível, cai pra estação oficial.
   const topStations = useMemo(() => {
-    return publishedStations
+    const userStations = publishedStations
       .filter((s) => (s.total_plays || 0) > 0)
       .slice(0, 7);
-  }, [publishedStations]);
+    return userStations.length > 0 ? userStations : [officialStation];
+  }, [publishedStations, officialStation]);
 
   // Sintoniza a estação escolhida e já leva pra tela de Rádio tocando.
+  // A estação oficial não existe no servidor, então tocá-la significa
+  // voltar pro shuffle padrão em vez de buscar por ID.
   const handlePlayStation = (e: React.MouseEvent, station: RadioStation) => {
     e.stopPropagation();
-    tuneIntoStation(station.id);
+    if (station.id === OFFICIAL_STATION_ID) {
+      selectStation(null);
+      startRadio(tracks);
+    } else {
+      tuneIntoStation(station.id);
+    }
     navigate('radio');
   };
 
@@ -319,7 +353,7 @@ const MainScreen: React.FC = () => {
         <div className="flex items-center gap-1.5 mt-2">
           {station.owner?.name && (
             <span className="text-[11px] text-white/70 bg-white/10 px-2 py-0.5 rounded-full truncate max-w-[130px]">
-              por {station.owner.name}
+              {station.id === OFFICIAL_STATION_ID ? station.owner.name : `por ${station.owner.name}`}
             </span>
           )}
           <span className="flex items-center gap-1 text-xs text-white/55 font-medium">
