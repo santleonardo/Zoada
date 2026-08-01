@@ -149,6 +149,31 @@ CREATE INDEX IF NOT EXISTS idx_mensagens_faixaId ON mensagens("faixaId");
 -- CREATE INDEX IF NOT EXISTS idx_seguir_usuarios_seguidoId ON seguir_usuarios("seguidoId");
 
 -- ============================================================
+-- Migração: postagens (usuário posta música no próprio feed)
+-- ============================================================
+-- Se o banco já existir, rode:
+-- CREATE TABLE IF NOT EXISTS postagens (
+--   id TEXT PRIMARY KEY,
+--   "usuarioId" TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+--   "faixaId" TEXT NOT NULL REFERENCES faixas(id) ON DELETE CASCADE,
+--   legenda TEXT,
+--   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+-- CREATE INDEX IF NOT EXISTS idx_postagens_usuarioId ON postagens("usuarioId");
+-- CREATE INDEX IF NOT EXISTS idx_postagens_createdAt ON postagens("createdAt");
+
+CREATE TABLE IF NOT EXISTS postagens (
+  id TEXT PRIMARY KEY,
+  "usuarioId" TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  "faixaId" TEXT NOT NULL REFERENCES faixas(id) ON DELETE CASCADE,
+  legenda TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_postagens_usuarioId ON postagens("usuarioId");
+CREATE INDEX IF NOT EXISTS idx_postagens_createdAt ON postagens("createdAt");
+
+-- ============================================================
 -- Views úteis
 -- ============================================================
 

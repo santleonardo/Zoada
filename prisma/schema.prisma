@@ -37,6 +37,7 @@ model Usuario {
   seguidores   SeguirUsuario[] @relation("Seguindo")
   seguidos     SeguirUsuario[] @relation("Seguidos")
   estacoesRadio EstacaoRadio[]
+  postagens    Postagem[]
 
   @@map("usuarios")
 }
@@ -85,6 +86,7 @@ model Faixa {
   mensagens  Mensagem[]
   reproducoes Reproducao[]
   faixasEstacao FaixaEstacao[]
+  postagens  Postagem[]
 
   @@map("faixas")
 }
@@ -163,6 +165,27 @@ model Comentario {
   faixa   Faixa   @relation(fields: [faixaId], references: [id], onDelete: Cascade)
 
   @@map("comentarios")
+}
+
+// ---------- Postagens (usuário compartilha uma faixa no próprio feed) ----------
+// Diferente de Curtida (like privado) e de Mensagem com faixa (compartilhado
+// só com um contato), uma Postagem é pública: aparece no perfil do usuário
+// pra qualquer visitante ver, como um "repost" da música com uma legenda
+// opcional. onDelete Cascade nas duas pontas: some junto se o usuário ou a
+// faixa original forem apagados.
+model Postagem {
+  id        String   @id @default(cuid())
+  usuarioId String   @map("usuario_id")
+  faixaId   String   @map("faixa_id")
+  legenda   String?  @map("legenda")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  faixa   Faixa   @relation(fields: [faixaId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([createdAt])
+  @@map("postagens")
 }
 
 // ---------- Comentários gerais da rádio (chat, sem vínculo com faixa) ----------
