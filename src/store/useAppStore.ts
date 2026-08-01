@@ -24,6 +24,28 @@ function saveFavorites(favorites: string[]) {
   localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
 }
 
+// Qualidade de áudio: preferência do dispositivo (não é por faixa, por isso
+// fica fora de `player`), persistida localmente como o resto das prefs.
+// Como cada faixa só tem UM arquivo de áudio (sem múltiplos bitrates no
+// backend), isto não troca o arquivo — controla como o <audio> se comporta:
+// 'high' pré-carrega a faixa inteira assim que ela é selecionada; 'auto'
+// (padrão) só pré-carrega metadados; 'saver' evita qualquer pré-carga,
+// baixando só quando o usuário efetivamente dá play.
+export type AudioQuality = 'high' | 'auto' | 'saver';
+
+const AUDIO_QUALITY_KEY = 'zoada-audio-quality';
+
+function loadAudioQuality(): AudioQuality {
+  if (typeof window === 'undefined') return 'auto';
+  const stored = localStorage.getItem(AUDIO_QUALITY_KEY);
+  return stored === 'high' || stored === 'auto' || stored === 'saver' ? stored : 'auto';
+}
+
+function saveAudioQuality(quality: AudioQuality) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(AUDIO_QUALITY_KEY, quality);
+}
+
 // Embaralha uma lista de IDs (Fisher-Yates). Usado para sortear cada novo
 // "embrulho" do shuffle bag do rádio — dá uma distribuição realmente
 // uniforme, diferente de `.sort(() => Math.random() - 0.5)`, que é
@@ -139,6 +161,8 @@ interface AppState {
   nextTrack: (auto?: boolean) => void;
   prevTrack: () => void;
   setVolume: (volume: number) => void;
+  audioQuality: AudioQuality;
+  setAudioQuality: (quality: AudioQuality) => void;
   toggleShuffle: () => void;
   cycleRepeatMode: () => void;
   // Contabiliza uma reprodução real (chamado pelo audioEngine depois que a
@@ -226,6 +250,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     progress: 0,
     duration: 0,
     volume: 0.8,
+  },
+
+  audioQuality: loadAudioQuality(),
+  setAudioQuality: (quality) => {
+    saveAudioQuality(quality);
+    set({ audioQuality: quality });
   },
 
   queue: [],

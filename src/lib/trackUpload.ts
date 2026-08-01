@@ -1,4 +1,6 @@
 import { apiFetch, getAuthToken } from '@/lib/api';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { toBlobURL, fetchFile } from '@ffmpeg/util';
 
 // ============================================================
 // Upload de músicas: pega o arquivo de áudio, sobe pro R2
@@ -6,6 +8,75 @@ import { apiFetch, getAuthToken } from '@/lib/api';
 // (via /api/tracks), associada a um "artista" que representa
 // o usuário logado.
 // ============================================================
+
+// ------------------------------------------------------------
+// Qualidade de áudio: gera uma segunda versão da faixa, em
+// bitrate mais baixo, direto no navegador (ffmpeg.wasm) — sem
+// depender de nenhum processamento no servidor (que não teria
+// ffmpeg disponível em ambiente serverless). A versão "alta"
+// continua sendo o arquivo original, sem recodificar, pra não
+// perder qualidade recomprimindo duas vezes.
+// ------------------------------------------------------------
+
+let ffmpegInstance: FFmpeg | null = null;
+let ffmpegLoadPromise: Promise<FFmpeg> | null = null;
+
+// Núcleo do ffmpeg.wasm (build single-thread, não precisa de
+// SharedArrayBuffer nem de cabeçalhos COOP/COEP no servidor).
+const FFMPEG_CORE_BASE_URL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+
+async function getFFmpeg(onProgress?: (message: string) => void): Promise<FFmpeg> {
+  if (ffmpegInstance) return ffmpegInstance;
+  if (!ffmpegLoadPromise) {
+    ffmpegLoadPromise = (async () => {
+      onProgress?.('Carregando conversor de áudio...');
+      const ffmpeg = new FFmpeg();
+      const [coreURL, wasmURL] = await Promise.all([
+        toBlobURL(`${FFMPEG_CORE_BASE_URL}/ffmpeg-core.js`, 'text/javascript'),
+        toBlobURL(`${FFMPEG_CORE_BASE_URL}/ffmpeg-core.wasm`, 'application/wasm'),
+      ]);
+      await ffmpeg.load({ coreURL, wasmURL });
+      ffmpegInstance = ffmpeg;
+      return ffmpeg;
+    })().catch((err) => {
+      // Se o carregamento falhar (ex: sem internet pro CDN, navegador
+      // incompatível), não deixa a promise "presa" em erro pra sempre —
+      // libera pra tentar de novo na próxima música.
+      ffmpegLoadPromise = null;
+      throw err;
+    });
+  }
+  return ffmpegLoadPromise;
+}
+
+const ECONOMY_BITRATE_KBPS = 96;
+
+/**
+ * Recodifica o arquivo pra MP3 a ~96kbps (bom equilíbrio entre tamanho e
+ * qualidade audível pra "economia de dados"). Roda inteiramente no
+ * navegador de quem está enviando a música.
+ */
+async function transcodeToEconomyMp3(file: File, onProgress?: (message: string) => void): Promise<File> {
+  const ffmpeg = await getFFmpeg(onProgress);
+  onProgress?.('Gerando versão economia de dados...');
+
+  const inputName = `input-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const outputName = `${inputName}-out.mp3`;
+
+  await ffmpeg.writeFile(inputName, await fetchFile(file));
+  try {
+    await ffmpeg.exec(['-i', inputName, '-b:a', `${ECONOMY_BITRATE_KBPS}k`, '-map_metadata', '-1', outputName]);
+    const data = await ffmpeg.readFile(outputName);
+    const blob = new Blob([data as BlobPart], { type: 'audio/mpeg' });
+    const economyName = `${file.name.replace(/\.[^/.]+$/, '')}-economia.mp3`;
+    return new File([blob], economyName, { type: 'audio/mpeg' });
+  } finally {
+    // Limpa o sistema de arquivos virtual do ffmpeg pra não acumular
+    // memória quando várias músicas são enviadas em sequência.
+    await ffmpeg.deleteFile(inputName).catch(() => {});
+    await ffmpeg.deleteFile(outputName).catch(() => {});
+  }
+}
 
 /**
  * DIAGNÓSTICO TEMPORÁRIO: sobe o arquivo passando pelo próprio servidor
@@ -224,14 +295,42 @@ export async function uploadTrackFile(
   file: File,
   artistaId: string,
   titulo: string,
-  coverUrl?: string
+  coverUrl?: string,
+  onProgress?: (message: string) => void
 ): Promise<void> {
   const duracao = await readAudioDuration(file);
+
+  onProgress?.('Enviando música...');
   const url = await uploadFileDirectToR2(file, 'tracks');
 
+  // Gera e sobe a versão "economia de dados". Isso é best-effort: se o
+  // navegador não conseguir rodar o conversor (ex: sem internet pro CDN
+  // do ffmpeg.wasm, navegador muito antigo), a faixa continua sendo
+  // enviada normalmente, só que sem a opção de economia — o player cai de
+  // volta pra versão em alta qualidade nesse caso.
+  let lowUrl: string | null = null;
+  try {
+    const economyFile = await transcodeToEconomyMp3(file, onProgress);
+    onProgress?.('Enviando versão economia de dados...');
+    lowUrl = await uploadFileDirectToR2(economyFile, 'tracks');
+  } catch (err) {
+    console.warn(
+      '[trackUpload] Não foi possível gerar a versão economia de dados; a faixa ficará só com a versão em alta qualidade.',
+      err
+    );
+  }
+
+  onProgress?.('Salvando faixa...');
   const trackRes = await apiFetch('/api/tracks', {
     method: 'POST',
-    body: JSON.stringify({ titulo, artistaId, audioUrl: url, coverUrl: coverUrl || null, duracao }),
+    body: JSON.stringify({
+      titulo,
+      artistaId,
+      audioUrl: url,
+      audioUrlLow: lowUrl,
+      coverUrl: coverUrl || null,
+      duracao,
+    }),
   });
 
   if (!trackRes.ok) {

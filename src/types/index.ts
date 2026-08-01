@@ -45,6 +45,10 @@ export interface Track {
   artist_name: string;
   cover_url: string;
   audio_url: string;
+  // Versão "economia de dados" (bitrate mais baixo), quando existir. Falta
+  // em faixas enviadas antes dessa funcionalidade — nesse caso é null e o
+  // player usa audio_url mesmo em modo economia.
+  audio_url_low?: string | null;
   duration: number;
   plays_count: number;
   created_at: string;

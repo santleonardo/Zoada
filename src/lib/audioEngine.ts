@@ -10,10 +10,39 @@ import { useAppStore } from '@/store/useAppStore';
 // ============================================================
 
 type PlayerState = ReturnType<typeof useAppStore.getState>['player'];
+type AudioQuality = ReturnType<typeof useAppStore.getState>['audioQuality'];
+type Track = NonNullable<PlayerState['currentTrack']>;
+
+// Mapeia a preferência de qualidade pro atributo `preload` do <audio>:
+// 'high' baixa a faixa inteira ao carregar, 'saver' só baixa quando o
+// usuário dá play, 'auto' fica no meio-termo (só metadados adiantados).
+function preloadForQuality(quality: AudioQuality): 'auto' | 'metadata' | 'none' {
+  if (quality === 'high') return 'auto';
+  if (quality === 'saver') return 'none';
+  return 'metadata';
+}
+
+/**
+ * Escolhe qual arquivo tocar de fato: em modo "economia de dados", usa a
+ * versão em bitrate mais baixo (audio_url_low) gerada no upload — quando
+ * ela existe. Faixas enviadas antes dessa funcionalidade existir (ou cujo
+ * navegador de quem enviou não conseguiu gerar a versão economia) não têm
+ * audio_url_low, então caem de volta pra versão em alta qualidade mesmo
+ * assim, em vez de não tocar nada.
+ */
+function resolveUrl(track: Track | null, quality: AudioQuality): string | null {
+  if (!track) return null;
+  if (quality === 'saver' && track.audio_url_low) return track.audio_url_low;
+  return track.audio_url || track.audio_url_low || null;
+}
 
 class AudioEngine {
   private audio: HTMLAudioElement | null = null;
   private loadedTrackId: string | null = null;
+  // Guarda a URL efetivamente carregada (não só o id da faixa), porque
+  // mudar a preferência de qualidade no meio da mesma faixa também precisa
+  // trocar o arquivo tocado, mesmo sem trocar de música.
+  private loadedUrl: string | null = null;
   private initialized = false;
   // true quando a reprodução ATUAL da faixa carregada já foi contabilizada
   // no servidor. Zerado sempre que uma faixa nova é carregada (ou quando
@@ -25,7 +54,7 @@ class AudioEngine {
     this.initialized = true;
 
     const audio = new Audio();
-    audio.preload = 'metadata';
+    audio.preload = preloadForQuality(useAppStore.getState().audioQuality);
     this.audio = audio;
 
     audio.addEventListener('timeupdate', () => {
@@ -67,7 +96,19 @@ class AudioEngine {
 
     // Reage a qualquer mudança no player (track, play/pause, volume)
     useAppStore.subscribe((state, prevState) => {
-      this.sync(state.player, prevState.player);
+      this.sync(state.player, state.audioQuality, prevState.player);
+    });
+
+    // Reage a mudanças na preferência de qualidade de áudio (tela de
+    // Configurações > "Qualidade de áudio"), mesmo quando a faixa em si
+    // não mudou — troca o arquivo tocado (alta <-> economia) preservando
+    // a posição atual, e ajusta o `preload` pra valer nas próximas faixas.
+    useAppStore.subscribe((state, prevState) => {
+      if (state.audioQuality === prevState.audioQuality) return;
+      const a = this.audio;
+      if (!a) return;
+      a.preload = preloadForQuality(state.audioQuality);
+      this.sync(state.player, state.audioQuality, state.player);
     });
   }
 
@@ -91,21 +132,30 @@ class AudioEngine {
     }
   }
 
-  private sync(player: PlayerState, prev: PlayerState) {
+  private sync(player: PlayerState, quality: AudioQuality, prev: PlayerState) {
     const audio = this.audio;
     if (!audio) return;
 
-    // Trocou de faixa -> carrega nova fonte
-    if (player.currentTrack?.id !== this.loadedTrackId) {
-      this.loadedTrackId = player.currentTrack?.id ?? null;
-      // Faixa nova (ou a mesma sendo recarregada do zero, ex: tocada de
-      // novo depois de ter saído da fila) começa sem contagem registrada.
-      this.playCounted = false;
+    const trackChanged = player.currentTrack?.id !== this.loadedTrackId;
+    const targetUrl = resolveUrl(player.currentTrack, quality);
+    const urlChanged = targetUrl !== this.loadedUrl;
 
-      if (player.currentTrack?.audio_url) {
-        audio.src = player.currentTrack.audio_url;
-        audio.currentTime = 0;
+    // Trocou de faixa OU trocou a versão a tocar (alta <-> economia) ->
+    // carrega a nova fonte, preservando a posição quando é só a versão
+    // que mudou (mesma faixa, mesmo ponto de escuta).
+    if (trackChanged || urlChanged) {
+      const resumeAt = trackChanged ? 0 : audio.currentTime;
+      this.loadedTrackId = player.currentTrack?.id ?? null;
+      this.loadedUrl = targetUrl;
+
+      // Faixa nova começa sem contagem registrada. Só trocar a versão
+      // (mesma faixa) não reinicia a contagem — é a mesma escuta.
+      if (trackChanged) this.playCounted = false;
+
+      if (targetUrl) {
+        audio.src = targetUrl;
         audio.load();
+        if (resumeAt > 0) audio.currentTime = resumeAt;
         if (player.isPlaying) {
           audio.play().catch((err) => console.warn('[audioEngine] play() falhou:', err));
         }
