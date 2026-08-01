@@ -16,7 +16,7 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
-import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation } from '@/types';
+import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, Post } from '@/types';
 
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
@@ -613,6 +613,50 @@ export async function deleteRadioStation(): Promise<boolean> {
     return true;
   } catch (err) {
     console.warn('[deleteRadioStation] falha:', err);
+    return false;
+  }
+}
+
+// ---------- Feed (postar músicas no perfil) ----------
+
+// Busca as postagens (músicas compartilhadas no feed) de um usuário,
+// mais recente primeiro. Público — não exige login pra ver o feed de
+// alguém, igual ao resto do perfil.
+export async function fetchUserPosts(userId: string): Promise<Post[]> {
+  try {
+    const res = await apiFetch(`/api/posts?user_id=${encodeURIComponent(userId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.posts) ? data.posts : [];
+  } catch (err) {
+    console.warn('[fetchUserPosts] falha ao buscar postagens:', err);
+    return [];
+  }
+}
+
+// Posta uma faixa no feed do usuário logado, com legenda opcional.
+export async function createPost(trackId: string, caption?: string): Promise<Post | null> {
+  try {
+    const res = await apiFetch('/api/posts', {
+      method: 'POST',
+      body: JSON.stringify({ track_id: trackId, caption: caption || '' }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.post ?? null;
+  } catch (err) {
+    console.warn('[createPost] falha ao postar no feed:', err);
+    return null;
+  }
+}
+
+// Apaga uma postagem própria do feed.
+export async function deletePost(postId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`/api/posts?id=${encodeURIComponent(postId)}`, { method: 'DELETE' });
+    return res.ok;
+  } catch (err) {
+    console.warn('[deletePost] falha ao apagar postagem:', err);
     return false;
   }
 }

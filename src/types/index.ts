@@ -65,6 +65,19 @@ export interface Like {
   track?: Track;
 }
 
+// Postagem: uma música que o usuário compartilhou no próprio feed/perfil,
+// com legenda opcional. Diferente de Like (privado) — aparece publicamente
+// pra quem visitar o perfil da pessoa.
+export interface Post {
+  id: string;
+  user_id: string;
+  track_id: string;
+  caption: string | null;
+  created_at: string;
+  track?: Track;
+  user?: { id: string; name: string; avatar_url: string | null } | null;
+}
+
 export interface Follow {
   id: string;
   user_id: string;
