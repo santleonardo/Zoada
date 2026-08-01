@@ -1,0 +1,187 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { MessageCircle, Send, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAppStore } from '@/store/useAppStore';
+import { fetchPostComments, postPostComment } from '@/lib/api';
+import type { PostComment } from '@/types';
+import { cn } from '@/lib/utils';
+
+interface PostCommentThreadProps {
+  postId: string;
+  /** Contagem vinda do próprio post (evita começar em "0 comentários" piscando enquanto carrega). */
+  initialCount?: number;
+}
+
+/**
+ * Thread de comentários de uma postagem do feed — botão com contador que
+ * expande a lista (em ordem cronológica) e um campo pra comentar, igual ao
+ * padrão de comentários de faixa no player, só que mais compacto pra caber
+ * dentro do cartão de postagem.
+ */
+const PostCommentThread: React.FC<PostCommentThreadProps> = ({ postId, initialCount = 0 }) => {
+  const user = useAppStore((state) => state.user);
+  const selectUser = useAppStore((state) => state.selectUser);
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [comments, setComments] = useState<PostComment[]>([]);
+  const [count, setCount] = useState(initialCount);
+  const [newComment, setNewComment] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || loaded) return;
+    let cancelled = false;
+    setLoading(true);
+    fetchPostComments(postId).then((data) => {
+      if (cancelled) return;
+      setComments(data);
+      setCount(data.length);
+      setLoaded(true);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, loaded, postId]);
+
+  const handleSend = async () => {
+    const content = newComment.trim();
+    if (!content || isSending) return;
+    if (!user) {
+      toast.error('Entre na sua conta para comentar');
+      return;
+    }
+
+    setNewComment('');
+    setIsSending(true);
+    const result = await postPostComment(postId, content);
+    setIsSending(false);
+
+    if (!result) {
+      setNewComment(content);
+      toast.error('Não foi possível enviar o comentário. Tente novamente.');
+      return;
+    }
+
+    setComments((prev) => [...prev, result]);
+    setCount((prev) => prev + 1);
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex items-center gap-1.5 text-black/40 hover:text-[#6C5CE7] transition-colors mt-1.5 px-0.5"
+        aria-expanded={isOpen}
+      >
+        <MessageCircle size={14} />
+        <span className="text-xs font-medium">
+          {count > 0 ? `${count} coment${count === 1 ? 'ário' : 'ários'}` : 'Comentar'}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="mt-2 pt-2.5 border-t border-black/[0.06]">
+          <div className="space-y-2.5 mb-2.5 max-h-40 overflow-y-auto">
+            {loading && (
+              <div className="flex items-center justify-center py-3">
+                <Loader2 size={14} className="text-black/30 animate-spin" />
+              </div>
+            )}
+
+            {!loading && loaded && comments.length === 0 && (
+              <p className="text-center text-black/30 text-xs py-2">
+                Nenhum comentário ainda. Seja o primeiro!
+              </p>
+            )}
+
+            {comments.map((comment) => {
+              const isMe = comment.user?.id === user?.id;
+              const canOpenProfile = !!comment.user?.id && !isMe;
+              const handleGoToUser = () => {
+                if (!canOpenProfile || !comment.user) return;
+                selectUser(comment.user.id);
+              };
+              return (
+                <div key={comment.id} className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGoToUser}
+                    disabled={!canOpenProfile}
+                    className={cn(
+                      'w-6 h-6 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0 overflow-hidden',
+                      canOpenProfile && 'hover:ring-2 hover:ring-[#FF8C42] transition-shadow'
+                    )}
+                    aria-label={canOpenProfile ? `Ver perfil de ${comment.user?.name}` : undefined}
+                  >
+                    {comment.user?.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={comment.user.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[10px] font-bold text-black/50">
+                        {comment.user?.name?.charAt(0).toUpperCase() || '?'}
+                      </span>
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleGoToUser}
+                        disabled={!canOpenProfile}
+                        className={cn(
+                          'text-xs font-semibold text-[#1A1B25] text-left',
+                          canOpenProfile && 'hover:text-[#FF8C42] hover:underline transition-colors'
+                        )}
+                      >
+                        {comment.user?.name || 'Anônimo'}
+                      </button>
+                      <span className="text-[10px] text-black/30">
+                        {new Date(comment.created_at).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-black/60 mt-0.5 whitespace-pre-wrap break-words">
+                      {comment.content}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {user && (
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                placeholder="Adicionar comentário..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                className="!py-2 !text-xs"
+              />
+              <button
+                onClick={handleSend}
+                disabled={isSending || !newComment.trim()}
+                className="p-2 rounded-xl gradient-bg flex-shrink-0 active:scale-90 transition-transform disabled:opacity-40"
+                aria-label="Enviar comentário"
+              >
+                {isSending ? (
+                  <Loader2 size={14} className="text-white animate-spin" />
+                ) : (
+                  <Send size={14} className="text-white" />
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PostCommentThread;
