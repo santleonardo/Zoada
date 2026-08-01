@@ -121,24 +121,11 @@ const MainScreen: React.FC = () => {
     return artists.filter((a) => a.name.toLowerCase().includes(q));
   }, [search, artists]);
 
-  // Pontuação de popularidade de uma faixa: soma reproduções, curtidas,
-  // favoritos, comentários, compartilhamentos (faixa enviada numa
-  // conversa) e postagens no feed que citam a faixa. Contadores que ainda
-  // não vieram do servidor (ex: resposta antiga/enxuta) contam como 0, sem
-  // quebrar o ranking.
-  const trackPopularityScore = (t: Track) =>
-    (t.plays_count || 0) +
-    (t.likes_count || 0) +
-    (t.favorites_count || 0) +
-    (t.comments_count || 0) +
-    (t.shares_count || 0) +
-    (t.posts_count || 0);
-
-  // Top 10 por pontuação de popularidade — só faz sentido mostrar na aba de
+  // Top 10 por número de reproduções — só faz sentido mostrar na aba de
   // faixas, sem busca ativa (é uma vitrine fixa, não um resultado filtrado).
   const topTracks = useMemo(() => {
     return [...tracks]
-      .sort((a, b) => trackPopularityScore(b) - trackPopularityScore(a))
+      .sort((a, b) => b.plays_count - a.plays_count)
       .slice(0, 10);
   }, [tracks]);
 
@@ -559,9 +546,7 @@ const MainScreen: React.FC = () => {
   // Bento grid igual ao exemplo: bloco do 1º lugar ocupa 2×2; 2º e 3º
   // lugar ficam empilhados ao lado, cada um 1×1 (a soma das alturas deles
   // fecha exatamente a altura do bloco maior, sem vão); embaixo, uma
-  // fileira própria com 4 blocos pequenos (4º ao 7º lugar). Total: 7 faixas,
-  // ranqueadas por trackPopularityScore (reproduções + curtidas + favoritos
-  // + comentários + compartilhamentos + postagens no feed), não só plays.
+  // fileira própria com 4 blocos pequenos (4º ao 7º lugar). Total: 7 faixas.
   const renderMostPlayedBento = () => {
     const ranked = topTracks.slice(0, 7);
     if (ranked.length === 0) return null;

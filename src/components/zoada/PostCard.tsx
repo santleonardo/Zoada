@@ -6,7 +6,6 @@ import { useAppStore } from '@/store/useAppStore';
 import { deletePost } from '@/lib/api';
 import type { Post } from '@/types';
 import CoverArt from './CoverArt';
-import PostCommentThread from './PostCommentThread';
 
 interface PostCardProps {
   post: Post;
@@ -168,8 +167,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, showAuthor = false, isOwner =
           )}
         </div>
       )}
-
-      <PostCommentThread postId={post.id} initialCount={post.comments_count} />
 
       <p className="text-[11px] text-black/30 mt-1.5 px-0.5">
         {new Date(post.created_at).toLocaleDateString('pt-BR')}

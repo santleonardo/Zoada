@@ -24,7 +24,6 @@ function formatPost(p: {
     createdAt: Date;
     artista: { id: string; nome: string; avatarUrl: string | null };
   } | null;
-  _count?: { comentarios: number };
 }) {
   return {
     id: p.id,
@@ -51,7 +50,6 @@ function formatPost(p: {
           created_at: p.faixa.createdAt.toISOString(),
         }
       : null,
-    comments_count: p._count?.comentarios ?? 0,
   };
 }
 
@@ -62,7 +60,6 @@ const postInclude = {
     },
   },
   usuario: { select: { id: true, name: true, avatarUrl: true } },
-  _count: { select: { comentarios: true } },
 } as const;
 
 // GET /api/posts?user_id=xxx  -> postagens de UM usuário (feed do perfil dele).

@@ -78,6 +78,7 @@ export async function GET(request: Request) {
         receiver_id: m.destinatarioId,
         content: m.conteudo,
         read: m.lida,
+        reacted: m.coracao,
         created_at: m.createdAt.toISOString(),
         sender: {
           id: m.remetente.id,
@@ -177,6 +178,45 @@ export async function GET(request: Request) {
   }
 }
 
+// PATCH /api/messages — Alterna (liga/desliga) a reação de coração numa
+// mensagem. Qualquer um dos dois participantes da conversa pode reagir.
+export async function PATCH(request: Request) {
+  try {
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    const { message_id } = await request.json();
+    if (!message_id) {
+      return NextResponse.json({ error: 'message_id é obrigatório' }, { status: 400 });
+    }
+
+    if (!isNeonConfigured) {
+      return NextResponse.json({ message: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const existente = await db.mensagem.findUnique({ where: { id: message_id } });
+    if (!existente) {
+      return NextResponse.json({ error: 'Mensagem não encontrada' }, { status: 404 });
+    }
+    // Só quem participa da conversa (remetente ou destinatário) pode reagir.
+    if (existente.remetenteId !== userId && existente.destinatarioId !== userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
+    const atualizada = await db.mensagem.update({
+      where: { id: message_id },
+      data: { coracao: !existente.coracao },
+    });
+
+    return NextResponse.json({ id: atualizada.id, reacted: atualizada.coracao });
+  } catch (error) {
+    console.error('[MESSAGES PATCH]', error);
+    return NextResponse.json({ error: 'Erro ao reagir à mensagem' }, { status: 500 });
+  }
+}
+
 // POST /api/messages — Send a message (authenticated)
 export async function POST(request: Request) {
   try {
@@ -237,6 +277,7 @@ export async function POST(request: Request) {
       receiver_id: mensagem.destinatarioId,
       content: mensagem.conteudo,
       read: mensagem.lida,
+      reacted: mensagem.coracao,
       created_at: mensagem.createdAt.toISOString(),
       sender: {
         id: mensagem.remetente.id,

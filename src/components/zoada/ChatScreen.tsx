@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Send, ArrowLeft, MessageCircle, X, Plus, Music, Play, Pause } from 'lucide-react';
+import { Search, Send, ArrowLeft, MessageCircle, X, Plus, Music, Play, Pause, Heart } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchConversations, fetchMessages, sendMessageApi, searchUsers, fetchPresence, fetchAllTracks } from '@/lib/api';
+import { fetchConversations, fetchMessages, sendMessageApi, searchUsers, fetchPresence, fetchAllTracks, toggleMessageReaction } from '@/lib/api';
 import { isOnline, formatLastSeen, HEARTBEAT_INTERVAL_MS } from '@/lib/presence';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -210,6 +210,23 @@ const ChatConversation: React.FC = () => {
     setMessages((prev) => [...prev, sent]);
   };
 
+  // Reage (ou remove a reação) com um coração numa mensagem — dá dois
+  // toques/duplo clique na bolha. Só existe essa reação (nada de menu de
+  // emojis), então é só um toggle simples. Atualiza a tela na hora
+  // (otimista) e desfaz se a chamada ao servidor falhar.
+  const handleToggleReaction = async (messageId: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, reacted: !m.reacted } : m))
+    );
+    const result = await toggleMessageReaction(messageId);
+    if (result === null) {
+      // Falhou de verdade — desfaz o toggle otimista.
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, reacted: !m.reacted } : m))
+      );
+    }
+  };
+
   // Envia uma faixa como "link de música" clicável na conversa — o
   // destinatário poderá tocá-la sem sair do chat.
   const handleShareTrack = async (track: Track) => {
@@ -282,7 +299,17 @@ const ChatConversation: React.FC = () => {
                   className={cn('flex', isMe ? 'justify-end' : 'justify-start')}
                 >
                   <div className="max-w-[80%]">
-                    <TrackMessageCard track={msg.track} isMe={isMe} />
+                    <div
+                      className="relative"
+                      onDoubleClick={() => handleToggleReaction(msg.id)}
+                    >
+                      <TrackMessageCard track={msg.track} isMe={isMe} />
+                      <MessageReactionBadge
+                        reacted={!!msg.reacted}
+                        isMe={isMe}
+                        onClick={() => handleToggleReaction(msg.id)}
+                      />
+                    </div>
                     <p
                       className={cn(
                         'text-[10px] mt-1 px-1',
@@ -301,23 +328,31 @@ const ChatConversation: React.FC = () => {
                 key={msg.id}
                 className={cn('flex', isMe ? 'justify-end' : 'justify-start')}
               >
-                <div
-                  className={cn(
-                    'max-w-[80%] rounded-2xl px-4 py-2.5',
-                    isMe
-                      ? 'gradient-bg text-white rounded-br-md'
-                      : 'bg-white text-[#1A1B25] shadow-sm rounded-bl-md'
-                  )}
-                >
-                  <p className="text-sm">{msg.content}</p>
-                  <p
+                <div className="relative max-w-[80%]">
+                  <div
+                    onDoubleClick={() => handleToggleReaction(msg.id)}
                     className={cn(
-                      'text-[10px] mt-1',
-                      isMe ? 'text-white/60' : 'text-black/30'
+                      'rounded-2xl px-4 py-2.5 select-none',
+                      isMe
+                        ? 'gradient-bg text-white rounded-br-md'
+                        : 'bg-white text-[#1A1B25] shadow-sm rounded-bl-md'
                     )}
                   >
-                    {formatMessageTime(msg.created_at)}
-                  </p>
+                    <p className="text-sm">{msg.content}</p>
+                    <p
+                      className={cn(
+                        'text-[10px] mt-1',
+                        isMe ? 'text-white/60' : 'text-black/30'
+                      )}
+                    >
+                      {formatMessageTime(msg.created_at)}
+                    </p>
+                  </div>
+                  <MessageReactionBadge
+                    reacted={!!msg.reacted}
+                    isMe={isMe}
+                    onClick={() => handleToggleReaction(msg.id)}
+                  />
                 </div>
               </div>
             );
@@ -366,6 +401,39 @@ const ChatConversation: React.FC = () => {
         />
       )}
     </div>
+  );
+};
+
+// Selinho de reação (coração) que aparece grudado no canto da bolha de
+// mensagem quando ela foi reagida. Única reação disponível no chat — por
+// isso não é um seletor de emojis, só um coração ligado/desligado. A cor
+// usa o mesmo degradê da logo do Zôada (laranja → rosa → roxo).
+const MessageReactionBadge: React.FC<{
+  reacted: boolean;
+  isMe: boolean;
+  onClick?: () => void;
+}> = ({ reacted, isMe, onClick }) => {
+  if (!reacted) return null;
+  return (
+    <button
+      onClick={onClick}
+      aria-label="Remover reação de coração"
+      className={cn(
+        'absolute -bottom-2 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center animate-in zoom-in-50 duration-150',
+        isMe ? '-left-2' : '-right-2'
+      )}
+    >
+      <svg width="0" height="0" className="absolute">
+        <defs>
+          <linearGradient id="zoadaHeartGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FF8C42" />
+            <stop offset="50%" stopColor="#E84393" />
+            <stop offset="100%" stopColor="#6C5CE7" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <Heart size={13} fill="url(#zoadaHeartGradient)" stroke="none" />
+    </button>
   );
 };
 
