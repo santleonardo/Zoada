@@ -334,24 +334,6 @@ export async function sendMessageApi(receiverId: string, content: string, trackI
   }
 }
 
-// Liga/desliga a reação de coração numa mensagem (única reação
-// disponível no chat — sem menu de emojis). Retorna o novo estado, ou
-// null se a chamada falhar (o chamador reverte o estado otimista nesse caso).
-export async function toggleMessageReaction(messageId: string): Promise<boolean | null> {
-  try {
-    const res = await apiFetch('/api/messages', {
-      method: 'PATCH',
-      body: JSON.stringify({ message_id: messageId }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return Boolean(data.reacted);
-  } catch (err) {
-    console.warn('[toggleMessageReaction] falha ao reagir à mensagem:', err);
-    return null;
-  }
-}
-
 // Busca todas as faixas disponíveis no catálogo (usado pelo seletor de
 // "compartilhar música" no chat).
 export async function fetchAllTracks(): Promise<Track[]> {
@@ -692,24 +674,5 @@ export async function deletePost(postId: string): Promise<boolean> {
   } catch (err) {
     console.warn('[deletePost] falha ao apagar postagem:', err);
     return false;
-  }
-}
-
-// Liga/desliga a reação de coração numa postagem do feed (threads da aba
-// Fãs) — única reação disponível, sem cardápio de emojis. Retorna o novo
-// estado e a contagem atualizada, ou null se a chamada falhar (o
-// chamador reverte o estado otimista nesse caso).
-export async function togglePostReaction(postId: string): Promise<{ reacted: boolean; likes_count: number } | null> {
-  try {
-    const res = await apiFetch('/api/posts', {
-      method: 'PATCH',
-      body: JSON.stringify({ post_id: postId }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return { reacted: Boolean(data.reacted), likes_count: Number(data.likes_count) || 0 };
-  } catch (err) {
-    console.warn('[togglePostReaction] falha ao reagir à postagem:', err);
-    return null;
   }
 }

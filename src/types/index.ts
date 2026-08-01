@@ -81,9 +81,6 @@ export interface Post {
   created_at: string;
   track?: Track | null;
   user?: { id: string; name: string; avatar_url: string | null } | null;
-  // Reação de coração (única reação disponível nas postagens/threads).
-  likes_count: number;
-  reacted: boolean;
 }
 
 export interface Follow {
@@ -131,8 +128,6 @@ export interface Message {
   // mensagem é um "link de música" tocável em vez de um texto simples.
   track_id?: string | null;
   track?: Track | null;
-  // Reação de coração (única reação disponível no chat).
-  reacted?: boolean;
 }
 
 export interface Conversation {
