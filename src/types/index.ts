@@ -102,6 +102,20 @@ export interface Post {
   created_at: string;
   track?: Track | null;
   user?: { id: string; name: string; avatar_url: string | null } | null;
+  // Quantidade de comentários na thread dessa postagem (preenchido pelo
+  // GET /api/posts). Pode vir undefined em respostas mais antigas/enxutas.
+  comments_count?: number;
+}
+
+// Comentário na thread de uma postagem do feed (aba "Fãs" e feed do
+// perfil) — diferente de Comment, que é o comentário numa FAIXA.
+export interface PostComment {
+  id: string;
+  user_id: string;
+  post_id: string;
+  content: string;
+  created_at: string;
+  user?: { id: string; name: string; avatar_url: string | null } | null;
 }
 
 export interface Follow {
