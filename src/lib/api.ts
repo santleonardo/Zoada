@@ -16,7 +16,7 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
-import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, Post, PostComment } from '@/types';
+import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, Post } from '@/types';
 
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
@@ -99,21 +99,6 @@ export async function fetchUserLikes(userId: string): Promise<Array<{ id: string
     return Array.isArray(data.likes) ? data.likes : [];
   } catch (err) {
     console.warn('[fetchUserLikes] falha ao buscar curtidas:', err);
-    return [];
-  }
-}
-
-// Busca as faixas favoritadas (estrela) reais do usuário no servidor —
-// diferente de curtidas, e agora persistido no servidor (não só no
-// localStorage do aparelho) pra também contar no ranking "Mais tocadas".
-export async function fetchUserFavorites(userId: string): Promise<Array<{ id: string; user_id: string; track_id: string; created_at: string }>> {
-  try {
-    const res = await apiFetch(`/api/favorites?user_id=${encodeURIComponent(userId)}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data.favorites) ? data.favorites : [];
-  } catch (err) {
-    console.warn('[fetchUserFavorites] falha ao buscar favoritos:', err);
     return [];
   }
 }
@@ -212,23 +197,6 @@ export async function toggleTrackLike(trackId: string): Promise<{
     return await res.json();
   } catch (err) {
     console.warn('[toggleTrackLike] falha ao curtir/descurtir:', err);
-    return null;
-  }
-}
-
-export async function toggleTrackFavorite(trackId: string): Promise<{
-  favorited: boolean;
-  favorite?: { id: string; user_id: string; track_id: string; created_at: string };
-} | null> {
-  try {
-    const res = await apiFetch('/api/favorites', {
-      method: 'POST',
-      body: JSON.stringify({ track_id: trackId }),
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch (err) {
-    console.warn('[toggleTrackFavorite] falha ao favoritar/desfavoritar:', err);
     return null;
   }
 }
@@ -362,6 +330,24 @@ export async function sendMessageApi(receiverId: string, content: string, trackI
     return await res.json();
   } catch (err) {
     console.warn('[sendMessageApi] falha ao enviar mensagem:', err);
+    return null;
+  }
+}
+
+// Liga/desliga a reação de coração numa mensagem (única reação
+// disponível no chat — sem menu de emojis). Retorna o novo estado, ou
+// null se a chamada falhar (o chamador reverte o estado otimista nesse caso).
+export async function toggleMessageReaction(messageId: string): Promise<boolean | null> {
+  try {
+    const res = await apiFetch('/api/messages', {
+      method: 'PATCH',
+      body: JSON.stringify({ message_id: messageId }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return Boolean(data.reacted);
+  } catch (err) {
+    console.warn('[toggleMessageReaction] falha ao reagir à mensagem:', err);
     return null;
   }
 }
@@ -705,46 +691,6 @@ export async function deletePost(postId: string): Promise<boolean> {
     return res.ok;
   } catch (err) {
     console.warn('[deletePost] falha ao apagar postagem:', err);
-    return false;
-  }
-}
-
-// Busca a thread de comentários de uma postagem do feed (pública).
-export async function fetchPostComments(postId: string): Promise<PostComment[]> {
-  try {
-    const res = await apiFetch(`/api/post-comments?post_id=${encodeURIComponent(postId)}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data.comments) ? data.comments : [];
-  } catch (err) {
-    console.warn('[fetchPostComments] falha ao buscar comentários da postagem:', err);
-    return [];
-  }
-}
-
-// Envia um comentário na thread de uma postagem do feed (autenticado).
-export async function postPostComment(postId: string, content: string): Promise<PostComment | null> {
-  try {
-    const res = await apiFetch('/api/post-comments', {
-      method: 'POST',
-      body: JSON.stringify({ post_id: postId, content }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.comment ?? null;
-  } catch (err) {
-    console.warn('[postPostComment] falha ao comentar na postagem:', err);
-    return null;
-  }
-}
-
-// Apaga um comentário próprio da thread de uma postagem.
-export async function deletePostComment(commentId: string): Promise<boolean> {
-  try {
-    const res = await apiFetch(`/api/post-comments?id=${encodeURIComponent(commentId)}`, { method: 'DELETE' });
-    return res.ok;
-  } catch (err) {
-    console.warn('[deletePostComment] falha ao apagar comentário:', err);
     return false;
   }
 }

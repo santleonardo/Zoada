@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioStation } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchUserFavorites, toggleTrackFavorite, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchPublishedRadioStations, fetchRadioStationById, advanceRadioStation } from '@/lib/api';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchPublishedRadioStations, fetchRadioStationById, advanceRadioStation } from '@/lib/api';
 
 // Abas da tela inicial ("Início"). 'fans' é a busca de outros usuários
 // por nome — sem conteúdo próprio na store, é só mais uma aba client-side
@@ -9,7 +9,7 @@ export type MainTab = 'tracks' | 'artists' | 'favorites' | 'fans';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
-function loadFavoritesFromStorage(): string[] {
+function loadFavorites(): string[] {
   if (typeof window === 'undefined') return [];
   try {
     const data = localStorage.getItem(FAVORITES_KEY);
@@ -198,14 +198,9 @@ interface AppState {
   isFollowingArtist: (artistId: string) => boolean;
 
   // Actions - Favorites
-  // Favorita/desfavorita uma faixa: otimista na hora, persistido no
-  // servidor por baixo (pra contar globalmente no ranking "Mais tocadas").
-  toggleFavorite: (trackId: string) => Promise<void>;
+  toggleFavorite: (trackId: string) => void;
   isFavorite: (trackId: string) => boolean;
   initFavorites: () => void;
-  // Busca os favoritos reais do usuário no servidor e substitui o estado
-  // local — mesmo padrão de loadLikes, chamado assim que autenticado.
-  loadFavorites: (userId: string) => Promise<void>;
 
   // Actions - Radio
   startRadio: (tracks: Track[]) => void;
@@ -744,39 +739,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Favorites actions
-  initFavorites: () => set({ favorites: loadFavoritesFromStorage() }),
-
-  // Busca os favoritos reais do usuário no servidor e substitui o estado
-  // local (e o cache local, pra continuar funcionando offline/deslogado).
-  loadFavorites: async (userId) => {
-    const serverFavorites = await fetchUserFavorites(userId);
-    const trackIds = serverFavorites.map((f) => f.track_id);
-    saveFavorites(trackIds);
-    set({ favorites: trackIds });
-  },
-
-  // Favorita/desfavorita: atualização otimista na hora + cache local
-  // (funciona sem login), e persiste no servidor por baixo pra contar
-  // globalmente no ranking "Mais tocadas" da Início. Sem login, a chamada
-  // ao servidor falha silenciosamente e a estrela continua só local.
-  toggleFavorite: async (trackId) => {
-    const before = get().favorites;
-    const exists = before.includes(trackId);
+  initFavorites: () => set({ favorites: loadFavorites() }),
+  toggleFavorite: (trackId) => set((state) => {
+    const exists = state.favorites.includes(trackId);
     const next = exists
-      ? before.filter((id) => id !== trackId)
-      : [...before, trackId];
+      ? state.favorites.filter((id) => id !== trackId)
+      : [...state.favorites, trackId];
     saveFavorites(next);
-    set({ favorites: next });
-
-    if (!get().isAuthenticated) return;
-
-    const result = await toggleTrackFavorite(trackId);
-    if (!result) {
-      // Falhou de verdade (rede caiu, etc.) — desfaz.
-      saveFavorites(before);
-      set({ favorites: before });
-    }
-  },
+    return { favorites: next };
+  }),
   isFavorite: (trackId) => {
     return get().favorites.includes(trackId);
   },
