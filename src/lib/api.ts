@@ -748,3 +748,23 @@ export async function deletePostComment(commentId: string): Promise<boolean> {
     return false;
   }
 }
+
+// Reage (coração) ou remove a reação de um comentário da thread do feed
+// (toggle). Retorna o estado real após a operação, pra manter o front
+// sincronizado com o banco.
+export async function togglePostCommentLike(commentId: string): Promise<{
+  liked: boolean;
+  likes_count: number;
+} | null> {
+  try {
+    const res = await apiFetch('/api/post-comment-likes', {
+      method: 'POST',
+      body: JSON.stringify({ comment_id: commentId }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[togglePostCommentLike] falha ao reagir ao comentário:', err);
+    return null;
+  }
+}

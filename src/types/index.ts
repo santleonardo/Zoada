@@ -116,6 +116,10 @@ export interface PostComment {
   content: string;
   created_at: string;
   user?: { id: string; name: string; avatar_url: string | null } | null;
+  // Reação de coração (curtida) num comentário da thread — quantidade total
+  // e se o usuário logado já reagiu (null quando não autenticado).
+  likes_count?: number;
+  liked_by_me?: boolean | null;
 }
 
 export interface Follow {
