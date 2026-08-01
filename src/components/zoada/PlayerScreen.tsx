@@ -16,10 +16,14 @@ import {
   MessageCircle,
   Send,
   Star,
+  X,
+  Search,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
 import { toast } from 'sonner';
+import { fetchConversations, sendMessageApi, searchUsers } from '@/lib/api';
+import type { Conversation, User, Track } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import { cn, formatNumber } from '@/lib/utils';
@@ -39,6 +43,8 @@ const PlayerScreen: React.FC = () => {
   const [isSendingComment, setIsSendingComment] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showSendToChat, setShowSendToChat] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
 
   const isLiked = currentTrack ? likes.some((l) => l.track_id === currentTrack.id) : false;
@@ -250,7 +256,7 @@ const PlayerScreen: React.FC = () => {
               )}
             </button>
             <button
-              onClick={handleShare}
+              onClick={() => setShowShareSheet(true)}
               className="p-2.5 rounded-full hover:bg-black/5 transition-colors active:scale-90"
               aria-label="Compartilhar"
             >
@@ -432,8 +438,258 @@ const PlayerScreen: React.FC = () => {
 
       {/* Bottom spacing */}
       <div className="h-8" />
+
+      {showShareSheet && (
+        <ShareOptionsSheet
+          onClose={() => setShowShareSheet(false)}
+          onExternalShare={() => {
+            setShowShareSheet(false);
+            handleShare();
+          }}
+          onSendToChat={() => {
+            setShowShareSheet(false);
+            setShowSendToChat(true);
+          }}
+        />
+      )}
+
+      {showSendToChat && currentTrack && (
+        <SendToChatPanel track={currentTrack} onClose={() => setShowSendToChat(false)} />
+      )}
     </div>
   );
 };
 
 export default PlayerScreen;
+
+// Folha de opções de compartilhamento: além do share nativo/copiar link
+// (comportamento antigo), agora também dá pra mandar a faixa direto numa
+// conversa do app, sem precisar sair do player.
+const ShareOptionsSheet: React.FC<{
+  onClose: () => void;
+  onExternalShare: () => void;
+  onSendToChat: () => void;
+}> = ({ onClose, onExternalShare, onSendToChat }) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="w-full max-w-lg bg-[#F7F7FB] rounded-t-3xl safe-bottom"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <h2 className="text-lg font-bold text-[#1A1B25]">Compartilhar</h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-black/5 transition-colors"
+            aria-label="Fechar"
+          >
+            <X size={18} className="text-black/50" />
+          </button>
+        </div>
+
+        <div className="px-5 pb-6 space-y-2">
+          <button
+            onClick={onSendToChat}
+            className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left active:scale-[0.98]"
+          >
+            <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center flex-shrink-0">
+              <MessageCircle size={18} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#1A1B25]">Enviar no chat</p>
+              <p className="text-xs text-black/40">Mandar essa música numa conversa do Zôada</p>
+            </div>
+          </button>
+
+          <button
+            onClick={onExternalShare}
+            className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left active:scale-[0.98]"
+          >
+            <div className="w-10 h-10 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0">
+              <Share2 size={18} className="text-black/50" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#1A1B25]">Compartilhar link</p>
+              <p className="text-xs text-black/40">Fora do app (WhatsApp, redes sociais, etc.)</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Painel de escolha de contato pra mandar a faixa atual como uma
+// mensagem dentro do próprio app — mesma mecânica de "compartilhar
+// música" que já existe dentro de uma conversa (ver ChatScreen), só que
+// disparada a partir do player, então quem escolhe é a pessoa, não a
+// música. Sem busca ativa, mostra as conversas existentes; com busca,
+// procura qualquer usuário do app pra começar uma conversa nova já
+// mandando a faixa.
+const SendToChatPanel: React.FC<{ track: Track; onClose: () => void }> = ({ track, onClose }) => {
+  const { selectConversation, navigate } = useAppStore();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [query, setQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [sendingToId, setSendingToId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchConversations().then((convs) => {
+      if (!cancelled) {
+        setConversations(convs);
+        setLoadingConversations(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const term = query.trim();
+    if (!term) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const timeout = setTimeout(() => {
+      searchUsers(term).then((users) => {
+        setSearchResults(users);
+        setSearching(false);
+      });
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [query]);
+
+  const handleSend = async (recipientId: string, recipientName: string) => {
+    if (sendingToId) return;
+    setSendingToId(recipientId);
+    const sent = await sendMessageApi(recipientId, '', track.id);
+    setSendingToId(null);
+
+    if (!sent) {
+      toast.error('Não foi possível enviar a música. Tente novamente.');
+      return;
+    }
+
+    toast.success(`Música enviada para ${recipientName}`);
+    selectConversation(recipientId, recipientName);
+    navigate('chat');
+    onClose();
+  };
+
+  const showingSearch = query.trim().length > 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="w-full max-w-lg bg-[#F7F7FB] rounded-t-3xl max-h-[75vh] flex flex-col safe-bottom"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <h2 className="text-lg font-bold text-[#1A1B25]">Enviar no chat</h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-black/5 transition-colors"
+            aria-label="Fechar"
+          >
+            <X size={18} className="text-black/50" />
+          </button>
+        </div>
+
+        {/* Faixa que está sendo compartilhada */}
+        <div className="px-5 pb-3">
+          <div className="flex items-center gap-3 bg-white rounded-2xl p-2.5 shadow-sm">
+            <CoverArt title={track.title} artistName={track.artist_name} coverUrl={track.cover_url} size="sm" className="w-11 h-11 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#1A1B25] truncate">{track.title}</p>
+              <p className="text-xs text-black/40 truncate">{track.artist_name}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 pb-3">
+          <div className="relative">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/30" />
+            <input
+              type="text"
+              autoFocus
+              placeholder="Buscar por nome ou e-mail..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="!pl-10 !py-2.5 !text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 pb-6 space-y-2">
+          {showingSearch ? (
+            searching ? (
+              <p className="text-center text-sm text-black/30 mt-4">Buscando...</p>
+            ) : searchResults.length === 0 ? (
+              <p className="text-center text-sm text-black/30 mt-4">Nenhum usuário encontrado.</p>
+            ) : (
+              searchResults.map((u) => (
+                <ChatContactRow
+                  key={u.id}
+                  name={u.name || u.email}
+                  subtitle={u.email}
+                  sending={sendingToId === u.id}
+                  onSelect={() => handleSend(u.id, u.name || u.email)}
+                />
+              ))
+            )
+          ) : loadingConversations ? (
+            <p className="text-center text-sm text-black/30 mt-4">Carregando conversas...</p>
+          ) : conversations.length === 0 ? (
+            <p className="text-center text-sm text-black/30 mt-4">
+              Você ainda não tem conversas. Busque alguém acima pra enviar.
+            </p>
+          ) : (
+            conversations.map((conv) => (
+              <ChatContactRow
+                key={conv.id}
+                name={conv.other_user.name}
+                subtitle="Continuar conversa"
+                sending={sendingToId === conv.id}
+                onSelect={() => handleSend(conv.id, conv.other_user.name)}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Linha de contato reutilizada tanto pra conversas existentes quanto pra
+// resultados de busca — clicar já dispara o envio da faixa.
+const ChatContactRow: React.FC<{
+  name: string;
+  subtitle: string;
+  sending: boolean;
+  onSelect: () => void;
+}> = ({ name, subtitle, sending, onSelect }) => (
+  <button
+    onClick={onSelect}
+    disabled={sending}
+    className="w-full flex items-center gap-3 p-2.5 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left active:scale-[0.98] disabled:opacity-60"
+  >
+    <div className="w-10 h-10 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0">
+      <span className="text-sm font-bold text-black/60">{name.charAt(0).toUpperCase()}</span>
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="text-sm font-semibold text-[#1A1B25] truncate">{name}</p>
+      <p className="text-xs text-black/40 truncate">{subtitle}</p>
+    </div>
+    <div className="flex-shrink-0 p-2 rounded-full gradient-bg">
+      {sending ? (
+        <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+      ) : (
+        <Send size={14} className="text-white" />
+      )}
+    </div>
+  </button>
+);
