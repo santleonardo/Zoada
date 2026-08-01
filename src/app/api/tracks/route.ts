@@ -36,6 +36,20 @@ export async function GET(request: Request) {
       where,
       include: {
         artista: { select: { id: true, nome: true, avatarUrl: true } },
+        // Contagens usadas no ranking "Mais tocadas" da Início, além de
+        // plays_count: curtidas, favoritos, comentários, faixas enviadas em
+        // conversas (compartilhamentos) e postagens no feed que citam essa
+        // faixa. `_count` faz um COUNT agregado no banco, sem trazer os
+        // registros inteiros.
+        _count: {
+          select: {
+            curtidas: true,
+            favoritos: true,
+            comentarios: true,
+            mensagens: true,
+            postagens: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -52,6 +66,11 @@ export async function GET(request: Request) {
       duration: f.duracao,
       plays_count: f.playsCount,
       created_at: f.createdAt.toISOString(),
+      likes_count: f._count.curtidas,
+      favorites_count: f._count.favoritos,
+      comments_count: f._count.comentarios,
+      shares_count: f._count.mensagens,
+      posts_count: f._count.postagens,
     }));
 
     return NextResponse.json({ tracks });
