@@ -31,6 +31,7 @@ model Usuario {
   comentarios  Comentario[]
   comentariosPostagem ComentarioPostagem[]
   curtidasComentarioPostagem CurtidaComentarioPostagem[]
+  curtidasPostagem CurtidaPostagem[]
   comentariosRadio ComentarioRadio[]
   enviado      Mensagem[] @relation("Enviadas")
   recebido     Mensagem[] @relation("Recebidas")
@@ -216,10 +217,29 @@ model Postagem {
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   faixa   Faixa?  @relation(fields: [faixaId], references: [id], onDelete: SetNull)
   comentarios ComentarioPostagem[]
+  curtidas    CurtidaPostagem[]
 
   @@index([usuarioId])
   @@index([createdAt])
   @@map("postagens")
+}
+
+// ---------- Reações (coração) na postagem em si (o OP que inicia a thread) ----------
+// Diferente de CurtidaComentarioPostagem (reação num comentário da thread),
+// esta é a reação na postagem original. Mesmo esquema de toggle: um usuário
+// só pode reagir uma vez por postagem.
+model CurtidaPostagem {
+  id         String   @id @default(cuid())
+  usuarioId  String   @map("usuario_id")
+  postagemId String   @map("postagem_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  postagem Postagem @relation(fields: [postagemId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, postagemId])
+  @@index([postagemId])
+  @@map("curtidas_postagem")
 }
 
 // ---------- Comentários de postagem (thread no feed) ----------
