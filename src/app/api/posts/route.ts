@@ -24,8 +24,9 @@ function formatPost(p: {
     createdAt: Date;
     artista: { id: string; nome: string; avatarUrl: string | null };
   } | null;
-  _count?: { comentarios: number };
-}) {
+  _count?: { comentarios: number; curtidas: number };
+  curtidas?: { id: string }[];
+}, viewerId?: string | null) {
   return {
     id: p.id,
     user_id: p.usuarioId,
@@ -52,18 +53,26 @@ function formatPost(p: {
         }
       : null,
     comments_count: p._count?.comentarios ?? 0,
+    likes_count: p._count?.curtidas ?? 0,
+    liked_by_me: viewerId ? (p.curtidas?.length ?? 0) > 0 : null,
   };
 }
 
-const postInclude = {
-  faixa: {
-    include: {
-      artista: { select: { id: true, nome: true, avatarUrl: true } },
+function buildPostInclude(viewerId: string | null) {
+  // Filtro sempre com o mesmo formato (mesmo sem usuário logado, usa um id
+  // impossível), pra manter o tipo do include estável.
+  const meWhere = { usuarioId: viewerId || '__sem_usuario__' };
+  return {
+    faixa: {
+      include: {
+        artista: { select: { id: true, nome: true, avatarUrl: true } },
+      },
     },
-  },
-  usuario: { select: { id: true, name: true, avatarUrl: true } },
-  _count: { select: { comentarios: true } },
-} as const;
+    usuario: { select: { id: true, name: true, avatarUrl: true } },
+    _count: { select: { comentarios: true, curtidas: true } },
+    curtidas: { where: meWhere, select: { id: true } },
+  } as const;
+}
 
 // GET /api/posts?user_id=xxx  -> postagens de UM usuário (feed do perfil dele).
 // GET /api/posts              -> feed geral (postagens mais recentes de TODOS
@@ -80,14 +89,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ posts: [] });
     }
 
+    // Autenticação opcional: só usada pra marcar quais postagens o usuário
+    // logado já reagiu com coração. Sem token, segue como visitante.
+    const viewerId = await authenticateRequest(request);
+
     const postagens = await db.postagem.findMany({
       where: userId ? { usuarioId: userId } : undefined,
       orderBy: { createdAt: 'desc' },
       take: userId ? undefined : limit,
-      include: postInclude,
+      include: buildPostInclude(viewerId),
     });
 
-    return NextResponse.json({ posts: postagens.map(formatPost) });
+    return NextResponse.json({ posts: postagens.map((p) => formatPost(p, viewerId)) });
   } catch (error) {
     console.error('[POSTS GET]', error);
     return NextResponse.json({ error: 'Erro ao buscar postagens' }, { status: 500 });
@@ -131,10 +144,10 @@ export async function POST(request: Request) {
         faixaId: track_id || null,
         legenda: trimmedContent || null,
       },
-      include: postInclude,
+      include: buildPostInclude(userId),
     });
 
-    return NextResponse.json({ post: formatPost(postagem) }, { status: 201 });
+    return NextResponse.json({ post: formatPost(postagem, userId) }, { status: 201 });
   } catch (error) {
     console.error('[POSTS POST]', error);
     return NextResponse.json({ error: 'Erro ao postar' }, { status: 500 });
