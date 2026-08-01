@@ -619,7 +619,7 @@ export async function deleteRadioStation(): Promise<boolean> {
 
 // ---------- Feed (postar músicas no perfil) ----------
 
-// Busca as postagens (músicas compartilhadas no feed) de um usuário,
+// Busca as postagens (músicas e/ou textos compartilhados) de um usuário,
 // mais recente primeiro. Público — não exige login pra ver o feed de
 // alguém, igual ao resto do perfil.
 export async function fetchUserPosts(userId: string): Promise<Post[]> {
@@ -634,18 +634,34 @@ export async function fetchUserPosts(userId: string): Promise<Post[]> {
   }
 }
 
-// Posta uma faixa no feed do usuário logado, com legenda opcional.
-export async function createPost(trackId: string, caption?: string): Promise<Post | null> {
+// Busca o feed geral: postagens mais recentes de TODOS os usuários,
+// usado na aba "Fãs" pra descobrir o que outras pessoas estão postando.
+export async function fetchGlobalFeed(limit = 30): Promise<Post[]> {
+  try {
+    const res = await apiFetch(`/api/posts?limit=${limit}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.posts) ? data.posts : [];
+  } catch (err) {
+    console.warn('[fetchGlobalFeed] falha ao buscar feed geral:', err);
+    return [];
+  }
+}
+
+// Cria uma postagem no feed do usuário logado. Precisa de pelo menos um
+// dos dois: trackId (compartilhar uma música) ou content (post livre, só
+// texto) — os dois juntos também são válidos (música + legenda).
+export async function createPost(trackId?: string | null, content?: string): Promise<Post | null> {
   try {
     const res = await apiFetch('/api/posts', {
       method: 'POST',
-      body: JSON.stringify({ track_id: trackId, caption: caption || '' }),
+      body: JSON.stringify({ track_id: trackId || null, content: content || '' }),
     });
     if (!res.ok) return null;
     const data = await res.json();
     return data.post ?? null;
   } catch (err) {
-    console.warn('[createPost] falha ao postar no feed:', err);
+    console.warn('[createPost] falha ao postar:', err);
     return null;
   }
 }
