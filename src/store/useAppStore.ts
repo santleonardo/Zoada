@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioTab, RadioStation } from '@/types';
+import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioStation } from '@/types';
 import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchPublishedRadioStations, fetchRadioStationById, advanceRadioStation } from '@/lib/api';
 
 // Abas da tela inicial ("Início"). 'fans' é a busca de outros usuários
@@ -129,7 +129,6 @@ interface AppState {
 
   // Radio
   radioEnabled: boolean;
-  radioTab: RadioTab;
   // Lista de estações publicadas disponíveis no seletor.
   publishedStations: RadioStation[];
   // ID da estação selecionada pelo ouvinte (null = estação padrão Zôada).
@@ -206,7 +205,6 @@ interface AppState {
   // Actions - Radio
   startRadio: (tracks: Track[]) => void;
   stopRadio: () => void;
-  setRadioTab: (tab: RadioTab) => void;
   // Busca estações publicadas do servidor.
   loadPublishedStations: () => Promise<void>;
   // Seleciona uma estação pelo ID (null = volta pra estação padrão Zôada).
@@ -239,7 +237,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   favorites: [],
 
   radioEnabled: false,
-  radioTab: 'faixas',
   publishedStations: [],
   selectedStationId: null,
   selectedStation: null,
@@ -790,8 +787,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       },
     });
   },
-
-  setRadioTab: (tab) => set({ radioTab: tab }),
 
   // Busca todas as estações publicadas do servidor e guarda na lista.
   loadPublishedStations: async () => {

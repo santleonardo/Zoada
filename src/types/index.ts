@@ -138,9 +138,7 @@ export interface Conversation {
   unread_count: number;
 }
 
-export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-profile' | 'chat' | 'chat-conversation' | 'radio';
-
-export type RadioTab = 'faixas' | 'explorar' | 'artistas';
+export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-profile' | 'chat' | 'chat-conversation' | 'radio' | 'explore';
 
 // Estação de rádio de um usuário. Cada usuário pode ter uma estação própria
 // com nome, capa opcional e uma lista ordenada de faixas. Quando publicada,
