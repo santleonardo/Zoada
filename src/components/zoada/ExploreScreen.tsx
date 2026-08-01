@@ -125,7 +125,7 @@ const ExploreScreen: React.FC = () => {
     selectArtist(artistId);
   };
 
-  const renderTrackRow = (track: Track, index: number) => {
+  const renderTrackRow = (track: Track) => {
     const isCurrentTrack = player.currentTrack?.id === track.id;
     const isTrackFav = favorites.includes(track.id);
     const coverColors = COVER_COLORS[(track.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % COVER_COLORS.length];
@@ -147,13 +147,11 @@ const ExploreScreen: React.FC = () => {
           {isCurrentTrack && player.isPlaying ? (
             <Equalizer barCount={3} height={20} barWidth={3} gap={1.5} />
           ) : (
-            <span className={cn('text-sm font-bold', isCurrentTrack ? 'text-[#FF8C42]' : 'text-black/30')}>
-              {isCurrentTrack ? (
-                <Play size={16} className="text-[#FF8C42] ml-0.5" fill="#FF8C42" />
-              ) : (
-                index + 1
-              )}
-            </span>
+            <Play
+              size={16}
+              className={isCurrentTrack ? 'text-[#FF8C42] ml-0.5' : 'text-black/25 ml-0.5'}
+              fill={isCurrentTrack ? '#FF8C42' : 'currentColor'}
+            />
           )}
         </div>
 
@@ -263,7 +261,7 @@ const ExploreScreen: React.FC = () => {
               <p className="text-black/40 text-sm font-medium">Nenhuma faixa encontrada</p>
             </div>
           )}
-          {filteredTracks.map((track, i) => renderTrackRow(track, i))}
+          {filteredTracks.map((track) => renderTrackRow(track))}
         </div>
       )}
 
