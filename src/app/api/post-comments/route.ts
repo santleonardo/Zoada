@@ -19,10 +19,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ comments: [] });
     }
 
+    // Autenticação opcional: só usada pra marcar quais comentários o
+    // usuário logado já reagiu com coração. Sem token, segue como visitante.
+    const userId = await authenticateRequest(request);
+
+    // Filtro sempre com o mesmo formato (mesmo sem usuário logado, usa um
+    // id impossível) pra manter o tipo do include estável.
+    const meWhere = { usuarioId: userId || '__sem_usuario__' };
+
     const comentarios = await db.comentarioPostagem.findMany({
       where: { postagemId: postId },
       include: {
         usuario: { select: { id: true, name: true, avatarUrl: true } },
+        _count: { select: { curtidas: true } },
+        curtidas: { where: meWhere, select: { id: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -38,6 +48,8 @@ export async function GET(request: Request) {
         name: c.usuario.name,
         avatar_url: c.usuario.avatarUrl,
       },
+      likes_count: c._count.curtidas,
+      liked_by_me: userId ? c.curtidas.length > 0 : null,
     }));
 
     return NextResponse.json({ comments });
@@ -94,6 +106,8 @@ export async function POST(request: Request) {
         name: comentario.usuario.name,
         avatar_url: comentario.usuario.avatarUrl,
       },
+      likes_count: 0,
+      liked_by_me: false,
     };
 
     return NextResponse.json({ comment }, { status: 201 });

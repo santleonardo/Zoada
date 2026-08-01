@@ -4,9 +4,44 @@ import React, { useEffect, useState } from 'react';
 import { MessageCircle, Send, Loader2, Trash2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchPostComments, postPostComment, deletePostComment } from '@/lib/api';
+import { fetchPostComments, postPostComment, deletePostComment, togglePostCommentLike } from '@/lib/api';
 import type { PostComment } from '@/types';
 import { cn } from '@/lib/utils';
+
+/**
+ * Coraçãozinho de reação, nas cores da logo (laranja → rosa → roxo). Quando
+ * ainda não reagiu, fica só o contorno; ao reagir, preenche com o degradê
+ * via <linearGradient> (não dá pra usar classe Tailwind num fill de SVG).
+ */
+const ReactionHeart: React.FC<{ id: string; active: boolean; size?: number }> = ({ id, active, size = 14 }) => {
+  const gradientId = `zoada-heart-grad-${id}`;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="flex-shrink-0"
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FF8C42" />
+          <stop offset="50%" stopColor="#E84393" />
+          <stop offset="100%" stopColor="#6C5CE7" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"
+        fill={active ? `url(#${gradientId})` : 'none'}
+        stroke={active ? `url(#${gradientId})` : 'currentColor'}
+        strokeWidth={active ? 0 : 2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
 
 interface PostCommentThreadProps {
   postId: string;
@@ -34,6 +69,8 @@ const PostCommentThread: React.FC<PostCommentThreadProps> = ({ postId, initialCo
   // ID do comentário com o "apagar?" aberto (só um por vez) + ID em processo de apagar.
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // IDs de comentários com uma reação em voo, pra evitar clique duplo.
+  const [reactingIds, setReactingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isOpen || loaded) return;
@@ -72,6 +109,53 @@ const PostCommentThread: React.FC<PostCommentThreadProps> = ({ postId, initialCo
 
     setComments((prev) => [...prev, result]);
     setCount((prev) => prev + 1);
+  };
+
+  const handleReact = async (commentId: string) => {
+    if (!user) {
+      toast.error('Entre na sua conta para reagir');
+      return;
+    }
+    if (reactingIds.has(commentId)) return;
+
+    // Atualização otimista: já vira o coração e ajusta o contador na hora,
+    // sem esperar a resposta do servidor.
+    const previous = comments.find((c) => c.id === commentId);
+    const wasLiked = !!previous?.liked_by_me;
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId
+          ? {
+              ...c,
+              liked_by_me: !wasLiked,
+              likes_count: Math.max(0, (c.likes_count || 0) + (wasLiked ? -1 : 1)),
+            }
+          : c
+      )
+    );
+    setReactingIds((prev) => new Set(prev).add(commentId));
+
+    const result = await togglePostCommentLike(commentId);
+
+    setReactingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(commentId);
+      return next;
+    });
+
+    if (!result) {
+      // Falhou: desfaz a atualização otimista.
+      setComments((prev) =>
+        prev.map((c) => (c.id === commentId ? { ...c, liked_by_me: wasLiked, likes_count: previous?.likes_count || 0 } : c))
+      );
+      toast.error('Não foi possível reagir. Tente novamente.');
+      return;
+    }
+
+    // Sincroniza com o valor real do servidor (fonte da verdade).
+    setComments((prev) =>
+      prev.map((c) => (c.id === commentId ? { ...c, liked_by_me: result.liked, likes_count: result.likes_count } : c))
+    );
   };
 
   const handleDeleteComment = async (commentId: string) => {
@@ -166,6 +250,21 @@ const PostCommentThread: React.FC<PostCommentThreadProps> = ({ postId, initialCo
                     <p className="text-xs text-black/60 mt-0.5 whitespace-pre-wrap break-words">
                       {comment.content}
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => handleReact(comment.id)}
+                      className={cn(
+                        'flex items-center gap-1 mt-1 -ml-0.5 px-1 py-0.5 rounded-full transition-transform active:scale-90',
+                        comment.liked_by_me ? 'text-[#E84393]' : 'text-black/30 hover:text-[#E84393]'
+                      )}
+                      aria-label={comment.liked_by_me ? 'Remover reação' : 'Reagir com coração'}
+                      aria-pressed={!!comment.liked_by_me}
+                    >
+                      <ReactionHeart id={comment.id} active={!!comment.liked_by_me} />
+                      {(comment.likes_count || 0) > 0 && (
+                        <span className="text-[10px] font-medium">{comment.likes_count}</span>
+                      )}
+                    </button>
                   </div>
 
                   {isMe && (
