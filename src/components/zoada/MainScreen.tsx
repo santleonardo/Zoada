@@ -653,7 +653,7 @@ const MainScreen: React.FC = () => {
                 : 'bg-black/5 text-black/40 hover:bg-black/10 hover:text-black/60'
             )}
           >
-            {tab === 'fans' ? '💜 Fãs' : tab === 'tracks' ? '🎵 Faixas' : tab === 'favorites' ? '⭐ Favoritos' : '🎤 Artistas'}
+            {tab === 'fans' ? '💜 Fãs' : tab === 'tracks' ? '🎵 Músicas' : tab === 'favorites' ? '⭐ Favoritos' : '🎤 Artistas'}
           </button>
         ))}
       </div>
@@ -762,7 +762,7 @@ const MainScreen: React.FC = () => {
         </div>
       )}
 
-      {/* Estações mais tocadas: ranking top 7, mesma moldura (cartão branco)
+      {/* Estações mais ouvidas: ranking top 7, mesma moldura (cartão branco)
           das vitrines acima (1ª colocada em hero + 2ª a 7ª num grid de
           cartões-foto). Clicar já sintoniza a estação e leva pra Rádio. */}
       {activeTab === 'tracks' && !search && topStations.length > 0 && (
@@ -774,7 +774,7 @@ const MainScreen: React.FC = () => {
             >
               <RadioIcon size={11} className="text-white" />
             </div>
-            <h2 className="text-xs font-bold text-[#1A1B25] uppercase tracking-wide">Estações mais tocadas</h2>
+            <h2 className="text-xs font-bold text-[#1A1B25] uppercase tracking-wide">Estações mais ouvidas</h2>
           </div>
 
           {renderTopStationHero(topStations[0])}
