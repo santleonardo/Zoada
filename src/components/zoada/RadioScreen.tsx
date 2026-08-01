@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, Play, Pause, Radio, Star, Music2, TrendingUp, Heart, MessageCircle, Send, ChevronLeft, ChevronRight, RadioTower } from 'lucide-react';
+import { Search, Play, Pause, Radio, Star, Music2, TrendingUp, MessageCircle, Send, ChevronLeft, ChevronRight, RadioTower, Users } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from 'sonner';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
-import { apiFetch, fetchMyRadioStation } from '@/lib/api';
-import type { Track, Artist, RadioTab, RadioStation } from '@/types';
+import { searchUsers } from '@/lib/api';
+import type { Track, Artist, RadioTab, UserSearchResult } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import { cn, formatNumber } from '@/lib/utils';
@@ -51,14 +51,20 @@ const RadioScreen: React.FC = () => {
   const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
   const [artists, setArtists] = useState<Artist[]>(DEMO_ARTISTS);
-  const [myTracks, setMyTracks] = useState<Track[]>([]);
-  const [myStation, setMyStation] = useState<RadioStation | null>(null);
   const [newComment, setNewComment] = useState('');
   const [isSendingComment, setIsSendingComment] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const hasAutoStarted = useRef(false);
   const [switchingStation, setSwitchingStation] = useState(false);
+
+  // Sub-seção ativa dentro da aba Explorar: músicas, estações, artistas
+  // ou usuários — Explorar é o hub geral de navegação pelo app, então
+  // fica dividido nessas 4 categorias.
+  type ExploreSection = 'musicas' | 'estacoes' | 'artistas' | 'usuarios';
+  const [exploreSection, setExploreSection] = useState<ExploreSection>('musicas');
+  const [userResults, setUserResults] = useState<UserSearchResult[]>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
 
   // Busca o chat geral da rádio uma vez, ao entrar na tela.
   useEffect(() => {
@@ -93,25 +99,24 @@ const RadioScreen: React.FC = () => {
     loadPublishedStations();
   }, [loadPublishedStations]);
 
-  // Busca as faixas e a estação do PRÓPRIO usuário logado, pra mostrar na
-  // aba Explorar ("Suas faixas" / "Sua rádio"). Sem login, essas listas
-  // ficam vazias e as seções simplesmente não aparecem.
+  // Busca usuários por nome quando a sub-seção "Usuários" da aba Explorar
+  // está ativa — com um pequeno debounce pra não disparar uma chamada a
+  // cada tecla digitada.
   useEffect(() => {
-    if (!user) {
-      setMyTracks([]);
-      setMyStation(null);
+    if (radioTab !== 'explorar' || exploreSection !== 'usuarios') return;
+    if (!search.trim()) {
+      setUserResults([]);
+      setIsSearchingUsers(false);
       return;
     }
-
-    apiFetch('/api/tracks?mine=1')
-      .then((res) => (res.ok ? res.json() : { tracks: [] }))
-      .then((data) => setMyTracks(Array.isArray(data.tracks) ? data.tracks : []))
-      .catch(() => setMyTracks([]));
-
-    fetchMyRadioStation()
-      .then((station) => setMyStation(station))
-      .catch(() => setMyStation(null));
-  }, [user]);
+    setIsSearchingUsers(true);
+    const timeout = setTimeout(() => {
+      searchUsers(search)
+        .then(setUserResults)
+        .finally(() => setIsSearchingUsers(false));
+    }, 350);
+    return () => clearTimeout(timeout);
+  }, [radioTab, exploreSection, search]);
 
   // Dial: lista de estações disponíveis (padrão + publicadas)
   const dialStations = useMemo((): Array<{ id: string; name: string; subtitle?: string; cover_url?: string | null }> => {
@@ -239,10 +244,6 @@ const RadioScreen: React.FC = () => {
     }
   }, [currentTrack?.id, selectedStationId, advanceStationTrack]);
 
-  const favoriteTracks = useMemo(() => {
-    return tracks.filter((t) => favorites.includes(t.id));
-  }, [tracks, favorites]);
-
   const filteredTracks = useMemo(() => {
     if (!search) return tracks;
     const q = search.toLowerCase();
@@ -256,6 +257,14 @@ const RadioScreen: React.FC = () => {
     const q = search.toLowerCase();
     return artists.filter((a) => a.name.toLowerCase().includes(q));
   }, [search, artists]);
+
+  const filteredStations = useMemo(() => {
+    if (!search) return publishedStations;
+    const q = search.toLowerCase();
+    return publishedStations.filter(
+      (s) => s.name.toLowerCase().includes(q) || (s.owner?.name || '').toLowerCase().includes(q)
+    );
+  }, [search, publishedStations]);
 
   const handleSendComment = async () => {
     if (!newComment.trim() || isSendingComment) return;
@@ -635,7 +644,10 @@ const RadioScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Comentários gerais da rádio (chat aberto, sem vínculo com faixa) */}
+      {/* Comentários gerais da rádio (chat aberto, sem vínculo com faixa).
+          Não aparece na aba Explorar — lá o foco é navegar pelo app
+          (músicas, estações, artistas, usuários), não o chat da rádio. */}
+      {radioTab !== 'explorar' && (
       <div className="bg-white rounded-2xl shadow-sm p-4 mb-5">
         <div className="flex items-center gap-2 mb-3">
           <MessageCircle size={16} className="text-[#FF8C42]" />
@@ -716,6 +728,7 @@ const RadioScreen: React.FC = () => {
           </button>
         </div>
       </div>
+      )}
 
       {/* Search */}
       <div className="mb-3">
@@ -723,7 +736,17 @@ const RadioScreen: React.FC = () => {
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/25" />
           <input
             type="text"
-            placeholder={`Buscar ${radioTab === 'artistas' ? 'artistas' : 'músicas'}...`}
+            placeholder={
+              radioTab === 'explorar'
+                ? exploreSection === 'estacoes'
+                  ? 'Buscar estações...'
+                  : exploreSection === 'artistas'
+                  ? 'Buscar artistas...'
+                  : exploreSection === 'usuarios'
+                  ? 'Buscar usuários por nome...'
+                  : 'Buscar músicas...'
+                : `Buscar ${radioTab === 'artistas' ? 'artistas' : 'músicas'}...`
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="!pl-10 !py-2.5 !text-sm !rounded-xl"
@@ -768,132 +791,184 @@ const RadioScreen: React.FC = () => {
       {/* Explorar Tab */}
       {radioTab === 'explorar' && (
         <div className="space-y-4">
-          {/* Radio stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
-                  <Music2 size={14} className="text-white" />
-                </div>
-                <span className="text-xs font-medium text-black/40">Total de faixas</span>
-              </div>
-              <p className="text-2xl font-bold text-[#1A1B25]">{tracks.length}</p>
-            </div>
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
-                  <Star size={14} className="text-white" />
-                </div>
-                <span className="text-xs font-medium text-black/40">Favoritadas</span>
-              </div>
-              <p className="text-2xl font-bold text-[#1A1B25]">{favoriteTracks.length}</p>
-            </div>
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
-                  <Heart size={14} className="text-white" />
-                </div>
-                <span className="text-xs font-medium text-black/40">Curtidas</span>
-              </div>
-              <p className="text-2xl font-bold text-[#1A1B25]">{likes.length}</p>
-            </div>
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
-                  <Radio size={14} className="text-white" />
-                </div>
-                <span className="text-xs font-medium text-black/40">Na fila</span>
-              </div>
-              <p className="text-2xl font-bold text-[#1A1B25]">{queueLength}</p>
-            </div>
-          </div>
-
-          {/* Sua rádio (estação criada pelo usuário logado) */}
-          {user && myStation && (
-            <div>
-              <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide mb-3">Sua rádio</h2>
+          {/* Sub-navegação: músicas, estações, artistas, usuários */}
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+            {(
+              [
+                { key: 'musicas', label: 'Músicas', icon: '🎵' },
+                { key: 'estacoes', label: 'Estações', icon: '📻' },
+                { key: 'artistas', label: 'Artistas', icon: '🎤' },
+                { key: 'usuarios', label: 'Usuários', icon: '👤' },
+              ] as { key: ExploreSection; label: string; icon: string }[]
+            ).map((sec) => (
               <button
-                onClick={() => {
-                  if (myStation.is_published) {
-                    switchToStation(myStation.id);
-                  } else {
-                    toast.info('Publique sua estação para ouvi-la no dial da rádio.');
-                  }
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
+                key={sec.key}
+                onClick={() => setExploreSection(sec.key)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-200 no-select',
+                  exploreSection === sec.key
+                    ? 'gradient-bg text-white shadow-md shadow-[#FF8C42]/20'
+                    : 'bg-white text-black/40 hover:bg-black/5 hover:text-black/60 shadow-sm'
+                )}
               >
-                <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-[#FF8C42]/20 to-[#E84393]/20">
-                  {myStation.cover_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={myStation.cover_url} alt={myStation.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <RadioTower size={18} className="text-[#FF8C42]" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[#1A1B25] truncate">{myStation.name}</p>
-                  <p className="text-xs text-black/40 truncate">
-                    {myStation.tracks_count ?? 0} faixas · {myStation.is_published ? 'Publicada' : 'Não publicada'}
-                  </p>
-                </div>
-                <Play size={16} className="text-[#FF8C42] flex-shrink-0" />
+                <span>{sec.icon}</span>
+                <span>{sec.label}</span>
               </button>
-            </div>
-          )}
-
-          {/* Suas faixas enviadas */}
-          {user && myTracks.length > 0 && (
-            <div>
-              <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide mb-3">Suas faixas</h2>
-              <div className="space-y-2">
-                {myTracks.map((track, i) => renderTrackRow(track, i))}
-              </div>
-            </div>
-          )}
-
-          {/* Trending / Top tracks */}
-          <div>
-            <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide mb-3">Em alta na rádio</h2>
-            <div className="space-y-2">
-              {[...tracks]
-                .sort((a, b) => b.plays_count - a.plays_count)
-                .slice(0, 5)
-                .map((track, i) => {
-                  const isCurrentTrack = player.currentTrack?.id === track.id;
-                  const colors = COVER_COLORS[track.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % COVER_COLORS.length];
-                  return (
-                    <button
-                      key={track.id}
-                      onClick={() => playTrack(track, tracks)}
-                      className={cn(
-                        'w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-200 active:scale-[0.98] text-left',
-                        isCurrentTrack
-                          ? 'bg-gradient-to-r from-[#FF8C42]/10 via-[#E84393]/5 to-transparent ring-1 ring-[#FF8C42]/20'
-                          : 'bg-white hover:bg-[#F2F2F8] shadow-sm'
-                      )}
-                    >
-                      <div
-                        className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center font-bold text-sm text-white"
-                        style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}
-                      >
-                        {i + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[#1A1B25] truncate">{track.title}</p>
-                        <p className="text-xs text-black/40 truncate">{track.artist_name}</p>
-                      </div>
-                      {isCurrentTrack && isPlaying && (
-                        <Equalizer barCount={3} height={16} barWidth={2} gap={1} />
-                      )}
-                      <div className="flex items-center gap-1">
-                        <TrendingUp size={10} className="text-[#FF8C42]" />
-                        <span className="text-xs text-black/40">{formatNumber(track.plays_count)}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-            </div>
+            ))}
           </div>
+
+          {/* Músicas: todas as faixas do app */}
+          {exploreSection === 'musicas' && (
+            <div className="space-y-2">
+              {filteredTracks.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                    <Music2 size={28} className="text-black/20" />
+                  </div>
+                  <p className="text-black/40 text-sm font-medium">Nenhuma faixa encontrada</p>
+                </div>
+              )}
+              {filteredTracks.map((track, i) => renderTrackRow(track, i))}
+            </div>
+          )}
+
+          {/* Estações: rádios publicadas por usuários */}
+          {exploreSection === 'estacoes' && (
+            <div className="space-y-2">
+              {filteredStations.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                    <RadioTower size={28} className="text-black/20" />
+                  </div>
+                  <p className="text-black/40 text-sm font-medium">Nenhuma estação publicada ainda</p>
+                </div>
+              )}
+              {filteredStations.map((station) => (
+                <button
+                  key={station.id}
+                  onClick={() => switchToStation(station.id)}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
+                >
+                  <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-[#FF8C42]/20 to-[#E84393]/20">
+                    {station.cover_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={station.cover_url} alt={station.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <RadioTower size={18} className="text-[#FF8C42]" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-[#1A1B25] truncate">{station.name}</p>
+                    <p className="text-xs text-black/40 truncate">
+                      {station.owner?.name ? `${station.owner.name} · ` : ''}
+                      {station.tracks_count ?? 0} faixas
+                    </p>
+                  </div>
+                  <Play size={16} className="text-[#FF8C42] flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Artistas */}
+          {exploreSection === 'artistas' && (
+            <div className="space-y-3">
+              {filteredArtists.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                    <Music2 size={28} className="text-black/20" />
+                  </div>
+                  <p className="text-black/40 text-sm font-medium">Nenhum artista encontrado</p>
+                </div>
+              )}
+              {filteredArtists.map((artist) => (
+                <button
+                  key={artist.id}
+                  onClick={() => selectArtist(artist.id)}
+                  className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
+                >
+                  <CoverArt
+                    title={artist.name}
+                    artistName={artist.genre}
+                    coverUrl={artist.avatar_url || artist.cover_url}
+                    size="sm"
+                    className="!w-14 !h-14 !max-w-none !rounded-xl flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[#1A1B25] truncate">{artist.name}</p>
+                    <p className="text-sm text-black/40">{artist.genre}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-black/50">{formatNumber(artist.followers_count)}</p>
+                    <p className="text-[10px] text-black/30">seguidores</p>
+                  </div>
+                  <div className="p-2 rounded-full bg-black/5" aria-label="Ver perfil do artista">
+                    <Music2 size={16} className="text-black/50" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Usuários */}
+          {exploreSection === 'usuarios' && (
+            <div className="space-y-2">
+              {!user && (
+                <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                    <Users size={28} className="text-black/20" />
+                  </div>
+                  <p className="text-black/40 text-sm font-medium">Entre na sua conta para buscar outros usuários</p>
+                </div>
+              )}
+
+              {user && !search.trim() && (
+                <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                    <Users size={28} className="text-black/20" />
+                  </div>
+                  <p className="text-black/40 text-sm font-medium">Digite um nome pra buscar usuários</p>
+                </div>
+              )}
+
+              {user && search.trim() && isSearchingUsers && (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-black/40 text-sm">Buscando...</p>
+                </div>
+              )}
+
+              {user && search.trim() && !isSearchingUsers && userResults.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+                  <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                    <Users size={28} className="text-black/20" />
+                  </div>
+                  <p className="text-black/40 text-sm font-medium">Nenhum usuário encontrado com esse nome</p>
+                </div>
+              )}
+
+              {user && !isSearchingUsers && userResults.map((result) => (
+                <button
+                  key={result.id}
+                  onClick={() => selectUser(result.id)}
+                  className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
+                >
+                  <CoverArt
+                    title={result.name}
+                    artistName=""
+                    coverUrl={result.avatar_url || ''}
+                    size="sm"
+                    className="!w-12 !h-12 !max-w-none !rounded-full flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[#1A1B25] truncate">{result.name}</p>
+                  </div>
+                  <div className="p-2 rounded-full bg-black/5" aria-label="Ver perfil do usuário">
+                    <Users size={16} className="text-black/50" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
