@@ -129,6 +129,18 @@ export function readAudioDuration(file: File): Promise<number> {
   });
 }
 
+/**
+ * Estima o bitrate do arquivo (kbps), a partir do tamanho em bytes e da
+ * duração real. Não é um valor exato (varia em arquivos VBR), mas serve
+ * como aviso pro artista antes de subir a música — não bloqueia o envio.
+ */
+export async function estimateBitrateKbps(file: File): Promise<number | null> {
+  const duration = await readAudioDuration(file);
+  if (!duration || duration <= 0) return null;
+  const bits = file.size * 8;
+  return Math.round(bits / duration / 1000);
+}
+
 export interface ArtistProfile {
   id: string;
   name: string;
