@@ -125,74 +125,148 @@ const ExploreScreen: React.FC = () => {
     selectArtist(artistId);
   };
 
-  const renderTrackRow = (track: Track) => {
+  // Cartão de música em grid (capa grande + barra de info), mesma
+  // linguagem visual usada na Início pra manter consistência entre telas.
+  const renderTrackCard = (track: Track) => {
     const isCurrentTrack = player.currentTrack?.id === track.id;
     const isTrackFav = favorites.includes(track.id);
-    const coverColors = COVER_COLORS[(track.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % COVER_COLORS.length];
 
     return (
       <button
         key={track.id}
         onClick={() => playTrack(track, filteredTracks)}
         className={cn(
-          'w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-200 active:scale-[0.98] text-left',
-          isCurrentTrack
-            ? 'bg-gradient-to-r from-[#FF8C42]/10 via-[#E84393]/5 to-transparent ring-1 ring-[#FF8C42]/20'
-            : 'bg-white hover:bg-[#F2F2F8] shadow-sm'
+          'relative rounded-2xl overflow-hidden text-left transition-all duration-200 active:scale-[0.97]',
+          isCurrentTrack && 'ring-2 ring-[#FF8C42] shadow-lg shadow-[#FF8C42]/20'
         )}
       >
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden"
-          style={{ background: `linear-gradient(135deg, ${coverColors[0]}20, ${coverColors[1]}20)` }}
-        >
-          {isCurrentTrack && player.isPlaying ? (
-            <Equalizer barCount={3} height={20} barWidth={3} gap={1.5} />
-          ) : (
-            <Play
-              size={16}
-              className={isCurrentTrack ? 'text-[#FF8C42] ml-0.5' : 'text-black/25 ml-0.5'}
-              fill={isCurrentTrack ? '#FF8C42' : 'currentColor'}
-            />
-          )}
+        <CoverArt title={track.title} artistName={track.artist_name} coverUrl={track.cover_url} size="lg" />
+
+        {/* Play overlay */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center shadow-xl">
+            <Play size={22} className="text-white ml-0.5" fill="white" />
+          </div>
         </div>
 
-        <div
-          className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 relative"
-          style={{ background: `linear-gradient(135deg, ${coverColors[0]}dd, ${coverColors[1]}dd)` }}
-        >
-          {track.cover_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
-          )}
-        </div>
+        {/* Playing indicator */}
+        {isCurrentTrack && player.isPlaying && (
+          <div className="absolute top-2 right-2">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full glass">
+              <Equalizer barCount={3} height={12} barWidth={2} gap={1} />
+            </div>
+          </div>
+        )}
 
-        <div className="flex-1 min-w-0">
-          <p className={cn('text-sm font-semibold truncate', isCurrentTrack ? 'text-[#FF8C42]' : 'text-[#1A1B25]')}>
-            {track.title}
-          </p>
-          <button
-            type="button"
-            onClick={(e) => track.artist_id && handleGoToArtist(e, track.artist_id)}
-            className="text-xs text-black/40 hover:text-[#FF8C42] hover:underline transition-colors truncate block text-left"
-          >
-            {track.artist_name}
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <TrendingUp size={10} className="text-black/25" />
-          <span className="text-[10px] text-black/30">{formatNumber(track.plays_count)}</span>
-        </div>
-
+        {/* Favorite button */}
         <button
           onClick={(e) => handleToggleFavorite(e, track.id)}
-          className="p-1.5 rounded-full hover:bg-black/5 transition-colors flex-shrink-0"
+          className="absolute top-2 left-2 p-1.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors z-10"
           aria-label={isTrackFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
         >
-          <Star size={14} className={cn(isTrackFav ? 'fill-[#FFD700] text-[#FFD700]' : 'text-black/20')} />
+          <Star size={16} className={cn(isTrackFav ? 'fill-[#FFD700] text-[#FFD700]' : 'text-white/70')} />
         </button>
+
+        {/* Info bar */}
+        <div className="p-3 pt-0 -mt-3 relative">
+          <div className="bg-white shadow-sm rounded-b-2xl px-3 py-2.5">
+            <p className={cn('text-sm font-semibold truncate', isCurrentTrack ? 'text-[#FF8C42]' : 'text-[#1A1B25]')}>
+              {track.title}
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <button
+                type="button"
+                onClick={(e) => track.artist_id && handleGoToArtist(e, track.artist_id)}
+                className="text-xs text-black/40 hover:text-[#FF8C42] hover:underline transition-colors truncate"
+              >
+                {track.artist_name}
+              </button>
+              <span className="text-black/20">·</span>
+              <div className="flex items-center gap-1">
+                <TrendingUp size={10} className="text-black/30" />
+                <span className="text-xs text-black/30">{formatNumber(track.plays_count)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </button>
     );
   };
+
+  // Capa de fundo (gradiente determinístico + imagem, se houver) usada
+  // nos cartões de estação e artista, igual ao esquema das músicas.
+  const renderTileBackdrop = (name: string, imgUrl?: string | null, fallbackIcon?: React.ReactNode) => {
+    const colors = COVER_COLORS[(name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % COVER_COLORS.length];
+    return (
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{ background: `linear-gradient(135deg, ${colors[0]}dd, ${colors[1]}dd)` }}
+      >
+        {imgUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imgUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          fallbackIcon
+        )}
+      </div>
+    );
+  };
+
+  // Cartão de estação em grid.
+  const renderStationCard = (
+    id: string,
+    name: string,
+    subtitle: string,
+    imgUrl: string | null | undefined,
+    onPlay: () => void
+  ) => (
+    <button
+      key={id}
+      onClick={onPlay}
+      className="relative rounded-2xl overflow-hidden text-left transition-all duration-200 active:scale-[0.97]"
+    >
+      <div className="w-full aspect-square relative rounded-2xl overflow-hidden shadow-2xl">
+        {renderTileBackdrop(name, imgUrl, <RadioTower size={40} className="text-white/70" />)}
+      </div>
+      <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center shadow-xl">
+          <Play size={22} className="text-white ml-0.5" fill="white" />
+        </div>
+      </div>
+      <div className="p-3 pt-0 -mt-3 relative">
+        <div className="bg-white shadow-sm rounded-b-2xl px-3 py-2.5">
+          <p className="text-sm font-semibold text-[#1A1B25] truncate">{name}</p>
+          <p className="text-xs text-black/40 truncate mt-0.5">{subtitle}</p>
+        </div>
+      </div>
+    </button>
+  );
+
+  // Cartão de artista em grid.
+  const renderArtistCard = (artist: Artist) => (
+    <button
+      key={artist.id}
+      onClick={() => selectArtist(artist.id)}
+      className="relative rounded-2xl overflow-hidden text-left transition-all duration-200 active:scale-[0.97]"
+    >
+      <CoverArt
+        title={artist.name}
+        artistName={artist.genre}
+        coverUrl={artist.avatar_url || artist.cover_url}
+        size="lg"
+      />
+      <div className="p-3 pt-0 -mt-3 relative">
+        <div className="bg-white shadow-sm rounded-b-2xl px-3 py-2.5">
+          <p className="text-sm font-semibold text-[#1A1B25] truncate">{artist.name}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-black/40 truncate">{artist.genre}</span>
+            <span className="text-black/20">·</span>
+            <span className="text-xs text-black/30">{formatNumber(artist.followers_count)} seguidores</span>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
 
   return (
     <div className="px-4 pt-4 pb-4 min-h-screen">
@@ -250,9 +324,9 @@ const ExploreScreen: React.FC = () => {
         ))}
       </div>
 
-      {/* Músicas: todas as faixas do app */}
+      {/* Músicas: todas as faixas do app, em grid de cartões */}
       {exploreSection === 'musicas' && (
-        <div className="space-y-2">
+        <div>
           {filteredTracks.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
@@ -261,27 +335,15 @@ const ExploreScreen: React.FC = () => {
               <p className="text-black/40 text-sm font-medium">Nenhuma faixa encontrada</p>
             </div>
           )}
-          {filteredTracks.map((track) => renderTrackRow(track))}
+          <div className="grid grid-cols-2 gap-3">
+            {filteredTracks.map((track) => renderTrackCard(track))}
+          </div>
         </div>
       )}
 
-      {/* Estações: estação padrão + estações publicadas por usuários */}
+      {/* Estações: estação padrão + estações publicadas por usuários, em grid */}
       {exploreSection === 'estacoes' && (
-        <div className="space-y-2">
-          <button
-            onClick={() => handlePlayStation(DEFAULT_STATION_ID)}
-            className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
-          >
-            <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-[#FF8C42]/20 to-[#E84393]/20">
-              <RadioTower size={18} className="text-[#FF8C42]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#1A1B25] truncate">Rádio Zôada</p>
-              <p className="text-xs text-black/40 truncate">Estação padrão · Shuffle infinito</p>
-            </div>
-            <Play size={16} className="text-[#FF8C42] flex-shrink-0" />
-          </button>
-
+        <div>
           {filteredStations.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
@@ -290,36 +352,30 @@ const ExploreScreen: React.FC = () => {
               <p className="text-black/40 text-sm font-medium">Nenhuma estação publicada ainda</p>
             </div>
           )}
-          {filteredStations.map((station) => (
-            <button
-              key={station.id}
-              onClick={() => handlePlayStation(station.id)}
-              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
-            >
-              <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-[#FF8C42]/20 to-[#E84393]/20">
-                {station.cover_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={station.cover_url} alt={station.name} className="w-full h-full object-cover" />
-                ) : (
-                  <RadioTower size={18} className="text-[#FF8C42]" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[#1A1B25] truncate">{station.name}</p>
-                <p className="text-xs text-black/40 truncate">
-                  {station.owner?.name ? `${station.owner.name} · ` : ''}
-                  {station.tracks_count ?? 0} faixas
-                </p>
-              </div>
-              <Play size={16} className="text-[#FF8C42] flex-shrink-0" />
-            </button>
-          ))}
+          <div className="grid grid-cols-2 gap-3">
+            {renderStationCard(
+              DEFAULT_STATION_ID,
+              'Rádio Zôada',
+              'Estação padrão · Shuffle infinito',
+              null,
+              () => handlePlayStation(DEFAULT_STATION_ID)
+            )}
+            {filteredStations.map((station) =>
+              renderStationCard(
+                station.id,
+                station.name,
+                `${station.owner?.name ? `${station.owner.name} · ` : ''}${station.tracks_count ?? 0} faixas`,
+                station.cover_url,
+                () => handlePlayStation(station.id)
+              )
+            )}
+          </div>
         </div>
       )}
 
-      {/* Artistas */}
+      {/* Artistas, em grid de cartões */}
       {exploreSection === 'artistas' && (
-        <div className="space-y-3">
+        <div>
           {filteredArtists.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
@@ -328,32 +384,9 @@ const ExploreScreen: React.FC = () => {
               <p className="text-black/40 text-sm font-medium">Nenhum artista encontrado</p>
             </div>
           )}
-          {filteredArtists.map((artist) => (
-            <button
-              key={artist.id}
-              onClick={() => selectArtist(artist.id)}
-              className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
-            >
-              <CoverArt
-                title={artist.name}
-                artistName={artist.genre}
-                coverUrl={artist.avatar_url || artist.cover_url}
-                size="sm"
-                className="!w-14 !h-14 !max-w-none !rounded-xl flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-[#1A1B25] truncate">{artist.name}</p>
-                <p className="text-sm text-black/40">{artist.genre}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-black/50">{formatNumber(artist.followers_count)}</p>
-                <p className="text-[10px] text-black/30">seguidores</p>
-              </div>
-              <div className="p-2 rounded-full bg-black/5" aria-label="Ver perfil do artista">
-                <Music2 size={16} className="text-black/50" />
-              </div>
-            </button>
-          ))}
+          <div className="grid grid-cols-2 gap-3">
+            {filteredArtists.map((artist) => renderArtistCard(artist))}
+          </div>
         </div>
       )}
 
