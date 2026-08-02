@@ -92,7 +92,7 @@ Se você é responsável legal de um menor e identificar uma conta sem o devido 
 
 Você pode excluir sua conta e seus dados a qualquer momento, de forma simples:
 
-1. Acesse **[Configurações → Conta → Excluir conta]** dentro do app; **ou**
+1. Acesse **Perfil → Configurações → Excluir conta** dentro do app (vai pedir sua senha atual pra confirmar); **ou**
 2. Envie um pedido para **santannaleonardo@hotmail.com**.
 
 Ao excluir sua conta, removemos ou anonimizamos seus dados pessoais (email, nome, avatar, mensagens, curtidas, favoritos, histórico de reprodução), exceto informações que a lei exija manter por prazo determinado. Faixas que você enviou podem ser removidas do catálogo junto com a exclusão da conta — se preferir apenas desativar a conta mantendo o conteúdo público, entre em contato para essa opção.
