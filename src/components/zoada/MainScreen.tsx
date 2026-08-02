@@ -679,7 +679,7 @@ const MainScreen: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold gradient-text">
-              {activeTab === 'favorites' ? 'Favoritos' : activeTab === 'fans' ? 'Fãs' : 'Explorar'}
+              {activeTab === 'favorites' ? 'Favoritos' : activeTab === 'fans' ? 'Fãs' : activeTab === 'artists' ? 'Artistas' : 'Explorar'}
             </h1>
             <p className="text-black/40 text-sm mt-0.5">
               {activeTab === 'favorites'
