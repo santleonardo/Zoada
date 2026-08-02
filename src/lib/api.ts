@@ -880,3 +880,33 @@ export const restorePostComment = (commentId: string) =>
   restoreItem(`/api/post-comments?id=${encodeURIComponent(commentId)}`);
 
 export const restoreRadioStation = () => restoreItem('/api/radio-station');
+
+// Baixa uma cópia de TODOS os dados pessoais do usuário logado, num
+// arquivo .json (LGPD art. 18, incisos II e V — acesso e portabilidade).
+// Dispara o download direto no navegador; não retorna o conteúdo pro
+// chamador porque o objetivo é só entregar o arquivo pro usuário guardar.
+export async function exportMyData(): Promise<boolean> {
+  try {
+    const res = await apiFetch('/api/account/data-export');
+    if (!res.ok) return false;
+
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match?.[1] || `zoada-meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+
+    return true;
+  } catch (err) {
+    console.warn('[exportMyData] falha ao exportar dados:', err);
+    return false;
+  }
+}
