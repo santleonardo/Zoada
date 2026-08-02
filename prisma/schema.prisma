@@ -25,6 +25,11 @@ model Usuario {
   updatedAt         DateTime  @updatedAt @map("updated_at")
   seguidoresCount   Int       @default(0) @map("seguidores_count")
   seguindoCount     Int       @default(0) @map("seguindo_count")
+  // Soft-delete: quando a conta é "excluída" pelo usuário, isso é marcado
+  // aqui em vez de apagar a linha na hora. Fica 30 dias assim — fazendo
+  // login de novo com a senha certa dentro desse prazo restaura tudo. Um
+  // job (ver /api/cron/purge-deleted) apaga de vez o que passou dos 30 dias.
+  deletedAt         DateTime? @map("deleted_at")
 
   curtidas     Curtida[]
   favoritos    Favorito[]
@@ -65,10 +70,14 @@ model Artista {
   seguidoresCount Int      @default(0) @map("seguidores_count")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
+  // Soft-delete: ver comentário em Usuario.deletedAt — mesma lógica de
+  // janela de 30 dias, restaurável pelo painel de Lixeira.
+  deletedAt      DateTime? @map("deleted_at")
 
   faixas   Faixa[]
   seguidores Seguindo[]
 
+  @@index([deletedAt])
   @@map("artistas")
 }
 
@@ -88,6 +97,8 @@ model Faixa {
   playsCount  Int      @default(0) @map("plays_count")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+  // Soft-delete: ver comentário em Usuario.deletedAt.
+  deletedAt   DateTime? @map("deleted_at")
 
   artista    Artista     @relation(fields: [artistaId], references: [id], onDelete: Cascade)
   curtidas   Curtida[]
@@ -98,6 +109,7 @@ model Faixa {
   faixasEstacao FaixaEstacao[]
   postagens  Postagem[]
 
+  @@index([deletedAt])
   @@map("faixas")
 }
 
@@ -213,6 +225,8 @@ model Postagem {
   // inteiro de um post livre (quando não há faixa).
   legenda   String?  @map("legenda")
   createdAt DateTime @default(now()) @map("created_at")
+  // Soft-delete: ver comentário em Usuario.deletedAt.
+  deletedAt DateTime? @map("deleted_at")
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   faixa   Faixa?  @relation(fields: [faixaId], references: [id], onDelete: SetNull)
@@ -221,6 +235,7 @@ model Postagem {
 
   @@index([usuarioId])
   @@index([createdAt])
+  @@index([deletedAt])
   @@map("postagens")
 }
 
@@ -252,12 +267,15 @@ model ComentarioPostagem {
   postagemId String   @map("postagem_id")
   conteudo   String
   createdAt  DateTime @default(now()) @map("created_at")
+  // Soft-delete: ver comentário em Usuario.deletedAt.
+  deletedAt  DateTime? @map("deleted_at")
 
   usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   postagem Postagem @relation(fields: [postagemId], references: [id], onDelete: Cascade)
   curtidas CurtidaComentarioPostagem[]
 
   @@index([postagemId])
+  @@index([deletedAt])
   @@map("comentarios_postagem")
 }
 
@@ -341,10 +359,13 @@ model EstacaoRadio {
   faixaAtualInicio DateTime? @map("faixa_atual_inicio")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
+  // Soft-delete: ver comentário em Usuario.deletedAt.
+  deletedAt        DateTime? @map("deleted_at")
 
   usuario      Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   faixasEstacao FaixaEstacao[]
 
+  @@index([deletedAt])
   @@map("estacoes_radio")
 }
 
