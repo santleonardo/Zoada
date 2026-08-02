@@ -10,6 +10,8 @@ import {
   Music2,
   Camera,
   Edit3,
+  FileText,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { TopListenedTrack } from '@/types';
@@ -327,23 +329,50 @@ const ProfileScreen: React.FC = () => {
       {/* Settings */}
       <div className="space-y-2 mb-6">
         <h3 className="text-lg font-semibold text-[#1A1B25] mb-3">Configurações</h3>
-        {[
+        {([
           { icon: <Settings size={18} />, label: 'Notificações' },
           { icon: <Music2 size={18} />, label: 'Qualidade de áudio', onClick: () => setAudioQualityOpen(true) },
           { icon: <Edit3 size={18} />, label: 'Editar perfil', onClick: handleStartEdit },
-        ].map((item) => (
-          <button
-            key={item.label}
-            onClick={item.onClick}
-            className="flex items-center justify-between w-full p-3 rounded-xl bg-white shadow-sm hover:bg-[#F2F2F8] transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-black/50">{item.icon}</span>
-              <span className="text-sm text-[#1A1B25]">{item.label}</span>
-            </div>
-            <ChevronRight size={16} className="text-black/25" />
-          </button>
-        ))}
+          { icon: <FileText size={18} />, label: 'Termos de Uso', href: '/termos' },
+          { icon: <ShieldCheck size={18} />, label: 'Política de Privacidade', href: '/privacidade' },
+        ] as { icon: React.ReactNode; label: string; onClick?: () => void; href?: string }[]).map((item) => {
+          const content = (
+            <>
+              <div className="flex items-center gap-3">
+                <span className="text-black/50">{item.icon}</span>
+                <span className="text-sm text-[#1A1B25]">{item.label}</span>
+              </div>
+              <ChevronRight size={16} className="text-black/25" />
+            </>
+          );
+
+          // Termos e Privacidade são rotas Next reais (fora do fluxo de
+          // telas do zustand), então abrem em nova aba como link de
+          // verdade — o resto continua botão disparando ação no app.
+          if (item.href) {
+            return (
+              <a
+                key={item.label}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between w-full p-3 rounded-xl bg-white shadow-sm hover:bg-[#F2F2F8] transition-colors"
+              >
+                {content}
+              </a>
+            );
+          }
+
+          return (
+            <button
+              key={item.label}
+              onClick={item.onClick}
+              className="flex items-center justify-between w-full p-3 rounded-xl bg-white shadow-sm hover:bg-[#F2F2F8] transition-colors"
+            >
+              {content}
+            </button>
+          );
+        })}
       </div>
 
       {/* Bottom spacing */}
