@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
-import { isNeonConfigured, isR2Configured } from '@/lib/config';
-import { deleteFromR2, keyFromPublicUrl } from '@/lib/r2';
+import { isNeonConfigured } from '@/lib/config';
 import { DEMO_ARTISTS } from '@/lib/demo-data';
+import { notDeleted } from '@/lib/soft-delete';
 
 function serializeArtista(a: {
   id: string;
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
       }
       const artistas = await db.artista.findMany({
-        where: { usuarioId: userId },
+        where: { usuarioId: userId, ...notDeleted },
         orderBy: { createdAt: 'desc' },
         include: { usuario: { select: { name: true } } },
       });
@@ -61,6 +61,7 @@ export async function GET(request: Request) {
     }
 
     const artistas = await db.artista.findMany({
+      where: { ...notDeleted },
       orderBy: { seguidoresCount: 'desc' },
       include: { usuario: { select: { name: true } } },
     });
@@ -163,13 +164,12 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE /api/artists?id=xxx — Apaga um artista inteiro (autenticado, só o
-// dono). Isso remove também todas as faixas desse artista (a relação no
-// Prisma tem onDelete: Cascade), e as faixas cascateiam para curtidas e
-// comentários — então apagar um artista limpa todo o catálogo dele de uma
-// vez. Apagar os arquivos no R2 (avatar, capa e os áudios/capas de cada
-// faixa) é best-effort, igual à rota de faixas: se falhar, não desfazemos
-// a exclusão, só avisamos no log.
+// DELETE /api/artists?id=xxx — Soft-delete de um artista inteiro
+// (autenticado, só o dono). Marca `deletedAt` no artista E em todas as
+// faixas dele que ainda não estavam apagadas — assim o catálogo inteiro
+// some das listagens de uma vez, igual ao comportamento antigo, mas
+// reversível por 30 dias (ver PATCH abaixo). Nada é apagado do banco nem
+// do R2 nessa hora; isso só acontece no job de limpeza depois do prazo.
 export async function DELETE(request: Request) {
   try {
     const userId = await authenticateRequest(request);
@@ -187,43 +187,74 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
     }
 
-    const artista = await db.artista.findUnique({
-      where: { id },
-      include: { faixas: true },
-    });
+    const artista = await db.artista.findUnique({ where: { id } });
     if (!artista) {
       return NextResponse.json({ error: 'Artista não encontrado' }, { status: 404 });
     }
     if (artista.usuarioId && artista.usuarioId !== userId) {
       return NextResponse.json({ error: 'Você não tem permissão para apagar esse artista' }, { status: 403 });
     }
-
-    // Apaga a linha do banco primeiro (o que faz o artista e as músicas
-    // dele sumirem do app de fato); a limpeza dos arquivos no R2 vem
-    // depois, sem bloquear a exclusão caso algo falhe lá.
-    await db.artista.delete({ where: { id } });
-
-    if (isR2Configured) {
-      const keys = [
-        artista.avatarUrl ? keyFromPublicUrl(artista.avatarUrl) : null,
-        artista.coverUrl ? keyFromPublicUrl(artista.coverUrl) : null,
-        ...artista.faixas.flatMap((f) => [
-          f.audioUrl ? keyFromPublicUrl(f.audioUrl) : null,
-          f.audioUrlLow ? keyFromPublicUrl(f.audioUrlLow) : null,
-          f.coverUrl ? keyFromPublicUrl(f.coverUrl) : null,
-        ]),
-      ].filter((k): k is string => !!k);
-
-      await Promise.all(
-        keys.map((key) =>
-          deleteFromR2(key).catch((err) => console.warn('[ARTISTS DELETE] falha ao apagar arquivo no R2:', err))
-        )
-      );
+    if (artista.deletedAt) {
+      return NextResponse.json({ error: 'Esse artista já foi apagado' }, { status: 409 });
     }
 
-    return NextResponse.json({ deleted: true });
+    const now = new Date();
+    await db.$transaction([
+      db.artista.update({ where: { id }, data: { deletedAt: now } }),
+      db.faixa.updateMany({ where: { artistaId: id, deletedAt: null }, data: { deletedAt: now } }),
+    ]);
+
+    return NextResponse.json({ deleted: true, retention_days: 30 });
   } catch (error) {
     console.error('[ARTISTS DELETE]', error);
     return NextResponse.json({ error: 'Erro ao apagar artista' }, { status: 500 });
+  }
+}
+
+// PATCH /api/artists?id=xxx  body: { action: 'restore' } — Desfaz o
+// soft-delete de um artista (e das faixas dele apagadas junto) dentro dos
+// 30 dias (autenticado, só o dono).
+export async function PATCH(request: Request) {
+  try {
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+
+    const { action } = await request.json().catch(() => ({ action: undefined }));
+    if (action !== 'restore') {
+      return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
+    }
+
+    const artista = await db.artista.findUnique({ where: { id } });
+    if (!artista) {
+      return NextResponse.json({ error: 'Artista não encontrado' }, { status: 404 });
+    }
+    if (artista.usuarioId && artista.usuarioId !== userId) {
+      return NextResponse.json({ error: 'Você não tem permissão para restaurar esse artista' }, { status: 403 });
+    }
+    if (!artista.deletedAt) {
+      return NextResponse.json({ error: 'Esse artista não está apagado' }, { status: 409 });
+    }
+
+    await db.$transaction([
+      db.artista.update({ where: { id }, data: { deletedAt: null } }),
+      db.faixa.updateMany({ where: { artistaId: id, deletedAt: artista.deletedAt }, data: { deletedAt: null } }),
+    ]);
+
+    return NextResponse.json({ restored: true });
+  } catch (error) {
+    console.error('[ARTISTS PATCH restore]', error);
+    return NextResponse.json({ error: 'Erro ao restaurar artista' }, { status: 500 });
   }
 }

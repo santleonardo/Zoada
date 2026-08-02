@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
-import { isNeonConfigured, isR2Configured } from '@/lib/config';
-import { deleteFromR2, keyFromPublicUrl } from '@/lib/r2';
+import { isNeonConfigured } from '@/lib/config';
+import { notDeleted } from '@/lib/soft-delete';
 
 // GET /api/users?id=xxx       -> perfil público de UM usuário (nome, foto,
 //                                 artistas que ele criou, seguidores/seguindo).
@@ -22,8 +22,8 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
       }
 
-      const usuario = await db.usuario.findUnique({
-        where: { id },
+      const usuario = await db.usuario.findFirst({
+        where: { id, ...notDeleted },
         select: {
           id: true,
           name: true,
@@ -33,6 +33,7 @@ export async function GET(request: Request) {
           seguidoresCount: true,
           seguindoCount: true,
           artistas: {
+            where: { ...notDeleted },
             orderBy: { createdAt: 'desc' },
             select: {
               id: true,
@@ -111,6 +112,7 @@ export async function GET(request: Request) {
     const usuarios = await db.usuario.findMany({
       where: {
         id: { not: userId }, // não retorna o próprio usuário logado
+        ...notDeleted,
         OR: [
           { name: { contains: search, mode: 'insensitive' } },
           { email: { contains: search, mode: 'insensitive' } },
@@ -218,12 +220,8 @@ export async function DELETE(request: Request) {
 
     const usuario = await db.usuario.findUnique({
       where: { id: userId },
-      include: {
-        artistas: { include: { faixas: true } },
-        estacoesRadio: true,
-      },
     });
-    if (!usuario) {
+    if (!usuario || usuario.deletedAt) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
     if (!usuario.passwordHash) {
@@ -235,38 +233,22 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Senha incorreta' }, { status: 401 });
     }
 
-    // Junta as chaves do R2 ANTES de apagar do banco (depois não teremos
-    // mais como saber quais URLs existiam).
-    const r2Keys = isR2Configured
-      ? [
-          usuario.avatarUrl ? keyFromPublicUrl(usuario.avatarUrl) : null,
-          ...usuario.estacoesRadio.map((e) => (e.capaUrl ? keyFromPublicUrl(e.capaUrl) : null)),
-          ...usuario.artistas.flatMap((a) => [
-            a.avatarUrl ? keyFromPublicUrl(a.avatarUrl) : null,
-            a.coverUrl ? keyFromPublicUrl(a.coverUrl) : null,
-            ...a.faixas.flatMap((f) => [
-              f.audioUrl ? keyFromPublicUrl(f.audioUrl) : null,
-              f.audioUrlLow ? keyFromPublicUrl(f.audioUrlLow) : null,
-              f.coverUrl ? keyFromPublicUrl(f.coverUrl) : null,
-            ]),
-          ]),
-        ].filter((k): k is string => !!k)
-      : [];
+    // Soft-delete: marca `deletedAt` na conta e cascateia pra tudo que é
+    // "dela" e apareceria em listagens públicas — artistas, faixas,
+    // estação de rádio e postagens no feed. Nada é apagado do banco nem
+    // do R2 agora; isso só acontece 30 dias depois, no job de limpeza
+    // (/api/cron/purge-deleted). Fazendo login de novo com a senha certa
+    // dentro do prazo restaura tudo (ver POST /api/auth/login).
+    const now = new Date();
+    await db.$transaction([
+      db.usuario.update({ where: { id: userId }, data: { deletedAt: now } }),
+      db.artista.updateMany({ where: { usuarioId: userId, deletedAt: null }, data: { deletedAt: now } }),
+      db.faixa.updateMany({ where: { artista: { usuarioId: userId }, deletedAt: null }, data: { deletedAt: now } }),
+      db.estacaoRadio.updateMany({ where: { usuarioId: userId, deletedAt: null }, data: { deletedAt: now } }),
+      db.postagem.updateMany({ where: { usuarioId: userId, deletedAt: null }, data: { deletedAt: now } }),
+    ]);
 
-    // Apaga primeiro os artistas (leva as faixas junto por cascade), depois
-    // a conta em si (leva o resto — mensagens, posts, comentários, etc.).
-    await db.artista.deleteMany({ where: { usuarioId: userId } });
-    await db.usuario.delete({ where: { id: userId } });
-
-    if (r2Keys.length > 0) {
-      await Promise.all(
-        r2Keys.map((key) =>
-          deleteFromR2(key).catch((err) => console.warn('[USERS DELETE] falha ao apagar arquivo no R2:', err))
-        )
-      );
-    }
-
-    return NextResponse.json({ deleted: true });
+    return NextResponse.json({ deleted: true, retention_days: 30 });
   } catch (error) {
     console.error('[USERS DELETE]', error);
     return NextResponse.json({ error: 'Erro ao excluir conta' }, { status: 500 });

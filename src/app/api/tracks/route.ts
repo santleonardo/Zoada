@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
-import { isNeonConfigured, isR2Configured } from '@/lib/config';
-import { deleteFromR2, keyFromPublicUrl } from '@/lib/r2';
+import { isNeonConfigured } from '@/lib/config';
 import { DEMO_TRACKS } from '@/lib/demo-data';
+import { notDeleted } from '@/lib/soft-delete';
 
 // GET /api/tracks?artist_id=xxx  -> faixas de um artista específico (público)
 // GET /api/tracks?mine=1         -> faixas de TODOS os artistas do usuário logado
@@ -32,8 +32,11 @@ export async function GET(request: Request) {
       where = { artistaId: artistId };
     }
 
+    // Faixas apagadas (dentro da janela de 30 dias pra restaurar) não
+    // aparecem em nenhuma listagem — inclusive na aba "minhas faixas", já
+    // que essa passa a viver na Lixeira em vez daqui.
     const faixas = await db.faixa.findMany({
-      where,
+      where: { ...where, ...notDeleted },
       include: {
         artista: { select: { id: true, nome: true, avatarUrl: true } },
         // Contagens usadas no ranking "Mais tocadas" da Início, além de
@@ -257,7 +260,12 @@ export async function PUT(request: Request) {
   }
 }
 
-// DELETE /api/tracks?id=xxx — Remove uma faixa (autenticado, só o dono)
+// DELETE /api/tracks?id=xxx — Soft-delete de uma faixa (autenticado, só o
+// dono). Não apaga a linha nem os arquivos no R2 na hora: só marca
+// `deletedAt`, o que já é suficiente pra faixa sumir de toda listagem
+// (ver filtro `notDeleted` no GET acima). Fica 30 dias assim, restaurável
+// pela Lixeira via PATCH abaixo — depois disso o job de limpeza
+// (/api/cron/purge-deleted) apaga a linha de vez e os arquivos no R2.
 export async function DELETE(request: Request) {
   try {
     const userId = await authenticateRequest(request);
@@ -282,33 +290,59 @@ export async function DELETE(request: Request) {
     if (faixa.artista.usuarioId && faixa.artista.usuarioId !== userId) {
       return NextResponse.json({ error: 'Você não tem permissão para apagar essa faixa' }, { status: 403 });
     }
-
-    // Apaga a linha do banco primeiro (é o que realmente importa pro app
-    // parar de mostrar a faixa); apagar os arquivos no R2 é best-effort —
-    // se falhar, não desfazemos a exclusão, só avisamos no log.
-    await db.faixa.delete({ where: { id } });
-
-    if (isR2Configured) {
-      const audioKey = faixa.audioUrl ? keyFromPublicUrl(faixa.audioUrl) : null;
-      const audioLowKey = faixa.audioUrlLow ? keyFromPublicUrl(faixa.audioUrlLow) : null;
-      const coverKey = faixa.coverUrl ? keyFromPublicUrl(faixa.coverUrl) : null;
-
-      await Promise.all([
-        audioKey
-          ? deleteFromR2(audioKey).catch((err) => console.warn('[TRACKS DELETE] falha ao apagar áudio no R2:', err))
-          : null,
-        audioLowKey
-          ? deleteFromR2(audioLowKey).catch((err) => console.warn('[TRACKS DELETE] falha ao apagar áudio (economia) no R2:', err))
-          : null,
-        coverKey
-          ? deleteFromR2(coverKey).catch((err) => console.warn('[TRACKS DELETE] falha ao apagar capa no R2:', err))
-          : null,
-      ]);
+    if (faixa.deletedAt) {
+      return NextResponse.json({ error: 'Essa faixa já foi apagada' }, { status: 409 });
     }
 
-    return NextResponse.json({ deleted: true });
+    await db.faixa.update({ where: { id }, data: { deletedAt: new Date() } });
+
+    return NextResponse.json({ deleted: true, retention_days: 30 });
   } catch (error) {
     console.error('[TRACKS DELETE]', error);
     return NextResponse.json({ error: 'Erro ao apagar faixa' }, { status: 500 });
+  }
+}
+
+// PATCH /api/tracks?id=xxx  body: { action: 'restore' } — Desfaz o
+// soft-delete de uma faixa dentro dos 30 dias (autenticado, só o dono).
+export async function PATCH(request: Request) {
+  try {
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+
+    const { action } = await request.json().catch(() => ({ action: undefined }));
+    if (action !== 'restore') {
+      return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
+    }
+
+    const faixa = await db.faixa.findUnique({ where: { id }, include: { artista: true } });
+    if (!faixa) {
+      return NextResponse.json({ error: 'Faixa não encontrada' }, { status: 404 });
+    }
+    if (faixa.artista.usuarioId && faixa.artista.usuarioId !== userId) {
+      return NextResponse.json({ error: 'Você não tem permissão para restaurar essa faixa' }, { status: 403 });
+    }
+    if (!faixa.deletedAt) {
+      return NextResponse.json({ error: 'Essa faixa não está apagada' }, { status: 409 });
+    }
+
+    await db.faixa.update({ where: { id }, data: { deletedAt: null } });
+
+    return NextResponse.json({ restored: true });
+  } catch (error) {
+    console.error('[TRACKS PATCH restore]', error);
+    return NextResponse.json({ error: 'Erro ao restaurar faixa' }, { status: 500 });
   }
 }

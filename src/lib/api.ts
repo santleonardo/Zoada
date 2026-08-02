@@ -787,3 +787,96 @@ export async function togglePostCommentLike(commentId: string): Promise<{
     return null;
   }
 }
+
+// ---------- Lixeira (soft-delete: 30 dias pra desfazer) ----------
+
+export interface TrashedTrack {
+  id: string;
+  title: string;
+  cover_url: string | null;
+  artist_id: string;
+  artist_name: string;
+  deleted_at: string;
+  days_left: number;
+}
+
+export interface TrashedArtist {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  deleted_at: string;
+  days_left: number;
+}
+
+export interface TrashedPost {
+  id: string;
+  content: string | null;
+  track_title: string | null;
+  cover_url: string | null;
+  deleted_at: string;
+  days_left: number;
+}
+
+export interface TrashedComment {
+  id: string;
+  content: string;
+  post_id: string;
+  deleted_at: string;
+  days_left: number;
+}
+
+export interface TrashedStation {
+  id: string;
+  name: string;
+  cover_url: string | null;
+  deleted_at: string;
+  days_left: number;
+}
+
+export interface TrashContents {
+  tracks: TrashedTrack[];
+  artists: TrashedArtist[];
+  posts: TrashedPost[];
+  comments: TrashedComment[];
+  station: TrashedStation | null;
+}
+
+// Busca tudo que o usuário logado apagou e ainda está dentro da janela de
+// 30 dias pra restaurar.
+export async function fetchTrash(): Promise<TrashContents | null> {
+  try {
+    const res = await apiFetch('/api/trash');
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[fetchTrash] falha ao buscar lixeira:', err);
+    return null;
+  }
+}
+
+async function restoreItem(path: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(path, {
+      method: 'PATCH',
+      body: JSON.stringify({ action: 'restore' }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn(`[restoreItem] falha ao restaurar ${path}:`, err);
+    return false;
+  }
+}
+
+export const restoreTrack = (trackId: string) =>
+  restoreItem(`/api/tracks?id=${encodeURIComponent(trackId)}`);
+
+export const restoreArtist = (artistId: string) =>
+  restoreItem(`/api/artists?id=${encodeURIComponent(artistId)}`);
+
+export const restorePost = (postId: string) =>
+  restoreItem(`/api/posts?id=${encodeURIComponent(postId)}`);
+
+export const restorePostComment = (commentId: string) =>
+  restoreItem(`/api/post-comments?id=${encodeURIComponent(commentId)}`);
+
+export const restoreRadioStation = () => restoreItem('/api/radio-station');

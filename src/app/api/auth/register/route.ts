@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { createToken, buildUserResponse } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
+import { isExpired } from '@/lib/soft-delete';
 
 // POST /api/auth/register
 // Register new user — Neon Postgres + JWT
@@ -22,9 +23,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Neon não configurado. Defina NEON_DATABASE_URL no .env' }, { status: 503 });
     }
 
-    // Check if user already exists
+    // Check if user already exists. Enquanto uma conta soft-deletada não
+    // for varrida pelo job de limpeza (até 30 dias), o email dela continua
+    // "ocupado" — é assim que a exclusão continua desfazível fazendo
+    // login de novo com a senha antiga.
     const existing = await db.usuario.findUnique({ where: { email } });
-    if (existing) {
+    if (existing && existing.deletedAt && !isExpired(existing.deletedAt)) {
+      return NextResponse.json(
+        { error: 'Este email tem uma conta apagada recentemente. Faça login com a senha antiga para restaurá-la.' },
+        { status: 409 }
+      );
+    }
+    if (existing && (!existing.deletedAt || isExpired(existing.deletedAt))) {
       return NextResponse.json({ error: 'Este email já está cadastrado' }, { status: 409 });
     }
 

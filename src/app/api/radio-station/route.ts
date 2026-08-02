@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
 import type { RadioStation, Track } from '@/types';
+import { notDeleted } from '@/lib/soft-delete';
 
 // Helpers para converter Prisma → tipo de resposta (snake_case)
 
@@ -91,8 +92,8 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
       }
 
-      const estacao = await db.estacaoRadio.findUnique({
-        where: { usuarioId: userId },
+      const estacao = await db.estacaoRadio.findFirst({
+        where: { usuarioId: userId, ...notDeleted },
         include: {
           faixasEstacao: {
             include: { faixa: { include: { artista: { select: { nome: true } } } } },
@@ -114,7 +115,7 @@ export async function GET(request: Request) {
       }
 
       const estacoes = await db.estacaoRadio.findMany({
-        where: { publicada: true },
+        where: { publicada: true, ...notDeleted },
         include: {
           usuario: { select: { id: true, name: true, avatarUrl: true } },
           // Precisamos das faixas (só o plays_count) pra calcular o total
@@ -152,7 +153,7 @@ export async function GET(request: Request) {
         },
       });
 
-      if (!estacao || !estacao.publicada) {
+      if (!estacao || !estacao.publicada || estacao.deletedAt) {
         return NextResponse.json({ station: null });
       }
 
@@ -222,6 +223,10 @@ export async function POST(request: Request) {
         nome: name.trim(),
         capaUrl: cover_url || null,
         bio: trimmedBio || null,
+        // Se a estação estava soft-deletada, publicar uma nova a "restaura"
+        // automaticamente — sem isso o upsert ia reaproveitar a linha
+        // apagada e ela continuaria escondida das listagens.
+        deletedAt: null,
       },
       include: {
         faixasEstacao: {
@@ -385,21 +390,53 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const estacao = await db.estacaoRadio.findUnique({
-      where: { usuarioId: userId },
+    const estacao = await db.estacaoRadio.findFirst({
+      where: { usuarioId: userId, ...notDeleted },
     });
 
     if (!estacao) {
       return NextResponse.json({ error: 'Estação não encontrada' }, { status: 404 });
     }
 
-    await db.estacaoRadio.delete({
+    await db.estacaoRadio.update({
       where: { id: estacao.id },
+      data: { deletedAt: new Date() },
     });
 
-    return NextResponse.json({ message: 'Estação apagada' });
+    return NextResponse.json({ message: 'Estação apagada', retention_days: 30 });
   } catch (error) {
     console.error('[RADIO STATION DELETE]', error);
     return NextResponse.json({ error: 'Erro ao apagar estação' }, { status: 500 });
+  }
+}
+
+// PATCH /api/radio-station  body: { action: 'restore' } — Desfaz o
+// soft-delete da estação do usuário logado dentro dos 30 dias.
+export async function PATCH(request: Request) {
+  try {
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    const { action } = await request.json().catch(() => ({ action: undefined }));
+    if (action !== 'restore') {
+      return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
+    }
+
+    const estacao = await db.estacaoRadio.findUnique({ where: { usuarioId: userId } });
+    if (!estacao || !estacao.deletedAt) {
+      return NextResponse.json({ error: 'Estação apagada não encontrada' }, { status: 404 });
+    }
+
+    await db.estacaoRadio.update({ where: { id: estacao.id }, data: { deletedAt: null } });
+    return NextResponse.json({ restored: true });
+  } catch (error) {
+    console.error('[RADIO STATION PATCH restore]', error);
+    return NextResponse.json({ error: 'Erro ao restaurar estação' }, { status: 500 });
   }
 }

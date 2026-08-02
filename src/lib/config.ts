@@ -34,6 +34,13 @@ export const AUTH_CONFIG = {
   COOKIE_NAME: 'zoada-token',
 };
 
+// ---------- CRON (limpeza da lixeira, 30 dias após soft-delete) ----------
+// Protege /api/cron/purge-deleted: só aceita a chamada se o header
+// Authorization vier com esse valor. O Vercel Cron já manda
+// `Authorization: Bearer ${CRON_SECRET}` automaticamente quando essa env
+// var está configurada no projeto — não precisa fazer nada extra lá.
+export const CRON_SECRET = process.env.CRON_SECRET || '';
+
 // ---------- Helpers ----------
 export const isNeonConfigured = !!NEON_CONFIG.DATABASE_URL;
 export const isR2Configured = !!(R2_CONFIG.ACCOUNT_ID && R2_CONFIG.ACCESS_KEY_ID && R2_CONFIG.SECRET_ACCESS_KEY);

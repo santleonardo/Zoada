@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
+import { notDeleted } from '@/lib/soft-delete';
 
 // Formata uma postagem do banco (com faixa e usuário incluídos) no
 // formato que o frontend espera.
@@ -94,7 +95,7 @@ export async function GET(request: Request) {
     const viewerId = await authenticateRequest(request);
 
     const postagens = await db.postagem.findMany({
-      where: userId ? { usuarioId: userId } : undefined,
+      where: userId ? { usuarioId: userId, ...notDeleted } : { ...notDeleted },
       orderBy: { createdAt: 'desc' },
       take: userId ? undefined : limit,
       include: buildPostInclude(viewerId),
@@ -154,7 +155,9 @@ export async function POST(request: Request) {
   }
 }
 
-// DELETE /api/posts?id=xxx — Remove uma postagem própria (só o dono pode apagar).
+// DELETE /api/posts?id=xxx — Soft-delete de uma postagem própria (só o
+// dono). Fica 30 dias marcada com `deletedAt`, restaurável via PATCH
+// abaixo, antes do job de limpeza apagar de vez.
 export async function DELETE(request: Request) {
   try {
     const userId = await authenticateRequest(request);
@@ -179,11 +182,57 @@ export async function DELETE(request: Request) {
     if (postagem.usuarioId !== userId) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
+    if (postagem.deletedAt) {
+      return NextResponse.json({ error: 'Essa postagem já foi apagada' }, { status: 409 });
+    }
 
-    await db.postagem.delete({ where: { id } });
-    return NextResponse.json({ deleted: true });
+    await db.postagem.update({ where: { id }, data: { deletedAt: new Date() } });
+    return NextResponse.json({ deleted: true, retention_days: 30 });
   } catch (error) {
     console.error('[POSTS DELETE]', error);
     return NextResponse.json({ error: 'Erro ao apagar postagem' }, { status: 500 });
+  }
+}
+
+// PATCH /api/posts?id=xxx  body: { action: 'restore' } — Desfaz o
+// soft-delete de uma postagem dentro dos 30 dias (só o dono).
+export async function PATCH(request: Request) {
+  try {
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const { action } = await request.json().catch(() => ({ action: undefined }));
+    if (action !== 'restore') {
+      return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
+    }
+
+    const postagem = await db.postagem.findUnique({ where: { id } });
+    if (!postagem) {
+      return NextResponse.json({ error: 'Postagem não encontrada' }, { status: 404 });
+    }
+    if (postagem.usuarioId !== userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+    if (!postagem.deletedAt) {
+      return NextResponse.json({ error: 'Essa postagem não está apagada' }, { status: 409 });
+    }
+
+    await db.postagem.update({ where: { id }, data: { deletedAt: null } });
+    return NextResponse.json({ restored: true });
+  } catch (error) {
+    console.error('[POSTS PATCH restore]', error);
+    return NextResponse.json({ error: 'Erro ao restaurar postagem' }, { status: 500 });
   }
 }
