@@ -13,10 +13,12 @@ import {
   FileText,
   ShieldCheck,
   Trash2,
+  Download,
+  Loader2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { TopListenedTrack } from '@/types';
-import { fetchTopListenedTracks, updateMyProfile } from '@/lib/api';
+import { fetchTopListenedTracks, updateMyProfile, exportMyData } from '@/lib/api';
 import { uploadImageFile } from '@/lib/trackUpload';
 import GradientButton from './GradientButton';
 import CoverArt from './CoverArt';
@@ -43,6 +45,8 @@ const ProfileScreen: React.FC = () => {
   const [audioQualityOpen, setAudioQualityOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
   const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
   // Controla o pedido de "editar este artista" vindo do painel "Seus
@@ -132,6 +136,21 @@ const ProfileScreen: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Baixar meus dados — direito de acesso e portabilidade (art. 18, II e V,
+  // da LGPD). Não é destrutivo, então dispara direto sem diálogo de
+  // confirmação; só mostra loading enquanto monta o arquivo e um erro
+  // inline se a exportação falhar.
+  const handleExportData = async () => {
+    if (exportingData) return;
+    setExportingData(true);
+    setExportError(null);
+    const ok = await exportMyData();
+    if (!ok) {
+      setExportError('Não foi possível exportar seus dados agora. Tente de novo em instantes.');
+    }
+    setExportingData(false);
   };
 
   return (
@@ -339,6 +358,11 @@ const ProfileScreen: React.FC = () => {
           { icon: <Music2 size={18} />, label: 'Qualidade de áudio', onClick: () => setAudioQualityOpen(true) },
           { icon: <Edit3 size={18} />, label: 'Editar perfil', onClick: handleStartEdit },
           { icon: <Trash2 size={18} />, label: 'Lixeira', onClick: () => setTrashOpen(true) },
+          {
+            icon: exportingData ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />,
+            label: exportingData ? 'Preparando seus dados...' : 'Baixar meus dados',
+            onClick: handleExportData,
+          },
           { icon: <FileText size={18} />, label: 'Termos de Uso', href: '/termos' },
           { icon: <ShieldCheck size={18} />, label: 'Política de Privacidade', href: '/privacidade' },
         ] as { icon: React.ReactNode; label: string; onClick?: () => void; href?: string }[]).map((item) => {
@@ -379,6 +403,7 @@ const ProfileScreen: React.FC = () => {
             </button>
           );
         })}
+        {exportError && <p className="text-red-500 text-xs px-1">{exportError}</p>}
       </div>
 
       {/* Excluir conta — ação destrutiva, separada visualmente do resto das
