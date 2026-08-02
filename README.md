@@ -64,17 +64,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 cp .env.example .env
 ```
 
-Preencha o `.env`:
-```env
-NEON_DATABASE_URL=postgresql://user:pass@ep-xxx.region.aws.neon.tech/dbname?sslmode=require
-R2_ACCOUNT_ID=sua-cloudflare-account-id
-R2_ACCESS_KEY_ID=sua-r2-access-key
-R2_SECRET_ACCESS_KEY=sua-r2-secret-key
-R2_BUCKET_NAME=zoada-storage
-R2_PUBLIC_URL=https://pub-xxx.r2.dev
-JWT_SECRET=sua-chave-secreta
-JWT_EXPIRES_IN=7d
-```
+Preencha o `.env` com suas próprias credenciais (Neon, R2 e JWT) — veja `.env.example` para a lista completa de variáveis necessárias e onde obter cada uma.
+
+> ⚠️ **Nunca** faça commit do arquivo `.env` (com valores reais) nem cole credenciais reais em `.env.example`, README ou qualquer outro arquivo versionado. Se algum segredo real for exposto acidentalmente (banco, storage, JWT), revogue e gere um novo imediatamente.
 
 ### 5. Push do schema para o Neon
 
@@ -86,7 +78,7 @@ npx prisma generate
 npx prisma db push
 ```
 
-Isso criará todas as tabelas: `usuarios`, `artistas`, `faixas`, `curtidas`, `comentarios`, `mensagens`.
+Isso cria automaticamente todas as tabelas do app a partir de `prisma/schema.prisma`.
 
 ## Desenvolvimento
 
