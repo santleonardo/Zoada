@@ -171,7 +171,7 @@ const MainScreen: React.FC = () => {
     id: OFFICIAL_STATION_ID,
     user_id: 'official',
     name: 'Zôada',
-    cover_url: null,
+    cover_url: '/zoada-logo.png',
     bio: null,
     is_published: true,
     current_track_id: null,
@@ -338,11 +338,18 @@ const MainScreen: React.FC = () => {
     const hash = station.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const colors = COVER_COLORS[hash % COVER_COLORS.length];
     const img = station.cover_url || station.owner?.avatar_url;
+    // A logo oficial é uma marca (não uma foto), então usamos
+    // object-contain com respiro pra não cortar as pontas do desenho.
+    const isLogo = station.cover_url === '/zoada-logo.png';
     return (
       <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}>
         {img && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img
+            src={img}
+            alt=""
+            className={cn('absolute inset-0 w-full h-full', isLogo ? 'object-contain p-4' : 'object-cover')}
+          />
         )}
       </div>
     );
