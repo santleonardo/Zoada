@@ -195,8 +195,11 @@ const ExploreScreen: React.FC = () => {
 
   // Capa de fundo (gradiente determinístico + imagem, se houver) usada
   // nos cartões de estação e artista, igual ao esquema das músicas.
+  // A logo oficial é uma marca (não uma foto), então mostramos ela
+  // inteira com object-contain em vez de cortar as pontas com cover.
   const renderTileBackdrop = (name: string, imgUrl?: string | null, fallbackIcon?: React.ReactNode) => {
     const colors = COVER_COLORS[(name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % COVER_COLORS.length];
+    const isLogo = imgUrl === '/zoada-logo.png';
     return (
       <div
         className="absolute inset-0 flex items-center justify-center"
@@ -204,7 +207,11 @@ const ExploreScreen: React.FC = () => {
       >
         {imgUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={imgUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img
+            src={imgUrl}
+            alt=""
+            className={cn('absolute inset-0 w-full h-full', isLogo ? 'object-contain p-4' : 'object-cover')}
+          />
         ) : (
           fallbackIcon
         )}
@@ -357,7 +364,7 @@ const ExploreScreen: React.FC = () => {
               DEFAULT_STATION_ID,
               'Rádio Zôada',
               'Estação padrão · Shuffle infinito',
-              null,
+              '/zoada-logo.png',
               () => handlePlayStation(DEFAULT_STATION_ID)
             )}
             {filteredStations.map((station) =>
