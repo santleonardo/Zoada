@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, Zap, UserPlus } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
 import { DEMO_USER } from '@/lib/demo-data';
 import GradientButton from './GradientButton';
@@ -51,6 +52,12 @@ const LoginScreen: React.FC = () => {
         // NÃO loga como demo, senão ele acaba "logado" sem token real.
         setError(data.error || 'Não foi possível entrar. Tente novamente.');
         return;
+      }
+
+      // Se a conta tinha sido apagada há menos de 30 dias, logar de novo
+      // com a senha certa acabou de restaurá-la (ver POST /api/auth/login).
+      if (data.restored) {
+        toast.success('Sua conta foi restaurada! Tudo que você tinha apagado voltou.');
       }
 
       setUser({

@@ -89,7 +89,9 @@ const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({ open, onClose
             <AlertTriangle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-red-600 leading-relaxed">
               Isso apaga sua conta e todos os seus dados: faixas enviadas, posts, comentários,
-              mensagens, curtidas e favoritos. <strong>Não é possível desfazer.</strong>
+              mensagens, curtidas e favoritos. Você tem <strong>30 dias para desfazer</strong> —
+              é só fazer login de novo com essa mesma senha dentro do prazo. Depois disso, a
+              exclusão vira definitiva.
             </p>
           </div>
 

@@ -28,6 +28,7 @@ import MyRadioStationPanel from './MyRadioStationPanel';
 import UserFeedPanel from './UserFeedPanel';
 import AudioQualityDialog from './AudioQualityDialog';
 import DeleteAccountDialog from './DeleteAccountDialog';
+import TrashDialog from './TrashDialog';
 
 const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, selectArtist, setUser, authToken } = useAppStore();
@@ -41,6 +42,7 @@ const ProfileScreen: React.FC = () => {
   const profileCardRef = useRef<HTMLDivElement>(null);
   const [audioQualityOpen, setAudioQualityOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
   const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
   // Controla o pedido de "editar este artista" vindo do painel "Seus
@@ -336,6 +338,7 @@ const ProfileScreen: React.FC = () => {
           { icon: <Settings size={18} />, label: 'Notificações' },
           { icon: <Music2 size={18} />, label: 'Qualidade de áudio', onClick: () => setAudioQualityOpen(true) },
           { icon: <Edit3 size={18} />, label: 'Editar perfil', onClick: handleStartEdit },
+          { icon: <Trash2 size={18} />, label: 'Lixeira', onClick: () => setTrashOpen(true) },
           { icon: <FileText size={18} />, label: 'Termos de Uso', href: '/termos' },
           { icon: <ShieldCheck size={18} />, label: 'Política de Privacidade', href: '/privacidade' },
         ] as { icon: React.ReactNode; label: string; onClick?: () => void; href?: string }[]).map((item) => {
@@ -393,6 +396,14 @@ const ProfileScreen: React.FC = () => {
 
       <AudioQualityDialog open={audioQualityOpen} onClose={() => setAudioQualityOpen(false)} />
       <DeleteAccountDialog open={deleteAccountOpen} onClose={() => setDeleteAccountOpen(false)} />
+      <TrashDialog
+        open={trashOpen}
+        onClose={() => setTrashOpen(false)}
+        onRestored={() => {
+          setTracksRefreshKey((k) => k + 1);
+          setArtistsRefreshKey((k) => k + 1);
+        }}
+      />
     </div>
   );
 };
