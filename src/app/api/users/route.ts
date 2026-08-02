@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
-import { isNeonConfigured } from '@/lib/config';
+import { isNeonConfigured, isR2Configured } from '@/lib/config';
+import { deleteFromR2, keyFromPublicUrl } from '@/lib/r2';
 
 // GET /api/users?id=xxx       -> perfil público de UM usuário (nome, foto,
 //                                 artistas que ele criou, seguidores/seguindo).
@@ -174,5 +176,99 @@ export async function PATCH(request: Request) {
   } catch (error) {
     console.error('[USERS PATCH]', error);
     return NextResponse.json({ error: 'Erro ao atualizar perfil' }, { status: 500 });
+  }
+}
+
+// DELETE /api/users — Apaga a PRÓPRIA conta do usuário logado (LGPD art.
+// 18, VI — eliminação — e o direito de cancelamento fácil que a Política
+// de Privacidade promete no item 8). Sempre age sobre quem está
+// autenticado: não recebe id no corpo, então não há como um usuário apagar
+// a conta de outro. Exige a senha atual como confirmação, já que é uma
+// ação irreversível.
+//
+// Ordem da exclusão:
+//  1) Apaga os Artistas do usuário — a relação Faixa->Artista tem onDelete
+//     Cascade no schema, então isso já leva junto todas as faixas
+//     enviadas por ele (e o que cascateia a partir delas: curtidas,
+//     favoritos, comentários, faixas de estação). É a mesma lógica do
+//     DELETE /api/artists, só que para todos os artistas do usuário de
+//     uma vez.
+//  2) Apaga a linha do Usuario — todas as demais relações dele (mensagens,
+//     posts, comentários, seguidores, estação de rádio, etc.) têm
+//     onDelete Cascade explícito no schema, então somem automaticamente.
+//  3) Limpa os arquivos no R2 (avatar do usuário + avatar/capa de cada
+//     artista + áudio/capa de cada faixa) — best-effort, igual ao padrão
+//     já usado em /api/tracks e /api/artists: se falhar, não desfazemos a
+//     exclusão, só avisamos no log.
+export async function DELETE(request: Request) {
+  try {
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    const { password } = await request.json().catch(() => ({ password: undefined }));
+    if (!password) {
+      return NextResponse.json({ error: 'Confirme sua senha para excluir a conta' }, { status: 400 });
+    }
+
+    const usuario = await db.usuario.findUnique({
+      where: { id: userId },
+      include: {
+        artistas: { include: { faixas: true } },
+        estacoesRadio: true,
+      },
+    });
+    if (!usuario) {
+      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
+    }
+    if (!usuario.passwordHash) {
+      return NextResponse.json({ error: 'Não foi possível confirmar sua senha' }, { status: 400 });
+    }
+
+    const isValid = await bcrypt.compare(password, usuario.passwordHash);
+    if (!isValid) {
+      return NextResponse.json({ error: 'Senha incorreta' }, { status: 401 });
+    }
+
+    // Junta as chaves do R2 ANTES de apagar do banco (depois não teremos
+    // mais como saber quais URLs existiam).
+    const r2Keys = isR2Configured
+      ? [
+          usuario.avatarUrl ? keyFromPublicUrl(usuario.avatarUrl) : null,
+          ...usuario.estacoesRadio.map((e) => (e.capaUrl ? keyFromPublicUrl(e.capaUrl) : null)),
+          ...usuario.artistas.flatMap((a) => [
+            a.avatarUrl ? keyFromPublicUrl(a.avatarUrl) : null,
+            a.coverUrl ? keyFromPublicUrl(a.coverUrl) : null,
+            ...a.faixas.flatMap((f) => [
+              f.audioUrl ? keyFromPublicUrl(f.audioUrl) : null,
+              f.audioUrlLow ? keyFromPublicUrl(f.audioUrlLow) : null,
+              f.coverUrl ? keyFromPublicUrl(f.coverUrl) : null,
+            ]),
+          ]),
+        ].filter((k): k is string => !!k)
+      : [];
+
+    // Apaga primeiro os artistas (leva as faixas junto por cascade), depois
+    // a conta em si (leva o resto — mensagens, posts, comentários, etc.).
+    await db.artista.deleteMany({ where: { usuarioId: userId } });
+    await db.usuario.delete({ where: { id: userId } });
+
+    if (r2Keys.length > 0) {
+      await Promise.all(
+        r2Keys.map((key) =>
+          deleteFromR2(key).catch((err) => console.warn('[USERS DELETE] falha ao apagar arquivo no R2:', err))
+        )
+      );
+    }
+
+    return NextResponse.json({ deleted: true });
+  } catch (error) {
+    console.error('[USERS DELETE]', error);
+    return NextResponse.json({ error: 'Erro ao excluir conta' }, { status: 500 });
   }
 }
