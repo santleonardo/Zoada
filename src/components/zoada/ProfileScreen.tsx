@@ -12,6 +12,7 @@ import {
   Edit3,
   FileText,
   ShieldCheck,
+  Trash2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { TopListenedTrack } from '@/types';
@@ -26,6 +27,7 @@ import MyArtistsPanel from './MyArtistsPanel';
 import MyRadioStationPanel from './MyRadioStationPanel';
 import UserFeedPanel from './UserFeedPanel';
 import AudioQualityDialog from './AudioQualityDialog';
+import DeleteAccountDialog from './DeleteAccountDialog';
 
 const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, selectArtist, setUser, authToken } = useAppStore();
@@ -38,6 +40,7 @@ const ProfileScreen: React.FC = () => {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const profileCardRef = useRef<HTMLDivElement>(null);
   const [audioQualityOpen, setAudioQualityOpen] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
   const [artistsRefreshKey, setArtistsRefreshKey] = useState(0);
   // Controla o pedido de "editar este artista" vindo do painel "Seus
@@ -375,10 +378,21 @@ const ProfileScreen: React.FC = () => {
         })}
       </div>
 
+      {/* Excluir conta — ação destrutiva, separada visualmente do resto das
+          Configurações (item 8 da Política de Privacidade). */}
+      <button
+        onClick={() => setDeleteAccountOpen(true)}
+        className="flex items-center gap-3 w-full p-3 rounded-xl bg-white shadow-sm hover:bg-red-50 transition-colors mb-6"
+      >
+        <Trash2 size={18} className="text-red-400" />
+        <span className="text-sm text-red-500 font-medium">Excluir conta</span>
+      </button>
+
       {/* Bottom spacing */}
       <div className="h-32" />
 
       <AudioQualityDialog open={audioQualityOpen} onClose={() => setAudioQualityOpen(false)} />
+      <DeleteAccountDialog open={deleteAccountOpen} onClose={() => setDeleteAccountOpen(false)} />
     </div>
   );
 };
