@@ -211,6 +211,21 @@ const LoginScreen: React.FC = () => {
           {mode === 'login' ? 'Não tem conta? Criar conta' : 'Já tem conta? Fazer login'}
         </button>
 
+        {/* Aviso legal — exigido ao coletar dados no cadastro (LGPD/CDC/ECA Digital) */}
+        {mode === 'register' && (
+          <p className="text-center text-black/30 text-xs mt-4 px-4 leading-relaxed">
+            Ao criar uma conta, você concorda com os{' '}
+            <a href="/termos" target="_blank" rel="noopener noreferrer" className="underline hover:text-black/50">
+              Termos de Uso
+            </a>{' '}
+            e a{' '}
+            <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="underline hover:text-black/50">
+              Política de Privacidade
+            </a>{' '}
+            do Zôada.
+          </p>
+        )}
+
         {/* Equalizer decoration */}
         <div className="flex justify-center mt-10">
           <Equalizer barCount={7} height={28} barWidth={3} gap={3} />
