@@ -121,6 +121,11 @@ export async function POST(request: Request) {
 // checagem, editar o "Nome artístico" no formulário de upload podia
 // reescrever qualquer artista cujo id estivesse em cache no navegador,
 // mesmo que fosse de outra conta (ou de outro artista seu).
+//
+// PATCH /api/artists?id=xxx  body: { action: 'restore' } — Desfaz o
+// soft-delete de um artista (e das faixas dele apagadas junto) dentro dos
+// 30 dias (autenticado, só o dono). Diferenciado do caso de edição acima
+// pelo campo "action" no corpo da requisição.
 export async function PATCH(request: Request) {
   try {
     if (!isNeonConfigured) {
@@ -132,7 +137,33 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { id, nome, avatarUrl, coverUrl, bio, genero } = await request.json();
+    const { searchParams } = new URL(request.url);
+    const queryId = searchParams.get('id');
+    const body = await request.json().catch(() => ({}));
+
+    if (queryId && body.action === 'restore') {
+      const id = queryId;
+
+      const artista = await db.artista.findUnique({ where: { id } });
+      if (!artista) {
+        return NextResponse.json({ error: 'Artista não encontrado' }, { status: 404 });
+      }
+      if (artista.usuarioId && artista.usuarioId !== userId) {
+        return NextResponse.json({ error: 'Você não tem permissão para restaurar esse artista' }, { status: 403 });
+      }
+      if (!artista.deletedAt) {
+        return NextResponse.json({ error: 'Esse artista não está apagado' }, { status: 409 });
+      }
+
+      await db.$transaction([
+        db.artista.update({ where: { id }, data: { deletedAt: null } }),
+        db.faixa.updateMany({ where: { artistaId: id, deletedAt: artista.deletedAt }, data: { deletedAt: null } }),
+      ]);
+
+      return NextResponse.json({ restored: true });
+    }
+
+    const { id, nome, avatarUrl, coverUrl, bio, genero } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
@@ -211,50 +242,4 @@ export async function DELETE(request: Request) {
   }
 }
 
-// PATCH /api/artists?id=xxx  body: { action: 'restore' } — Desfaz o
-// soft-delete de um artista (e das faixas dele apagadas junto) dentro dos
-// 30 dias (autenticado, só o dono).
-export async function PATCH(request: Request) {
-  try {
-    const userId = await authenticateRequest(request);
-    if (!userId) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
 
-    if (!isNeonConfigured) {
-      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    if (!id) {
-      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
-    }
-
-    const { action } = await request.json().catch(() => ({ action: undefined }));
-    if (action !== 'restore') {
-      return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
-    }
-
-    const artista = await db.artista.findUnique({ where: { id } });
-    if (!artista) {
-      return NextResponse.json({ error: 'Artista não encontrado' }, { status: 404 });
-    }
-    if (artista.usuarioId && artista.usuarioId !== userId) {
-      return NextResponse.json({ error: 'Você não tem permissão para restaurar esse artista' }, { status: 403 });
-    }
-    if (!artista.deletedAt) {
-      return NextResponse.json({ error: 'Esse artista não está apagado' }, { status: 409 });
-    }
-
-    await db.$transaction([
-      db.artista.update({ where: { id }, data: { deletedAt: null } }),
-      db.faixa.updateMany({ where: { artistaId: id, deletedAt: artista.deletedAt }, data: { deletedAt: null } }),
-    ]);
-
-    return NextResponse.json({ restored: true });
-  } catch (error) {
-    console.error('[ARTISTS PATCH restore]', error);
-    return NextResponse.json({ error: 'Erro ao restaurar artista' }, { status: 500 });
-  }
-}

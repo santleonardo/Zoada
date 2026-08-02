@@ -155,12 +155,44 @@ export async function POST(request: Request) {
 // esse contador pessoal que alimenta a lista de "Mais ouvidas" no perfil.
 // Sem login, essa parte simplesmente não roda (a contagem global continua
 // normal), já que não há de quem guardar o hábito de escuta.
+//
+// PATCH /api/tracks?id=xxx  body: { action: 'restore' } — Desfaz o
+// soft-delete de uma faixa dentro dos 30 dias (autenticado, só o dono).
+// Diferenciado do caso de reprodução acima pelo campo "action" no corpo.
 export async function PATCH(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+
+    const { action } = await request.json().catch(() => ({ action: undefined }));
+
+    if (action === 'restore') {
+      const userId = await authenticateRequest(request);
+      if (!userId) {
+        return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+      }
+
+      if (!isNeonConfigured) {
+        return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+      }
+
+      const faixa = await db.faixa.findUnique({ where: { id }, include: { artista: true } });
+      if (!faixa) {
+        return NextResponse.json({ error: 'Faixa não encontrada' }, { status: 404 });
+      }
+      if (faixa.artista.usuarioId && faixa.artista.usuarioId !== userId) {
+        return NextResponse.json({ error: 'Você não tem permissão para restaurar essa faixa' }, { status: 403 });
+      }
+      if (!faixa.deletedAt) {
+        return NextResponse.json({ error: 'Essa faixa não está apagada' }, { status: 409 });
+      }
+
+      await db.faixa.update({ where: { id }, data: { deletedAt: null } });
+
+      return NextResponse.json({ restored: true });
     }
 
     if (!isNeonConfigured) {
@@ -194,8 +226,8 @@ export async function PATCH(request: Request) {
   } catch (error) {
     // Provavelmente a faixa foi apagada entre o carregamento e o fim da
     // contagem (Prisma P2025) — não é grave, é só uma reprodução perdida.
-    console.error('[TRACKS PATCH play]', error);
-    return NextResponse.json({ error: 'Erro ao registrar reprodução' }, { status: 500 });
+    console.error('[TRACKS PATCH]', error);
+    return NextResponse.json({ error: 'Erro ao processar requisição' }, { status: 500 });
   }
 }
 
@@ -303,46 +335,4 @@ export async function DELETE(request: Request) {
   }
 }
 
-// PATCH /api/tracks?id=xxx  body: { action: 'restore' } — Desfaz o
-// soft-delete de uma faixa dentro dos 30 dias (autenticado, só o dono).
-export async function PATCH(request: Request) {
-  try {
-    const userId = await authenticateRequest(request);
-    if (!userId) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
 
-    if (!isNeonConfigured) {
-      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    if (!id) {
-      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
-    }
-
-    const { action } = await request.json().catch(() => ({ action: undefined }));
-    if (action !== 'restore') {
-      return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
-    }
-
-    const faixa = await db.faixa.findUnique({ where: { id }, include: { artista: true } });
-    if (!faixa) {
-      return NextResponse.json({ error: 'Faixa não encontrada' }, { status: 404 });
-    }
-    if (faixa.artista.usuarioId && faixa.artista.usuarioId !== userId) {
-      return NextResponse.json({ error: 'Você não tem permissão para restaurar essa faixa' }, { status: 403 });
-    }
-    if (!faixa.deletedAt) {
-      return NextResponse.json({ error: 'Essa faixa não está apagada' }, { status: 409 });
-    }
-
-    await db.faixa.update({ where: { id }, data: { deletedAt: null } });
-
-    return NextResponse.json({ restored: true });
-  } catch (error) {
-    console.error('[TRACKS PATCH restore]', error);
-    return NextResponse.json({ error: 'Erro ao restaurar faixa' }, { status: 500 });
-  }
-}

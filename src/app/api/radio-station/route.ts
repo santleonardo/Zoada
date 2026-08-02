@@ -271,6 +271,8 @@ export async function POST(request: Request) {
 // { "action": "publish" }   → publica a estação (disponível no seletor)
 // { "action": "unpublish" } → remove do seletor (mas não apaga)
 // { "action": "advance" }   → avança a faixa atual (quando uma termina)
+// { "action": "restore" }   → desfaz o soft-delete da estação do usuário
+//                             logado dentro dos 30 dias.
 // ============================================================
 export async function PATCH(request: Request) {
   try {
@@ -283,8 +285,18 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { action } = body;
+
+    if (action === 'restore') {
+      const estacaoApagada = await db.estacaoRadio.findUnique({ where: { usuarioId: userId } });
+      if (!estacaoApagada || !estacaoApagada.deletedAt) {
+        return NextResponse.json({ error: 'Estação apagada não encontrada' }, { status: 404 });
+      }
+
+      await db.estacaoRadio.update({ where: { id: estacaoApagada.id }, data: { deletedAt: null } });
+      return NextResponse.json({ restored: true });
+    }
 
     const estacao = await db.estacaoRadio.findUnique({
       where: { usuarioId: userId },
@@ -367,7 +379,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ station: stationToResponse(updated) });
     }
 
-    return NextResponse.json({ error: 'Ação inválida. Use "publish", "unpublish" ou "advance".' }, { status: 400 });
+    return NextResponse.json({ error: 'Ação inválida. Use "publish", "unpublish", "advance" ou "restore".' }, { status: 400 });
   } catch (error) {
     console.error('[RADIO STATION PATCH]', error);
     return NextResponse.json({ error: 'Erro ao atualizar estação' }, { status: 500 });
@@ -410,33 +422,4 @@ export async function DELETE(request: Request) {
   }
 }
 
-// PATCH /api/radio-station  body: { action: 'restore' } — Desfaz o
-// soft-delete da estação do usuário logado dentro dos 30 dias.
-export async function PATCH(request: Request) {
-  try {
-    if (!isNeonConfigured) {
-      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
-    }
 
-    const userId = await authenticateRequest(request);
-    if (!userId) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
-
-    const { action } = await request.json().catch(() => ({ action: undefined }));
-    if (action !== 'restore') {
-      return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
-    }
-
-    const estacao = await db.estacaoRadio.findUnique({ where: { usuarioId: userId } });
-    if (!estacao || !estacao.deletedAt) {
-      return NextResponse.json({ error: 'Estação apagada não encontrada' }, { status: 404 });
-    }
-
-    await db.estacaoRadio.update({ where: { id: estacao.id }, data: { deletedAt: null } });
-    return NextResponse.json({ restored: true });
-  } catch (error) {
-    console.error('[RADIO STATION PATCH restore]', error);
-    return NextResponse.json({ error: 'Erro ao restaurar estação' }, { status: 500 });
-  }
-}
