@@ -69,7 +69,7 @@ const RadioScreen: React.FC = () => {
   // Dial: lista de estações disponíveis (padrão + publicadas)
   const dialStations = useMemo((): Array<{ id: string; name: string; subtitle?: string; cover_url?: string | null }> => {
     const list: Array<{ id: string; name: string; subtitle?: string; cover_url?: string | null }> = [
-      { id: DEFAULT_STATION_ID, name: 'Rádio Zôada', subtitle: 'Shuffle infinito' },
+      { id: DEFAULT_STATION_ID, name: 'Rádio Zôada', subtitle: 'Shuffle infinito', cover_url: '/zoada-logo.png' },
     ];
     for (const s of publishedStations) {
       list.push({
@@ -335,7 +335,12 @@ const RadioScreen: React.FC = () => {
                       <img
                         src={dialStation.cover_url}
                         alt={dialStation.name}
-                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+                        className={cn(
+                          'w-10 h-10 rounded-xl flex-shrink-0',
+                          dialStation.cover_url === '/zoada-logo.png'
+                            ? 'object-contain bg-white/10 p-1'
+                            : 'object-cover'
+                        )}
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
