@@ -331,6 +331,82 @@ const MainScreen: React.FC = () => {
     </button>
   );
 
+  // Cartão de destaque do artista mais popular na aba "Artistas": mesma
+  // moldura foto-de-fundo dos outros heróis do app, mas sem numeral —
+  // só o selo "Mais popular" com o ícone de chama marca o destaque.
+  const renderArtistSpotlightHero = (artist: Artist & { totalPlays: number }) => (
+    <button
+      onClick={() => selectArtist(artist.id)}
+      className="group relative w-full aspect-[16/10] rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform duration-200 mb-3"
+    >
+      {renderArtistBackdrop(artist)}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(180deg, rgba(10,8,20,0.05) 35%, rgba(10,8,20,0.92) 100%)' }}
+      />
+      <div className="absolute bottom-0 left-0 right-0 p-4">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Flame size={12} className="text-[#FDCB6E]" fill="#FDCB6E" />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#FDCB6E]">
+            Mais popular
+          </span>
+        </div>
+        <p className="text-white font-bold text-lg truncate">{artist.name}</p>
+        {artist.genre && (
+          <span className="inline-block mt-2 text-[11px] text-white/70 bg-white/10 px-2 py-0.5 rounded-full truncate max-w-[160px]">
+            {artist.genre}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+
+  // Cartões dos demais artistas em destaque: mesma linguagem visual do
+  // herói, em grid, sem nenhum selo numérico — só a foto e o nome.
+  const renderArtistSpotlightCard = (artist: Artist & { totalPlays: number }) => (
+    <button
+      key={artist.id}
+      onClick={() => selectArtist(artist.id)}
+      className="group relative rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform duration-200 aspect-square"
+    >
+      {renderArtistBackdrop(artist)}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(180deg, rgba(10,8,20,0.05) 38%, rgba(10,8,20,0.88) 100%)' }}
+      />
+      <div className="absolute bottom-0 left-0 right-0 p-2.5">
+        <p className="text-white text-[11px] font-semibold leading-tight truncate">{artist.name}</p>
+        {artist.genre && (
+          <p className="text-[9px] text-white/60 font-medium truncate mt-0.5">{artist.genre}</p>
+        )}
+      </div>
+    </button>
+  );
+
+  // Cartão de artista pro grid geral (todos os artistas): capa + barra de
+  // info branca, sem seguidores nem qualquer outro número — só nome e
+  // gênero, igual ao restante dos cartões do app.
+  const renderArtistGridCard = (artist: Artist) => (
+    <button
+      key={artist.id}
+      onClick={() => selectArtist(artist.id)}
+      className="relative rounded-2xl overflow-hidden text-left transition-all duration-200 active:scale-[0.97]"
+    >
+      <CoverArt
+        title={artist.name}
+        artistName={artist.genre}
+        coverUrl={artist.avatar_url || artist.cover_url}
+        size="lg"
+      />
+      <div className="p-3 pt-0 -mt-3 relative">
+        <div className="bg-white shadow-sm rounded-b-2xl px-3 py-2.5">
+          <p className="text-sm font-semibold text-[#1A1B25] truncate">{artist.name}</p>
+          {artist.genre && <p className="text-xs text-black/40 truncate mt-0.5">{artist.genre}</p>}
+        </div>
+      </div>
+    </button>
+  );
+
   // Capa de fundo da estação de rádio: mesmo esquema determinístico de
   // cores das faixas/artistas, usando a capa da estação (ou avatar do
   // dono, se a estação não tiver capa própria).
@@ -909,38 +985,48 @@ const MainScreen: React.FC = () => {
         </div>
       )}
 
-      {/* Artists Grid */}
+      {/* Artistas: destaque pros mais populares (sem números, só a foto e
+          o selo "Mais popular"), seguido do grid com todos os artistas. */}
       {activeTab === 'artists' && (
-        <div className="space-y-3">
-          {filteredArtists.map((artist) => (
-            <button
-              key={artist.id}
-              onClick={() => selectArtist(artist.id)}
-              className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
-            >
-              <CoverArt
-                title={artist.name}
-                artistName={artist.genre}
-                coverUrl={artist.avatar_url || artist.cover_url}
-                size="sm"
-                className="!w-14 !h-14 !max-w-none !rounded-xl flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-[#1A1B25] truncate">{artist.name}</p>
-                <p className="text-sm text-black/40">{artist.genre}</p>
+        <div>
+          {!search && topArtists.length > 0 && (
+            <div className="mb-5">
+              <div className="flex items-center gap-1.5 mb-3">
+                <div
+                  className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #FDCB6E, #FF8C42)' }}
+                >
+                  <Flame size={11} className="text-white" fill="white" />
+                </div>
+                <h2 className="text-xs font-bold text-[#1A1B25] uppercase tracking-wide">Mais populares</h2>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-black/50">{formatNumber(artist.followers_count)}</p>
-                <p className="text-[10px] text-black/30">seguidores</p>
+
+              {renderArtistSpotlightHero(topArtists[0])}
+
+              {topArtists.length > 1 && (
+                <div className="grid grid-cols-2 gap-3">
+                  {topArtists.slice(1, 5).map((artist) => renderArtistSpotlightCard(artist))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!search && (
+            <h2 className="text-xs font-bold text-black/60 uppercase tracking-wide mb-3">Todos os artistas</h2>
+          )}
+
+          {filteredArtists.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                <Music2 size={28} className="text-black/20" />
               </div>
-              <div
-                className="p-2 rounded-full bg-black/5"
-                aria-label="Ver perfil do artista"
-              >
-                <Music2 size={16} className="text-black/50" />
-              </div>
-            </button>
-          ))}
+              <p className="text-black/40 text-sm font-medium">Nenhum artista encontrado</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            {filteredArtists.map((artist) => renderArtistGridCard(artist))}
+          </div>
         </div>
       )}
 
