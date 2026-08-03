@@ -36,6 +36,9 @@ const RadioScreen: React.FC = () => {
     selectStation,
     tuneIntoStation,
     advanceStationTrack,
+    radioPadrao,
+    loadRadioPadrao,
+    startDefaultRadioSynced,
   } = useAppStore();
 
   const { currentTrack, isPlaying, progress, duration } = player;
@@ -64,12 +67,53 @@ const RadioScreen: React.FC = () => {
       .catch(() => {});
 
     loadPublishedStations();
-  }, [loadPublishedStations]);
+    loadRadioPadrao();
+  }, [loadPublishedStations, loadRadioPadrao]);
+
+  // Enquanto a Rádio Zôada (padrão) estiver tocando, revalida o estado
+  // periodicamente — é assim que quem já está ouvindo percebe que a
+  // moderação pausou, pulou faixa ou trocou a playlist, sem precisar
+  // recarregar a página.
+  useEffect(() => {
+    if (selectedStationId) return; // só relevante pra estação padrão
+    const interval = setInterval(() => {
+      loadRadioPadrao();
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [selectedStationId, loadRadioPadrao]);
+
+  // Reage a mudanças no estado da Rádio Zôada vindas da moderação
+  // (pausar/retomar, pular faixa, trocar playlist) enquanto ela é a
+  // estação ativa deste ouvinte.
+  const lastAppliedTrackId = useRef<string | null>(null);
+  useEffect(() => {
+    if (selectedStationId) return; // ouvindo outra estação, não a padrão
+    if (!radioPadrao) return;
+
+    if (radioPadrao.pausada) {
+      if (radioEnabled) stopRadio();
+      lastAppliedTrackId.current = null;
+      return;
+    }
+
+    if (radioPadrao.tracks.length === 0) return; // sem playlist curada, fica no fallback local
+
+    if (radioEnabled && radioPadrao.current_track_id === lastAppliedTrackId.current) return;
+
+    lastAppliedTrackId.current = radioPadrao.current_track_id;
+    startDefaultRadioSynced(radioPadrao);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [radioPadrao, selectedStationId]);
 
   // Dial: lista de estações disponíveis (padrão + publicadas)
   const dialStations = useMemo((): Array<{ id: string; name: string; subtitle?: string; cover_url?: string | null }> => {
     const list: Array<{ id: string; name: string; subtitle?: string; cover_url?: string | null }> = [
-      { id: DEFAULT_STATION_ID, name: 'Rádio Zôada', subtitle: 'Shuffle infinito', cover_url: '/zoada-logo.png' },
+      {
+        id: DEFAULT_STATION_ID,
+        name: radioPadrao?.nome || 'Rádio Zôada',
+        subtitle: radioPadrao?.pausada ? 'Pausada pela moderação' : (radioPadrao?.tracks.length ? 'Selecionada pela equipe' : 'Shuffle infinito'),
+        cover_url: radioPadrao?.cover_url || '/zoada-logo.png',
+      },
     ];
     for (const s of publishedStations) {
       list.push({
@@ -80,7 +124,7 @@ const RadioScreen: React.FC = () => {
       });
     }
     return list;
-  }, [publishedStations]);
+  }, [publishedStations, radioPadrao]);
 
   // Índice atual no dial (reflete selectedStationId)
   const dialIndex = useMemo(() => {
@@ -102,8 +146,14 @@ const RadioScreen: React.FC = () => {
       if (stationId === DEFAULT_STATION_ID) {
         await selectStation(null);
         if (radioEnabled) {
-          const currentTracks = tracks.length > 0 ? tracks : DEMO_TRACKS;
-          startRadio(currentTracks);
+          if (radioPadrao?.pausada) {
+            stopRadio();
+          } else if (radioPadrao && radioPadrao.tracks.length > 0) {
+            startDefaultRadioSynced(radioPadrao);
+          } else {
+            const currentTracks = tracks.length > 0 ? tracks : DEMO_TRACKS;
+            startRadio(currentTracks);
+          }
         }
       } else {
         await tuneIntoStation(stationId);
@@ -111,7 +161,7 @@ const RadioScreen: React.FC = () => {
     } finally {
       setSwitchingStation(false);
     }
-  }, [selectStation, tuneIntoStation, startRadio, radioEnabled, tracks]);
+  }, [selectStation, tuneIntoStation, startRadio, radioEnabled, tracks, radioPadrao, startDefaultRadioSynced, stopRadio]);
 
   // Navega no dial
   const dialPrev = useCallback(() => {
@@ -266,9 +316,13 @@ const RadioScreen: React.FC = () => {
                 </h1>
                 <p className="text-white/70 text-xs mt-0.5">
                   {isDefaultStation
-                    ? (radioEnabled
-                      ? `${queueLength} músicas em shuffle infinito`
-                      : 'Toque para iniciar a rádio')
+                    ? (radioPadrao?.pausada
+                      ? 'Pausada pela moderação'
+                      : radioEnabled
+                        ? (radioPadrao && radioPadrao.tracks.length > 0
+                          ? `${queueLength} músicas selecionadas pela equipe`
+                          : `${queueLength} músicas em shuffle infinito`)
+                        : 'Toque para iniciar a rádio')
                     : (selectedStation?.owner
                       ? `Estação de ${selectedStation.owner.name} — ${queueLength} faixas`
                       : `${queueLength} faixas`)
@@ -282,13 +336,17 @@ const RadioScreen: React.FC = () => {
               onClick={() => {
                 if (radioEnabled) {
                   stopRadio();
-                } else if (tracks.length > 0) {
-                  if (isDefaultStation) {
+                } else if (isDefaultStation) {
+                  if (radioPadrao?.pausada) {
+                    toast.info('A Rádio Zôada está pausada pela moderação no momento.');
+                  } else if (radioPadrao && radioPadrao.tracks.length > 0) {
+                    startDefaultRadioSynced(radioPadrao);
+                  } else if (tracks.length > 0) {
                     startRadio(tracks);
-                  } else {
-                    // Re-toca a estação selecionada.
-                    switchToStation(selectedStationId!);
                   }
+                } else if (tracks.length > 0) {
+                  // Re-toca a estação selecionada.
+                  switchToStation(selectedStationId!);
                 }
               }}
               className={cn(

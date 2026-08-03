@@ -32,6 +32,9 @@ const ExploreScreen: React.FC = () => {
     startRadio,
     radioEnabled,
     navigate,
+    radioPadrao,
+    loadRadioPadrao,
+    startDefaultRadioSynced,
   } = useAppStore();
 
   const [search, setSearch] = useState('');
@@ -59,7 +62,8 @@ const ExploreScreen: React.FC = () => {
       .catch(() => {});
 
     loadPublishedStations();
-  }, [loadPublishedStations]);
+    loadRadioPadrao();
+  }, [loadPublishedStations, loadRadioPadrao]);
 
   // Busca usuários por nome quando a sub-seção "Usuários" está ativa — com
   // um pequeno debounce pra não disparar uma chamada a cada tecla digitada.
@@ -108,7 +112,13 @@ const ExploreScreen: React.FC = () => {
   const handlePlayStation = (stationId: string) => {
     if (stationId === DEFAULT_STATION_ID) {
       selectStation(null);
-      if (!radioEnabled) startRadio(tracks.length > 0 ? tracks : DEMO_TRACKS);
+      if (!radioEnabled && !radioPadrao?.pausada) {
+        if (radioPadrao && radioPadrao.tracks.length > 0) {
+          startDefaultRadioSynced(radioPadrao);
+        } else {
+          startRadio(tracks.length > 0 ? tracks : DEMO_TRACKS);
+        }
+      }
     } else {
       tuneIntoStation(stationId);
     }
@@ -362,9 +372,11 @@ const ExploreScreen: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             {renderStationCard(
               DEFAULT_STATION_ID,
-              'Rádio Zôada',
-              'Estação padrão · Shuffle infinito',
-              '/zoada-logo.png',
+              radioPadrao?.nome || 'Rádio Zôada',
+              radioPadrao?.pausada
+                ? 'Pausada pela moderação'
+                : (radioPadrao?.tracks.length ? 'Estação padrão · Selecionada pela equipe' : 'Estação padrão · Shuffle infinito'),
+              radioPadrao?.cover_url || '/zoada-logo.png',
               () => handlePlayStation(DEFAULT_STATION_ID)
             )}
             {filteredStations.map((station) =>
