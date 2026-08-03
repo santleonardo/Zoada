@@ -910,3 +910,33 @@ export async function exportMyData(): Promise<boolean> {
     return false;
   }
 }
+
+// Tipos de conteúdo que podem ser denunciados — precisa bater com o enum
+// TipoAlvoDenuncia do schema/API.
+export type ReportTargetType = 'POSTAGEM' | 'COMENTARIO_POSTAGEM' | 'COMENTARIO_FAIXA' | 'FAIXA' | 'USUARIO';
+
+// Envia uma denúncia (canal de denúncia/reporte — Marco Civil pós-STF
+// 2025). Cai em /api/reports, que guarda um retrato do conteúdo pro
+// painel de moderação separado (public/moderacao). Retorna `true` em
+// caso de sucesso, ou uma string com a mensagem de erro do servidor.
+export async function reportContent(
+  tipoAlvo: ReportTargetType,
+  alvoId: string,
+  motivo: string,
+  descricao?: string
+): Promise<true | string> {
+  try {
+    const res = await apiFetch('/api/reports', {
+      method: 'POST',
+      body: JSON.stringify({ tipo_alvo: tipoAlvo, alvo_id: alvoId, motivo, descricao }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return data.error || 'Não foi possível enviar a denúncia.';
+    }
+    return true;
+  } catch (err) {
+    console.warn('[reportContent] falha ao denunciar:', err);
+    return 'Não foi possível enviar a denúncia.';
+  }
+}

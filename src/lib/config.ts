@@ -41,6 +41,15 @@ export const AUTH_CONFIG = {
 // var está configurada no projeto — não precisa fazer nada extra lá.
 export const CRON_SECRET = process.env.CRON_SECRET || '';
 
+// ---------- MODERAÇÃO (painel de denúncias, separado do app) ----------
+// Protege /api/reports (leitura e atualização de status): só aceita a
+// chamada se o header Authorization vier com `Bearer ${MODERATION_SECRET}`.
+// O painel HTML em public/moderacao/index.html pede esse valor e guarda no
+// localStorage do navegador de quem modera — nunca é exposto no app normal.
+// IMPORTANTE: troque o valor padrão abaixo antes de ir para produção,
+// definindo a env var MODERATION_SECRET.
+export const MODERATION_SECRET = process.env.MODERATION_SECRET || 'zoada-dev-moderation-secret-change-in-production';
+
 // ---------- Helpers ----------
 export const isNeonConfigured = !!NEON_CONFIG.DATABASE_URL;
 export const isR2Configured = !!(R2_CONFIG.ACCOUNT_ID && R2_CONFIG.ACCESS_KEY_ID && R2_CONFIG.SECRET_ACCESS_KEY);
