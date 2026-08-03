@@ -594,17 +594,17 @@
     <div class="radio-cols">
       <div class="radio-panel">
         <h3>⬆️ Enviar música</h3>
-        <p class="sub">Escolha o artista dono da faixa, o título e o arquivo de áudio. O upload vai direto pro armazenamento.</p>
-        <input type="text" id="faixaTituloInput" maxlength="200" placeholder="Título da música (preenchido ao escolher o arquivo)">
+        <p class="sub">Escolha o artista dono das faixas e os arquivos de áudio (pode selecionar vários de uma vez). O título de cada uma já vem preenchido com o nome do arquivo — edite se quiser. O upload vai direto pro armazenamento.</p>
         <select id="faixaArtistaSelect" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); font-size:14px; margin-bottom:8px; font-family:inherit;"></select>
         <div class="field" style="margin-bottom:8px;">
-          <label for="faixaCapaArquivoInput">Capa (imagem)</label>
+          <label for="faixaCapaArquivoInput">Capa (imagem, aplicada a todas as faixas deste envio)</label>
           <input type="file" id="faixaCapaArquivoInput" accept="image/*" onchange="previewFaixaCapa(this)">
           <img id="faixaCapaPreview" style="display:none; width:64px; height:64px; border-radius:10px; object-fit:cover; margin-top:6px;" alt="">
         </div>
         <input type="text" id="faixaCapaInput" placeholder="...ou cole a URL da capa (opcional se enviar imagem acima)">
-        <input type="file" id="faixaArquivoInput" accept="audio/*" style="width:100%; margin-bottom:10px; margin-top:8px;" onchange="autoPreencherTituloFaixa(this)">
-        <button class="btn-primary" onclick="uploadFaixaMod()" id="uploadFaixaBtn">Enviar música</button>
+        <input type="file" id="faixaArquivoInput" accept="audio/*" multiple style="width:100%; margin-bottom:10px; margin-top:8px;" onchange="handleFaixaArquivoChange(this)">
+        <div id="faixaQueueList" class="track-list" style="margin-bottom:10px;"></div>
+        <button class="btn-primary" onclick="uploadFaixaMod()" id="uploadFaixaBtn" disabled>Enviar música</button>
         <p class="sub" id="uploadFaixaStatus" style="margin-top:8px; min-height:16px;"></p>
       </div>
 
@@ -1463,21 +1463,78 @@
     });
   }
 
-  /** Preenche o título automaticamente com o nome do arquivo (sem a
-   * extensão), do mesmo jeito que já acontece no app (UploadMusicPanel).
-   * Só preenche se o campo estiver vazio ou ainda tiver o valor
-   * auto-preenchido de um arquivo escolhido antes — se a pessoa já digitou
-   * um título próprio, não sobrescreve. */
-  function autoPreencherTituloFaixa(inputEl) {
-    const file = inputEl.files[0];
-    if (!file) return;
-    const tituloInput = document.getElementById('faixaTituloInput');
-    const tituloAtual = tituloInput.value.trim();
-    if (!tituloAtual || tituloAtual === tituloInput.dataset.autoValue) {
-      const nomeSemExtensao = file.name.replace(/\.[^/.]+$/, '');
-      tituloInput.value = nomeSemExtensao;
-      tituloInput.dataset.autoValue = nomeSemExtensao;
+  /** Fila de faixas escolhidas neste envio. Cada item: { file, title,
+   * status: 'pending' | 'uploading' | 'done' | 'error', error? }.
+   * Suporta múltiplas seleções: cada vez que a pessoa escolhe arquivos, eles
+   * são ACRESCENTADOS à fila (não substituem os que já estavam lá), do
+   * mesmo jeito que o botão "Adicionar músicas" funciona no app. */
+  let faixaQueue = [];
+
+  function handleFaixaArquivoChange(inputEl) {
+    const files = Array.from(inputEl.files || []);
+    if (files.length === 0) return;
+    const newItems = files.map((file) => ({
+      file,
+      // Título já vem preenchido com o nome do arquivo (sem extensão),
+      // do mesmo jeito que já acontece no app — mas continua editável.
+      title: file.name.replace(/\.[^/.]+$/, ''),
+      status: 'pending',
+    }));
+    faixaQueue = faixaQueue.concat(newItems);
+    // Limpa o input pra permitir escolher mais arquivos depois sem perder
+    // os que já foram adicionados (senão o navegador substituiria a seleção).
+    inputEl.value = '';
+    renderFaixaQueue();
+  }
+
+  function updateFaixaQueueTitle(idx, value) {
+    if (faixaQueue[idx]) faixaQueue[idx].title = value;
+  }
+
+  function removeFaixaQueueItem(idx) {
+    faixaQueue.splice(idx, 1);
+    renderFaixaQueue();
+  }
+
+  function renderFaixaQueue() {
+    const listEl = document.getElementById('faixaQueueList');
+    const btn = document.getElementById('uploadFaixaBtn');
+    const pendingCount = faixaQueue.filter((it) => it.status === 'pending' || it.status === 'error').length;
+
+    if (faixaQueue.length === 0) {
+      listEl.innerHTML = '';
+      btn.disabled = true;
+      btn.textContent = 'Enviar música';
+      return;
     }
+
+    listEl.innerHTML = faixaQueue.map((item, idx) => {
+      const statusIcon =
+        item.status === 'uploading' ? '<span class="track-btn" title="Enviando...">⏳</span>' :
+        item.status === 'done' ? '<span class="track-btn" title="Enviado">✅</span>' :
+        item.status === 'error' ? '<span class="track-btn danger" title="' + escapeHtml(item.error || 'Erro') + '">⚠️</span>' :
+        '';
+      const removeBtn = (item.status === 'pending' || item.status === 'error')
+        ? '<button class="track-btn danger" title="Remover" onclick="removeFaixaQueueItem(' + idx + ')">✕</button>'
+        : '';
+      return (
+        '<div class="track-row">' +
+          '<div class="track-info">' +
+            '<input type="text" maxlength="200" value="' + escapeHtml(item.title) + '" ' +
+            'oninput="updateFaixaQueueTitle(' + idx + ', this.value)" ' +
+            (item.status !== 'pending' ? 'disabled' : '') + ' ' +
+            'style="width:100%; margin-bottom:0; font-size:13px; padding:6px 8px;" ' +
+            'placeholder="Título da música">' +
+          '</div>' +
+          '<div class="track-actions">' + statusIcon + removeBtn + '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    btn.disabled = pendingCount === 0;
+    btn.textContent = pendingCount > 0
+      ? ('Enviar ' + pendingCount + ' música' + (pendingCount === 1 ? '' : 's'))
+      : 'Enviar música';
   }
 
   function previewFaixaCapa(inputEl) {
@@ -1490,98 +1547,123 @@
 
   async function uploadFaixaMod() {
     if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
-    const titulo = document.getElementById('faixaTituloInput').value.trim();
     const artistaId = document.getElementById('faixaArtistaSelect').value;
     let coverUrl = document.getElementById('faixaCapaInput').value.trim();
     const capaFileInput = document.getElementById('faixaCapaArquivoInput');
     const capaFile = capaFileInput.files[0];
-    const fileInput = document.getElementById('faixaArquivoInput');
-    const file = fileInput.files[0];
     const statusEl = document.getElementById('uploadFaixaStatus');
     const btn = document.getElementById('uploadFaixaBtn');
 
-    if (!titulo) { alert('Digite o título da música.'); return; }
+    const pendingIdxs = faixaQueue
+      .map((item, idx) => idx)
+      .filter((idx) => faixaQueue[idx].status === 'pending' || faixaQueue[idx].status === 'error');
+
     if (!artistaId) { alert('Escolha (ou crie) um artista antes de enviar.'); return; }
-    if (!file) { alert('Escolha o arquivo de áudio.'); return; }
+    if (pendingIdxs.length === 0) { alert('Escolha pelo menos um arquivo de áudio.'); return; }
+    for (const idx of pendingIdxs) {
+      if (!faixaQueue[idx].title.trim()) { alert('Todas as faixas precisam de um título.'); return; }
+    }
 
     btn.disabled = true;
     try {
       // Se uma imagem de capa foi escolhida, ela tem prioridade sobre a
-      // URL colada manualmente.
+      // URL colada manualmente — sobe uma vez só e é reaproveitada em
+      // todas as faixas deste envio.
       if (capaFile) {
         statusEl.textContent = 'Enviando capa...';
         coverUrl = await uploadImageMod(capaFile, 'track-covers');
       }
 
-      statusEl.textContent = 'Lendo duração do áudio...';
-      const duracao = await readAudioDurationMod(file);
+      let successCount = 0;
+      let errorCount = 0;
+      for (let i = 0; i < pendingIdxs.length; i++) {
+        const idx = pendingIdxs[i];
+        const item = faixaQueue[idx];
+        item.status = 'uploading';
+        renderFaixaQueue();
+        statusEl.textContent = 'Enviando ' + (i + 1) + ' de ' + pendingIdxs.length + ': ' + item.title + '...';
+        try {
+          const duracao = await readAudioDurationMod(item.file);
 
-      statusEl.textContent = 'Gerando link de upload...';
-      const presignRes = await fetch(apiBase() + '/api/moderacao/storage/presign-upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type || 'application/octet-stream',
-          folder: 'tracks',
-        }),
-      });
-      if (!presignRes.ok) {
-        const err = await presignRes.json().catch(() => ({}));
-        throw new Error(err.error || ('Falha ao gerar link de upload (HTTP ' + presignRes.status + ')'));
+          const presignRes = await fetch(apiBase() + '/api/moderacao/storage/presign-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+            body: JSON.stringify({
+              filename: item.file.name,
+              contentType: item.file.type || 'application/octet-stream',
+              folder: 'tracks',
+            }),
+          });
+          if (!presignRes.ok) {
+            const err = await presignRes.json().catch(() => ({}));
+            throw new Error(err.error || ('Falha ao gerar link de upload (HTTP ' + presignRes.status + ')'));
+          }
+          const { uploadUrl, publicUrl } = await presignRes.json();
+
+          const putRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': item.file.type || 'application/octet-stream' },
+            body: item.file,
+          });
+          if (!putRes.ok) {
+            throw new Error(
+              'Falha ao enviar o arquivo pro armazenamento (HTTP ' + putRes.status + '). ' +
+              'Confira se o bucket tem CORS liberando PUT para este domínio.'
+            );
+          }
+
+          const trackRes = await fetch(apiBase() + '/api/moderacao/tracks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+            body: JSON.stringify({
+              titulo: item.title.trim(),
+              artistaId,
+              coverUrl: coverUrl || null,
+              audioUrl: publicUrl,
+              duracao,
+            }),
+          });
+          if (!trackRes.ok) {
+            const err = await trackRes.json().catch(() => ({}));
+            throw new Error(err.error || ('Falha ao salvar a faixa (HTTP ' + trackRes.status + ')'));
+          }
+
+          item.status = 'done';
+          successCount++;
+        } catch (err) {
+          item.status = 'error';
+          item.error = err instanceof Error ? err.message : String(err);
+          errorCount++;
+        }
+        renderFaixaQueue();
       }
-      const { uploadUrl, publicUrl } = await presignRes.json();
 
-      statusEl.textContent = 'Enviando arquivo...';
-      const putRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        body: file,
-      });
-      if (!putRes.ok) {
-        throw new Error(
-          'Falha ao enviar o arquivo pro armazenamento (HTTP ' + putRes.status + '). ' +
-          'Confira se o bucket tem CORS liberando PUT para este domínio.'
-        );
-      }
-
-      statusEl.textContent = 'Salvando faixa...';
-      const trackRes = await fetch(apiBase() + '/api/moderacao/tracks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
-        body: JSON.stringify({
-          titulo,
-          artistaId,
-          coverUrl: coverUrl || null,
-          audioUrl: publicUrl,
-          duracao,
-        }),
-      });
-      if (!trackRes.ok) {
-        const err = await trackRes.json().catch(() => ({}));
-        throw new Error(err.error || ('Falha ao salvar a faixa (HTTP ' + trackRes.status + ')'));
-      }
-
-      statusEl.textContent = 'Música enviada! 🎉';
-      document.getElementById('faixaTituloInput').value = '';
-      delete document.getElementById('faixaTituloInput').dataset.autoValue;
-      document.getElementById('faixaCapaInput').value = '';
+      // Remove da fila as faixas que subiram com sucesso; as com erro ficam
+      // pra dar pra tentar de novo ou remover manualmente.
+      faixaQueue = faixaQueue.filter((it) => it.status !== 'done');
+      renderFaixaQueue();
       capaFileInput.value = '';
+      document.getElementById('faixaCapaInput').value = '';
       document.getElementById('faixaCapaPreview').style.display = 'none';
-      fileInput.value = '';
+
+      statusEl.textContent = successCount > 0
+        ? (successCount + ' música' + (successCount === 1 ? '' : 's') + ' enviada' + (successCount === 1 ? '' : 's') + '! 🎉' +
+           (errorCount > 0 ? (' (' + errorCount + ' com erro)') : ''))
+        : (errorCount > 0 ? 'Nenhuma música enviada — confira os erros abaixo.' : '');
 
       // Atualiza o catálogo (usado tanto na aba Rádio quanto nas
-      // playlists por artista aqui embaixo) pra já mostrar a nova faixa.
+      // playlists por artista aqui embaixo) pra já mostrar as novas faixas.
       await loadRadioCatalog();
       renderArtistsList();
-      setTimeout(() => { statusEl.textContent = ''; }, 4000);
+      setTimeout(() => { statusEl.textContent = ''; }, 5000);
     } catch (err) {
       statusEl.textContent = '';
-      alert('Erro ao enviar música: ' + (err.message || err));
+      alert('Erro ao enviar músicas: ' + (err.message || err));
     } finally {
-      btn.disabled = false;
+      btn.disabled = faixaQueue.filter((it) => it.status === 'pending' || it.status === 'error').length === 0;
     }
   }
+
 
 </script>
 
