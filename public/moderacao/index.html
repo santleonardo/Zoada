@@ -302,6 +302,68 @@
   .track-btn.danger { background: rgba(232,67,147,.12); color: var(--pink); }
   .track-btn.danger:hover { background: rgba(232,67,147,.22); }
   .track-search { margin-bottom: 10px; }
+
+  /* ---------- Seção "Músicas" (upload pelo moderador) ---------- */
+  .upload-form {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .upload-form h3 { margin: 0 0 4px; font-size: 14px; }
+  .upload-form .sub { margin: 0 0 12px; font-size: 12px; color: var(--muted); }
+  .upload-form input[type="text"], .upload-form select {
+    width: 100%; margin-bottom: 8px;
+  }
+  .upload-form input[type="file"] { margin-bottom: 8px; font-size: 13px; }
+  .upload-form .field-row { display: flex; gap: 10px; }
+  .upload-form .field-row > .field { flex: 1; }
+  .upload-progress {
+    background: var(--bg);
+    border-radius: 8px;
+    height: 6px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .upload-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--orange), var(--pink));
+    border-radius: 8px;
+    transition: width 0.3s;
+  }
+  .upload-status { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+
+  /* ---------- Seção "Rádios Oficiais" ---------- */
+  .official-radio-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .official-radio-card .radio-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+  }
+  .official-radio-card .radio-cover-sm {
+    width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--orange), var(--purple));
+  }
+  .official-radio-card .radio-info { flex: 1; min-width: 0; }
+  .official-radio-card .radio-name { font-weight: 700; font-size: 14px; margin: 0 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .official-radio-card .radio-meta { font-size: 11.5px; color: var(--muted-2); margin: 0; }
+  .official-radio-card .radio-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .radio-list-empty { text-align: center; color: var(--muted-2); padding: 40px 0; font-size: 14px; }
+  .radio-create-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .radio-create-box h3 { margin: 0 0 4px; font-size: 14px; }
+  .radio-create-box .sub { margin: 0 0 12px; font-size: 12px; color: var(--muted); }
+  .radio-create-box input[type="text"] { width: 100%; margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -331,6 +393,8 @@
     <button class="tab active" id="tabSectionDenuncias" onclick="switchSection('denuncias')">🚩 Denúncias</button>
     <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
     <button class="tab" id="tabSectionRadio" onclick="switchSection('radio')">📻 Rádio Zôada</button>
+    <button class="tab" id="tabSectionMusicas" onclick="switchSection('musicas')">🎵 Músicas</button>
+    <button class="tab" id="tabSectionRádiosOficiais" onclick="switchSection('radios-oficiais')">📡 Rádios Oficiais</button>
   </div>
 
   <div id="section-denuncias">
@@ -406,6 +470,67 @@
         <input type="text" class="track-search" id="radioCatalogSearch" placeholder="Buscar por título ou artista..." oninput="renderRadioCatalog()">
         <div class="track-list" id="radioCatalogList"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Músicas -->
+  <div id="section-musicas" style="display:none;">
+    <div class="upload-form">
+      <h3>📤 Enviar música</h3>
+      <p class="sub">Envie uma música para o catálogo oficial do Zôada. Ela ficará disponível para usar nas rádios oficiais e na Rádio Zôada.</p>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="uploadTitle">Título da música *</label>
+          <input type="text" id="uploadTitle" placeholder="Nome da faixa">
+        </div>
+        <div class="field">
+          <label for="uploadArtist">Artista *</label>
+          <select id="uploadArtist"></select>
+        </div>
+      </div>
+      <div class="field" style="min-width:auto;">
+        <label for="uploadNewArtist">Criar novo artista (se não estiver na lista)</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="uploadNewArtistName" placeholder="Nome do artista" style="flex:1;">
+          <button class="btn-secondary" onclick="createModArtist()" id="createArtistBtn">Criar</button>
+        </div>
+      </div>
+      <div class="field" style="min-width:auto;">
+        <label for="uploadCoverUrl">URL da capa (opcional)</label>
+        <input type="text" id="uploadCoverUrl" placeholder="https://...">
+      </div>
+      <div class="field" style="min-width:auto;">
+        <label for="uploadFile">Arquivo de áudio *</label>
+        <input type="file" id="uploadFile" accept="audio/*">
+      </div>
+
+      <div id="uploadProgressWrap" style="display:none;">
+        <div class="upload-progress"><div class="upload-progress-bar" id="uploadProgressBar" style="width:0%"></div></div>
+        <p class="upload-status" id="uploadStatus">Preparando...</p>
+      </div>
+
+      <button class="btn-primary" onclick="uploadModTrack()" id="uploadTrackBtn">Enviar música</button>
+    </div>
+
+    <div class="radio-panel">
+      <h3>🎵 Catálogo de músicas</h3>
+      <p class="sub">Músicas disponíveis no app. Use em rádios oficiais e na Rádio Zôada.</p>
+      <input type="text" class="track-search" id="modCatalogSearch" placeholder="Buscar por título ou artista..." oninput="renderModCatalog()">
+      <div class="track-list" id="modCatalogList"></div>
+    </div>
+  </div>
+
+  <!-- Rádios Oficiais -->
+  <div id="section-radios-oficiais" style="display:none;">
+    <div id="officialRadiosList"></div>
+
+    <div class="radio-create-box" id="officialRadioCreateBox">
+      <h3>➕ Criar rádio oficial</h3>
+      <p class="sub">Nova rádio oficial do Zôada (ex: Zôada Rock, Zôada MPB).</p>
+      <input type="text" id="newOfficialRadioName" maxlength="60" placeholder="Nome da rádio">
+      <input type="text" id="newOfficialRadioCapa" placeholder="URL da capa (opcional)">
+      <button class="btn-primary" onclick="createOfficialRadio()" id="createOfficialRadioBtn">Criar rádio</button>
     </div>
   </div>
 
@@ -607,21 +732,30 @@
   let activeThreadUserName = '';
 
   function switchSection(section) {
-    document.getElementById('section-denuncias').style.display = section === 'denuncias' ? '' : 'none';
-    document.getElementById('section-mensagens').style.display = section === 'mensagens' ? '' : 'none';
-    document.getElementById('section-radio').style.display = section === 'radio' ? '' : 'none';
-    document.getElementById('tabSectionDenuncias').classList.toggle('active', section === 'denuncias');
-    document.getElementById('tabSectionMensagens').classList.toggle('active', section === 'mensagens');
-    document.getElementById('tabSectionRadio').classList.toggle('active', section === 'radio');
+    const sections = ['denuncias', 'mensagens', 'radio', 'musicas', 'radios-oficiais'];
+    sections.forEach(s => {
+      const el = document.getElementById('section-' + s);
+      if (el) el.style.display = section === s ? '' : 'none';
+    });
+    const tabMap = { 'denuncias': 'tabSectionDenuncias', 'mensagens': 'tabSectionMensagens', 'radio': 'tabSectionRadio', 'musicas': 'tabSectionMusicas', 'radios-oficiais': 'tabSectionRádiosOficiais' };
+    Object.entries(tabMap).forEach(([key, tabId]) => {
+      const tabEl = document.getElementById(tabId);
+      if (tabEl) tabEl.classList.toggle('active', section === key);
+    });
     if (section === 'mensagens') {
-      // Volta pra lista de conversas ao trocar de aba, nunca deixa preso
-      // numa conversa antiga.
       backToThreads();
       loadThreads();
     }
     if (section === 'radio') {
       loadRadioModeracao();
       loadRadioCatalog();
+    }
+    if (section === 'musicas') {
+      loadModArtists();
+      loadModCatalog();
+    }
+    if (section === 'radios-oficiais') {
+      loadOfficialRadios();
     }
   }
 
@@ -1071,6 +1205,448 @@
       renderRadioStatus();
     } catch (err) {
       alert('Erro ao pular faixa: ' + (err.message || err));
+    }
+  }
+
+  // ---------- Músicas (envio pelo moderador) ----------
+
+  let modArtists = [];
+  let modCatalog = [];
+
+  async function loadModArtists() {
+    if (!secret()) return;
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/artists', {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      modArtists = data.artists || [];
+      const sel = document.getElementById('uploadArtist');
+      sel.innerHTML = '<option value="">-- Selecione --</option>' + modArtists.map(a =>
+        '<option value="' + escapeHtml(a.id) + '">' + escapeHtml(a.name) + '</option>'
+      ).join('');
+    } catch (err) {
+      console.error('[loadModArtists]', err);
+    }
+  }
+
+  async function createModArtist() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    const name = document.getElementById('uploadNewArtistName').value.trim();
+    if (!name) { alert('Digite o nome do artista.'); return; }
+    const btn = document.getElementById('createArtistBtn');
+    btn.disabled = true;
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/artists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ nome: name }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      document.getElementById('uploadNewArtistName').value = '';
+      await loadModArtists();
+      // Seleciona o artista recém-criado.
+      const data = await res.json();
+      document.getElementById('uploadArtist').value = data.id;
+    } catch (err) {
+      alert('Erro ao criar artista: ' + (err.message || err));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function loadModCatalog() {
+    try {
+      const res = await fetch(apiBase() + '/api/tracks');
+      if (!res.ok) return;
+      const data = await res.json();
+      modCatalog = data.tracks || [];
+      renderModCatalog();
+    } catch (err) {
+      document.getElementById('modCatalogList').innerHTML =
+        '<div class="status-msg">Erro ao carregar catálogo.</div>';
+    }
+  }
+
+  function renderModCatalog() {
+    const list = document.getElementById('modCatalogList');
+    const q = (document.getElementById('modCatalogSearch').value || '').trim().toLowerCase();
+    let items = modCatalog;
+    if (q) items = items.filter(t => t.title.toLowerCase().includes(q) || t.artist_name.toLowerCase().includes(q));
+    if (items.length === 0) {
+      list.innerHTML = '<div class="status-msg">Nenhuma faixa encontrada.</div>';
+      return;
+    }
+    list.innerHTML = items.map(t =>
+      '<div class="track-row">' +
+        '<div class="track-info">' +
+          '<p class="track-title">' + escapeHtml(t.title) + '</p>' +
+          '<p class="track-artist">' + escapeHtml(t.artist_name) + '</p>' +
+        '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  async function uploadModTrack() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    const titulo = document.getElementById('uploadTitle').value.trim();
+    const artistaId = document.getElementById('uploadArtist').value;
+    const coverUrl = document.getElementById('uploadCoverUrl').value.trim();
+    const fileInput = document.getElementById('uploadFile');
+    const file = fileInput.files[0];
+
+    if (!titulo) { alert('Digite o título da música.'); return; }
+    if (!artistaId) { alert('Selecione um artista.'); return; }
+    if (!file) { alert('Selecione um arquivo de áudio.'); return; }
+
+    const btn = document.getElementById('uploadTrackBtn');
+    const progressWrap = document.getElementById('uploadProgressWrap');
+    const progressBar = document.getElementById('uploadProgressBar');
+    const statusEl = document.getElementById('uploadStatus');
+
+    btn.disabled = true;
+    progressWrap.style.display = '';
+    progressBar.style.width = '0%';
+    statusEl.textContent = 'Solicitando link de upload...';
+
+    try {
+      // 1. Gerar URL de upload
+      statusEl.textContent = 'Gerando link de upload...';
+      const presignRes = await fetch(apiBase() + '/api/moderacao/storage/presign-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ filename: file.name, contentType: file.type || 'audio/mpeg', folder: 'tracks' }),
+      });
+      if (!presignRes.ok) throw new Error('Falha ao gerar link de upload (status ' + presignRes.status + ')');
+      const { uploadUrl, publicUrl } = await presignRes.json();
+
+      // 2. Upload direto pro R2
+      statusEl.textContent = 'Enviando áudio...';
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'audio/mpeg' },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error('Falha ao enviar arquivo (status ' + putRes.status + ')');
+      progressBar.style.width = '70%';
+
+      // 3. Ler duração do áudio
+      statusEl.textContent = 'Lendo duração...';
+      const duracao = await new Promise(resolve => {
+        const url = URL.createObjectURL(file);
+        const audio = new Audio();
+        audio.preload = 'metadata';
+        audio.onloadedmetadata = () => { resolve(isFinite(audio.duration) ? Math.round(audio.duration) : 0); URL.revokeObjectURL(url); };
+        audio.onerror = () => { resolve(0); URL.revokeObjectURL(url); };
+        audio.src = url;
+      });
+
+      // 4. Criar faixa no banco
+      statusEl.textContent = 'Salvando faixa...';
+      progressBar.style.width = '90%';
+      const trackRes = await fetch(apiBase() + '/api/moderacao/tracks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ titulo, artistaId, audioUrl: publicUrl, coverUrl: coverUrl || null, duracao }),
+      });
+      if (!trackRes.ok) {
+        const err = await trackRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Falha ao salvar a faixa');
+      }
+
+      progressBar.style.width = '100%';
+      statusEl.textContent = 'Música enviada com sucesso!';
+      document.getElementById('uploadTitle').value = '';
+      document.getElementById('uploadCoverUrl').value = '';
+      fileInput.value = '';
+      setTimeout(() => { progressWrap.style.display = 'none'; }, 3000);
+      // Atualiza o catálogo
+      loadModCatalog();
+    } catch (err) {
+      statusEl.textContent = 'Erro: ' + (err.message || err);
+      progressBar.style.width = '0%';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ---------- Rádios Oficiais ----------
+
+  let officialRadios = [];
+  let editingOfficialRadioId = null;
+  let editingOfficialPlaylistIds = [];
+
+  async function loadOfficialRadios() {
+    const listEl = document.getElementById('officialRadiosList');
+    if (!secret()) {
+      listEl.innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+      return;
+    }
+    listEl.innerHTML = '<div class="status-msg">Carregando...</div>';
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/official-radios', {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      officialRadios = data.radios || [];
+      renderOfficialRadiosList();
+    } catch (err) {
+      listEl.innerHTML = '<div class="status-msg">Erro: ' + escapeHtml(String(err.message || err)) + '</div>';
+    }
+  }
+
+  function renderOfficialRadiosList() {
+    const listEl = document.getElementById('officialRadiosList');
+    if (officialRadios.length === 0) {
+      listEl.innerHTML = '<div class="radio-list-empty">Nenhuma rádio oficial cadastrada.</div>';
+      return;
+    }
+    listEl.innerHTML = officialRadios.map(r => {
+      const statusBadges = [];
+      if (r.on_air) statusBadges.push('<span class="badge badge-status-RESOLVIDA">No ar</span>');
+      if (r.publicada) statusBadges.push('<span class="badge" style="background:rgba(108,92,231,.12);color:var(--purple)">Publicada</span>');
+      else statusBadges.push('<span class="badge badge-status-REJEITADA">Rascunho</span>');
+      return '' +
+        '<div class="official-radio-card" data-id="' + r.id + '">' +
+          '<div class="radio-header">' +
+            (r.cover_url
+              ? '<img class="radio-cover-sm" src="' + escapeHtml(r.cover_url) + '" alt="">'
+              : '<div class="radio-cover-sm" style="display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;">📡</div>') +
+            '<div class="radio-info">' +
+              '<p class="radio-name">' + escapeHtml(r.nome) + '</p>' +
+              '<p class="radio-meta">' + (r.tracks_count || 0) + ' faixas · Criada em ' + fmtDate(r.created_at) + '</p>' +
+            '</div>' +
+          '</div>' +
+          '<div class="badges" style="margin-bottom:10px;">' + statusBadges.join('') + '</div>' +
+          '<div class="actions">' +
+            (!r.on_air ? '<button class="btn-ok" onclick="officialRadioAction(\'' + r.id + '\', \'put_on_air\')">Colocar no ar</button>' : '<button class="btn-secondary" onclick="officialRadioAction(\'' + r.id + '\', \'take_off_air\')">Retirar do ar</button>') +
+            (!r.publicada ? '<button class="btn-secondary" onclick="officialRadioAction(\'' + r.id + '\', \'publish\')">Publicar</button>' : '<button class="btn-secondary" onclick="officialRadioAction(\'' + r.id + '\', \'unpublish\')">Despublicar</button>') +
+            '<button class="btn-secondary" onclick="editOfficialRadio(\'' + r.id + '\')">Editar</button>' +
+            '<button class="btn-danger" onclick="deleteOfficialRadio(\'' + r.id + '\')">Apagar</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  async function officialRadioAction(id, action) {
+    if (!secret()) { alert('Cole a chave de moderação acima.'); return; }
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/official-radios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ id, action }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await loadOfficialRadios();
+    } catch (err) {
+      alert('Erro: ' + (err.message || err));
+    }
+  }
+
+  async function createOfficialRadio() {
+    if (!secret()) { alert('Cole a chave de moderação acima.'); return; }
+    const nome = document.getElementById('newOfficialRadioName').value.trim();
+    const capaUrl = document.getElementById('newOfficialRadioCapa').value.trim();
+    if (!nome) { alert('Digite o nome da rádio.'); return; }
+    const btn = document.getElementById('createOfficialRadioBtn');
+    btn.disabled = true;
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/official-radios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ nome, capa_url: capaUrl || null }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      document.getElementById('newOfficialRadioName').value = '';
+      document.getElementById('newOfficialRadioCapa').value = '';
+      await loadOfficialRadios();
+    } catch (err) {
+      alert('Erro: ' + (err.message || err));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function deleteOfficialRadio(id) {
+    if (!confirm('Apagar essa rádio oficial? A ação não pode ser desfeita.')) return;
+    if (!secret()) return;
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/official-radios?id=' + encodeURIComponent(id), {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await loadOfficialRadios();
+    } catch (err) {
+      alert('Erro: ' + (err.message || err));
+    }
+  }
+
+  function editOfficialRadio(id) {
+    const r = officialRadios.find(x => x.id === id);
+    if (!r) return;
+    editingOfficialRadioId = id;
+    editingOfficialPlaylistIds = (r.tracks || []).map(t => t.id);
+
+    const listEl = document.getElementById('officialRadiosList');
+    listEl.innerHTML = '' +
+      '<div class="conv-header">' +
+        '<button class="conv-back" onclick="cancelEditOfficialRadio()">← Voltar</button>' +
+        '<h2 class="conv-title">Editar: ' + escapeHtml(r.nome) + '</h2>' +
+      '</div>' +
+      '<div class="radio-cols">' +
+        '<div class="radio-panel">' +
+          '<h3>⚙️ Nome e capa</h3>' +
+          '<p class="sub"></p>' +
+          '<input type="text" id="editOfficialName" maxlength="60" value="' + escapeHtml(r.nome) + '" placeholder="Nome da rádio">' +
+          '<input type="text" id="editOfficialCapa" value="' + escapeHtml(r.cover_url || '') + '" placeholder="URL da capa (opcional)">' +
+          '<button class="btn-primary" onclick="saveOfficialRadioInfo()" style="margin-bottom:16px;">Salvar nome/capa</button>' +
+          '<h3>🎶 Playlist (<span id="editOfficialPlaylistCount">' + editingOfficialPlaylistIds.length + '</span>)</h3>' +
+          '<div class="track-list" id="editOfficialPlaylistList"></div>' +
+          '<div class="actions" style="margin-top:10px;">' +
+            '<button class="btn-ok" onclick="saveOfficialRadioPlaylist()">Salvar playlist</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="radio-panel">' +
+          '<h3>🎵 Catálogo</h3>' +
+          '<p class="sub">Clique em <b>+</b> pra adicionar.</p>' +
+          '<input type="text" class="track-search" id="editOfficialCatalogSearch" placeholder="Buscar por título ou artista..." oninput="renderEditOfficialCatalog()">' +
+          '<div class="track-list" id="editOfficialCatalogList"></div>' +
+        '</div>' +
+      '</div>';
+
+    renderEditOfficialPlaylist();
+    renderEditOfficialCatalog();
+  }
+
+  function cancelEditOfficialRadio() {
+    editingOfficialRadioId = null;
+    editingOfficialPlaylistIds = [];
+    loadOfficialRadios();
+  }
+
+  function findModCatalogTrack(id) {
+    return modCatalog.find(t => t.id === id);
+  }
+
+  function renderEditOfficialPlaylist() {
+    const list = document.getElementById('editOfficialPlaylistList');
+    const countEl = document.getElementById('editOfficialPlaylistCount');
+    if (!list || !countEl) return;
+    countEl.textContent = String(editingOfficialPlaylistIds.length);
+    if (editingOfficialPlaylistIds.length === 0) {
+      list.innerHTML = '<div class="status-msg">Playlist vazia.</div>';
+      return;
+    }
+    list.innerHTML = editingOfficialPlaylistIds.map((id, idx) => {
+      const t = findModCatalogTrack(id);
+      const title = t ? t.title : '(faixa removida)';
+      const artist = t ? t.artist_name : id;
+      return '' +
+        '<div class="track-row">' +
+          '<div class="track-info">' +
+            '<p class="track-title">' + escapeHtml(title) + '</p>' +
+            '<p class="track-artist">' + escapeHtml(artist) + '</p>' +
+          '</div>' +
+          '<div class="track-actions">' +
+            (idx > 0 ? '<button class="track-btn" title="Mover pra cima" onclick="moveEditOfficialTrack(' + idx + ', -1)">↑</button>' : '') +
+            (idx < editingOfficialPlaylistIds.length - 1 ? '<button class="track-btn" title="Mover pra baixo" onclick="moveEditOfficialTrack(' + idx + ', 1)">↓</button>' : '') +
+            '<button class="track-btn danger" title="Remover" onclick="removeEditOfficialTrack(' + idx + ')">✕</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderEditOfficialCatalog() {
+    const list = document.getElementById('editOfficialCatalogList');
+    if (!list) return;
+    const searchEl = document.getElementById('editOfficialCatalogSearch');
+    const q = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
+    let items = modCatalog;
+    if (q) items = items.filter(t => t.title.toLowerCase().includes(q) || t.artist_name.toLowerCase().includes(q));
+    if (items.length === 0) {
+      list.innerHTML = '<div class="status-msg">Nenhuma faixa encontrada.</div>';
+      return;
+    }
+    list.innerHTML = items.map(t => {
+      const already = editingOfficialPlaylistIds.includes(t.id);
+      return '' +
+        '<div class="track-row">' +
+          '<div class="track-info">' +
+            '<p class="track-title">' + escapeHtml(t.title) + '</p>' +
+            '<p class="track-artist">' + escapeHtml(t.artist_name) + '</p>' +
+          '</div>' +
+          '<div class="track-actions">' +
+            '<button class="track-btn" ' + (already ? 'disabled' : '') + ' onclick="addEditOfficialTrack(\'' + t.id + '\')">' + (already ? '✓' : '+') + '</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function addEditOfficialTrack(id) {
+    if (editingOfficialPlaylistIds.includes(id)) return;
+    editingOfficialPlaylistIds.push(id);
+    renderEditOfficialPlaylist();
+    renderEditOfficialCatalog();
+  }
+
+  function removeEditOfficialTrack(idx) {
+    editingOfficialPlaylistIds.splice(idx, 1);
+    renderEditOfficialPlaylist();
+    renderEditOfficialCatalog();
+  }
+
+  function moveEditOfficialTrack(idx, delta) {
+    const target = idx + delta;
+    if (target < 0 || target >= editingOfficialPlaylistIds.length) return;
+    const tmp = editingOfficialPlaylistIds[idx];
+    editingOfficialPlaylistIds[idx] = editingOfficialPlaylistIds[target];
+    editingOfficialPlaylistIds[target] = tmp;
+    renderEditOfficialPlaylist();
+  }
+
+  async function saveOfficialRadioInfo() {
+    if (!secret() || !editingOfficialRadioId) return;
+    const nome = document.getElementById('editOfficialName').value.trim();
+    const capaUrl = document.getElementById('editOfficialCapa').value.trim();
+    if (!nome) { alert('Nome não pode ficar vazio.'); return; }
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/official-radios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ id: editingOfficialRadioId, action: 'edit_info', nome, capa_url: capaUrl || null }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      // Atualiza a rádio na lista local e re-renderiza.
+      const idx = officialRadios.findIndex(r => r.id === editingOfficialRadioId);
+      if (idx >= 0) officialRadios[idx] = data.radio;
+      renderOfficialRadiosList();
+      editOfficialRadio(editingOfficialRadioId);
+    } catch (err) {
+      alert('Erro: ' + (err.message || err));
+    }
+  }
+
+  async function saveOfficialRadioPlaylist() {
+    if (!secret() || !editingOfficialRadioId) return;
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/official-radios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ id: editingOfficialRadioId, action: 'set_tracks', track_ids: editingOfficialPlaylistIds }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const idx = officialRadios.findIndex(r => r.id === editingOfficialRadioId);
+      if (idx >= 0) officialRadios[idx] = data.radio;
+      editingOfficialPlaylistIds = (data.radio.tracks || []).map(t => t.id);
+      renderEditOfficialPlaylist();
+      renderEditOfficialCatalog();
+    } catch (err) {
+      alert('Erro: ' + (err.message || err));
     }
   }
 
