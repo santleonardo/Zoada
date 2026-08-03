@@ -150,6 +150,32 @@
 
   .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+  .aviso-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .aviso-box h2 { margin: 0 0 4px; font-size: 15px; }
+  .aviso-box .sub { margin: 0 0 12px; font-size: 12.5px; color: var(--muted); }
+  .aviso-box textarea { width: 100%; min-height: 60px; resize: vertical; margin-bottom: 10px; }
+  .aviso-current {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: rgba(255,140,66,.08);
+    border: 1px solid rgba(255,140,66,.2);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .aviso-current p { margin: 0; word-break: break-word; }
+  .aviso-current .label { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--muted-2); margin-bottom: 3px; }
+  .aviso-none { font-size: 13px; color: var(--muted-2); margin-bottom: 12px; }
+
   footer { text-align: center; padding: 30px 20px; font-size: 12px; color: var(--muted-2); }
   code { background: rgba(26,27,37,.06); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
 </style>
@@ -175,6 +201,19 @@
       <input type="password" id="secret" placeholder="Cole aqui a chave do servidor">
     </div>
     <button class="btn-primary" onclick="saveConfigAndLoad()">Conectar</button>
+  </div>
+
+  <div class="aviso-box">
+    <h2>📣 Aviso para todo o app</h2>
+    <p class="sub">Mensagem que aparece no topo da tela inicial de qualquer pessoa que abrir o Zôada (ex: manutenção programada, alerta de golpe, comunicado legal). Só existe um aviso ativo por vez — publicar um novo substitui o anterior.</p>
+
+    <div id="avisoAtualWrap"></div>
+
+    <textarea id="avisoTexto" maxlength="280" placeholder="Escreva o aviso que vai aparecer para todo mundo..."></textarea>
+    <div class="actions">
+      <button class="btn-primary" onclick="publishAviso()">Publicar aviso</button>
+      <button class="btn-danger" onclick="removeAviso()" id="removeAvisoBtn" style="display:none;">Remover aviso atual</button>
+    </div>
   </div>
 
   <div class="tabs" id="tabs"></div>
@@ -367,6 +406,70 @@
   renderTabs();
   if (secret()) loadReports();
   else document.getElementById('list').innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+
+  // ---------- Aviso global (banner na tela inicial) ----------
+
+  function renderAvisoAtual(aviso) {
+    const wrap = document.getElementById('avisoAtualWrap');
+    const removeBtn = document.getElementById('removeAvisoBtn');
+    if (!aviso) {
+      wrap.innerHTML = '<p class="aviso-none">Nenhum aviso ativo no momento.</p>';
+      removeBtn.style.display = 'none';
+      return;
+    }
+    wrap.innerHTML =
+      '<div class="aviso-current">' +
+        '<div><span class="label">Aviso ativo agora</span><p>' + escapeHtml(aviso.mensagem) + '</p></div>' +
+      '</div>';
+    removeBtn.style.display = '';
+  }
+
+  async function loadAviso() {
+    try {
+      const res = await fetch(apiBase() + '/api/aviso');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      renderAvisoAtual(data.aviso || null);
+    } catch (err) {
+      document.getElementById('avisoAtualWrap').innerHTML =
+        '<p class="aviso-none">Não foi possível carregar o aviso atual.</p>';
+    }
+  }
+
+  async function publishAviso() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    const texto = document.getElementById('avisoTexto').value.trim();
+    if (!texto) { alert('Escreva o texto do aviso antes de publicar.'); return; }
+    try {
+      const res = await fetch(apiBase() + '/api/aviso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ mensagem: texto }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      document.getElementById('avisoTexto').value = '';
+      await loadAviso();
+    } catch (err) {
+      alert('Erro ao publicar aviso: ' + (err.message || err));
+    }
+  }
+
+  async function removeAviso() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    if (!confirm('Remover o aviso ativo? Ele vai sumir da tela inicial de todo mundo.')) return;
+    try {
+      const res = await fetch(apiBase() + '/api/aviso', {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await loadAviso();
+    } catch (err) {
+      alert('Erro ao remover aviso: ' + (err.message || err));
+    }
+  }
+
+  loadAviso();
 </script>
 
 </body>

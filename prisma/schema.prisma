@@ -450,3 +450,20 @@ model Denuncia {
   @@index([createdAt])
   @@map("denuncias")
 }
+
+// ---------- Avisos (banner global disparado pelo painel de moderação) ----------
+// Mensagem curta que aparece pra todo mundo na tela inicial do app (ex:
+// manutenção programada, alerta de golpe circulando, aviso legal). Só o
+// painel de moderação (public/moderacao/index.html, com MODERATION_SECRET)
+// pode publicar ou remover — o app só lê o aviso ativo mais recente.
+// Publicar um novo aviso desativa automaticamente o anterior: só existe UM
+// aviso ativo por vez.
+model Aviso {
+  id        String   @id @default(cuid())
+  mensagem  String
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([ativo])
+  @@map("avisos")
+}
