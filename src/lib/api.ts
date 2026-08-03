@@ -16,7 +16,7 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
-import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, RadioPadrao, Post, PostComment, OfficialRadio } from '@/types';
+import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, RadioPadrao, Post, PostComment } from '@/types';
 
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
@@ -1015,47 +1015,6 @@ export async function fetchActiveAviso(): Promise<Aviso | null> {
     return data.aviso || null;
   } catch (err) {
     console.warn('[fetchActiveAviso] falha ao buscar aviso:', err);
-    return null;
-  }
-}
-
-// ---------- Rádios Oficiais (público) ----------
-
-/** Busca a rádio oficial que está no ar (transmissão oficial global). */
-export async function fetchOnAirOfficialRadio(): Promise<OfficialRadio | null> {
-  try {
-    const res = await apiFetch('/api/official-radios?on_air=1');
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.on_air_radio || null;
-  } catch (err) {
-    console.warn('[fetchOnAirOfficialRadio] falha:', err);
-    return null;
-  }
-}
-
-/** Lista todas as rádios oficiais publicadas (resumo, sem faixas). */
-export async function fetchPublishedOfficialRadios(): Promise<OfficialRadio[]> {
-  try {
-    const res = await apiFetch('/api/official-radios');
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.radios || [];
-  } catch (err) {
-    console.warn('[fetchPublishedOfficialRadios] falha:', err);
-    return [];
-  }
-}
-
-/** Busca uma rádio oficial publicada por ID (com faixas). */
-export async function fetchOfficialRadioById(radioId: string): Promise<OfficialRadio | null> {
-  try {
-    const res = await apiFetch(`/api/official-radios?id=${encodeURIComponent(radioId)}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.radio || null;
-  } catch (err) {
-    console.warn('[fetchOfficialRadioById] falha:', err);
     return null;
   }
 }

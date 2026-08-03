@@ -234,20 +234,6 @@ export interface RadioPadrao {
   tracks: Track[];
 }
 
-// Rádio oficial criada pela moderação. Pertence ao app, não a um usuário.
-// Pode haver várias, cada uma com sua própria playlist. Apenas uma
-// pode estar "no ar" (on_air) por vez — é a transmissão oficial global.
-export interface OfficialRadio {
-  id: string;
-  nome: string;
-  cover_url: string | null;
-  on_air: boolean;
-  current_track_id: string | null;
-  current_track_started_at: string | null;
-  tracks_count: number;
-  tracks?: Track[];
-}
-
 // Resultado da busca de usuários por nome (aba "Fãs") — versão enxuta do
 // perfil público, só com o necessário pra listar/clicar num resultado.
 export interface UserSearchResult {

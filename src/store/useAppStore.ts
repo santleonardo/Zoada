@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioStation, RadioPadrao, OfficialRadio } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchUserFavorites, toggleTrackFavorite, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchPublishedRadioStations, fetchRadioStationById, advanceRadioStation, fetchRadioPadrao, fetchPublishedOfficialRadios, fetchOnAirOfficialRadio, fetchOfficialRadioById } from '@/lib/api';
+import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioStation, RadioPadrao } from '@/types';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchUserFavorites, toggleTrackFavorite, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchPublishedRadioStations, fetchRadioStationById, advanceRadioStation, fetchRadioPadrao } from '@/lib/api';
 
 // Abas da tela inicial ("Início"). 'fans' é a busca de outros usuários
 // por nome — sem conteúdo próprio na store, é só mais uma aba client-side
@@ -142,11 +142,6 @@ interface AppState {
   // null = moderação ainda não configurou nada (cai no shuffle padrão).
   radioPadrao: RadioPadrao | null;
 
-  // Rádios oficiais (criadas pela moderação).
-  // Lista das publicadas (resumo) e a que está no ar (com faixas).
-  publishedOfficialRadios: OfficialRadio[];
-  onAirOfficialRadio: OfficialRadio | null;
-
   // Actions - Auth
   setUser: (user: User | null, token?: string | null) => void;
   logout: () => void;
@@ -237,12 +232,6 @@ interface AppState {
   // `tuneIntoStation`, pra quem entra no meio de uma faixa já ouvir
   // sincronizado com os demais).
   startDefaultRadioSynced: (radio: RadioPadrao) => void;
-
-  // Actions - Official Radios
-  // Busca todas as rádios oficiais publicadas e a que está no ar.
-  loadOfficialRadios: () => Promise<void>;
-  // Toca uma rádio oficial (busca detalhes e inicia o player).
-  tuneIntoOfficialRadio: (radioId: string) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -269,8 +258,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedStationId: null,
   selectedStation: null,
   radioPadrao: null,
-  publishedOfficialRadios: [],
-  onAirOfficialRadio: null,
 
   player: {
     currentTrack: null,
@@ -964,51 +951,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       shuffleEnabled: false,
       repeatMode: 'all',
       queue: stationTracks,
-      queueIndex: startIndex,
-      shuffleBag: [],
-      player: {
-        ...state.player,
-        currentTrack: startingTrack,
-        isPlaying: true,
-        progress: 0,
-      },
-    });
-  },
-
-  loadOfficialRadios: async () => {
-    const [published, onAir] = await Promise.all([
-      fetchPublishedOfficialRadios(),
-      fetchOnAirOfficialRadio(),
-    ]);
-    set({ publishedOfficialRadios: published, onAirOfficialRadio: onAir });
-  },
-
-  tuneIntoOfficialRadio: async (radioId) => {
-    const radio = await fetchOfficialRadioById(radioId);
-    if (!radio || !radio.tracks || radio.tracks.length === 0) return;
-
-    let startIndex = 0;
-    if (radio.current_track_started_at && radio.current_track_id) {
-      const startedAt = new Date(radio.current_track_started_at).getTime();
-      const elapsedMs = Date.now() - startedAt;
-      let accumulated = 0;
-      for (let i = 0; i < radio.tracks.length; i++) {
-        accumulated += (radio.tracks[i].duration || 0) * 1000;
-        if (accumulated > elapsedMs) {
-          startIndex = i;
-          break;
-        }
-        if (i === radio.tracks.length - 1) startIndex = i;
-      }
-    }
-
-    const startingTrack = radio.tracks[startIndex];
-    const state = get();
-    set({
-      radioEnabled: true,
-      shuffleEnabled: false,
-      repeatMode: 'all',
-      queue: radio.tracks,
       queueIndex: startIndex,
       shuffleBag: [],
       player: {
