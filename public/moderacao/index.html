@@ -896,10 +896,11 @@
       </div>
 
       <div class="radio-panel">
-        <h3>🎧 Artistas e playlists (<span id="artistasCount">0</span>)</h3>
-        <p class="sub">Cada card é a playlist de um artista — as músicas que ele já tem no catálogo.</p>
-        <input type="text" class="track-search" id="artistaSearchInput" placeholder="Buscar artista..." oninput="renderArtistsList()">
-        <div class="track-list" id="artistsList" style="max-height:420px;"></div>
+        <h3>🎧 Catálogo de músicas</h3>
+        <p class="sub">Artistas e faixas do app. Clique num artista para ver as músicas — edite ou apague pelo painel.</p>
+        <input type="text" class="track-search" id="artistaSearchInput" placeholder="Buscar artista ou música..." oninput="onCatalogSearchInput()">
+        <div class="track-list" id="artistsList" style="max-height:480px;"></div>
+        <p class="sub" style="margin-top:8px;">Artistas: <strong id="artistasCount">0</strong> · Faixas: <strong id="faixasCount">0</strong></p>
       </div>
     </div>
   </div>
@@ -1647,36 +1648,55 @@
   // ---------- Músicas (criar artistas/playlists + enviar faixas) ----------
 
   let artistsMod = []; // artistas carregados de /api/moderacao/artists
+  let catalogTracks = []; // faixas do catálogo (/api/moderacao/tracks)
+  let expandedArtistId = null; // artista expandido na lista
 
   async function loadArtistsMod() {
     const selectEl = document.getElementById('faixaArtistaSelect');
     if (!secret()) {
-      selectEl.innerHTML = '<option value="">Conecte-se primeiro...</option>';
+      if (selectEl) selectEl.innerHTML = '<option value="">Conecte-se primeiro...</option>';
       document.getElementById('artistsList').innerHTML =
         '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
       return;
     }
     try {
-      const res = await fetch(apiBase() + '/api/moderacao/artists', {
-        headers: { Authorization: 'Bearer ' + secret() },
-      });
-      if (res.status === 401) {
-        selectEl.innerHTML = '<option value="">Chave inválida</option>';
+      const [artistsRes, tracksRes] = await Promise.all([
+        fetch(apiBase() + '/api/moderacao/artists', {
+          headers: { Authorization: 'Bearer ' + secret() },
+        }),
+        fetch(apiBase() + '/api/moderacao/tracks', {
+          headers: { Authorization: 'Bearer ' + secret() },
+        }),
+      ]);
+      if (artistsRes.status === 401 || tracksRes.status === 401) {
+        if (selectEl) selectEl.innerHTML = '<option value="">Chave inválida</option>';
+        document.getElementById('artistsList').innerHTML =
+          '<div class="status-msg">Chave de moderação inválida.</div>';
         return;
       }
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      artistsMod = data.artists || [];
+      if (!artistsRes.ok) throw new Error('Artistas HTTP ' + artistsRes.status);
+      if (!tracksRes.ok) throw new Error('Faixas HTTP ' + tracksRes.status);
+      const artistsData = await artistsRes.json();
+      const tracksData = await tracksRes.json();
+      artistsMod = artistsData.artists || [];
+      catalogTracks = tracksData.tracks || [];
       renderArtistaSelect();
       renderArtistsList();
     } catch (err) {
-      selectEl.innerHTML = '<option value="">Erro ao carregar artistas</option>';
+      if (selectEl) selectEl.innerHTML = '<option value="">Erro ao carregar artistas</option>';
+      document.getElementById('artistsList').innerHTML =
+        '<div class="status-msg">Erro ao carregar catálogo: ' + escapeHtml(String(err.message || err)) + '</div>';
       console.error('[loadArtistsMod]', err);
     }
   }
 
+  function onCatalogSearchInput() {
+    renderArtistsList();
+  }
+
   function renderArtistaSelect() {
     const selectEl = document.getElementById('faixaArtistaSelect');
+    if (!selectEl) return;
     if (artistsMod.length === 0) {
       selectEl.innerHTML = '<option value="">Nenhum artista ainda — crie um acima</option>';
       return;
@@ -1688,34 +1708,162 @@
     if (prev && artistsMod.some((a) => a.id === prev)) selectEl.value = prev;
   }
 
+  function tracksForArtist(artistId) {
+    return catalogTracks.filter((t) => t.artist_id === artistId);
+  }
+
+  function toggleArtistExpand(artistId) {
+    expandedArtistId = expandedArtistId === artistId ? null : artistId;
+    renderArtistsList();
+  }
+
   function renderArtistsList() {
     const listEl = document.getElementById('artistsList');
-    document.getElementById('artistasCount').textContent = String(artistsMod.length);
+    const countEl = document.getElementById('artistasCount');
+    const faixasCountEl = document.getElementById('faixasCount');
+    if (countEl) countEl.textContent = String(artistsMod.length);
+    if (faixasCountEl) faixasCountEl.textContent = String(catalogTracks.length);
 
     const q = (document.getElementById('artistaSearchInput').value || '').trim().toLowerCase();
-    let items = artistsMod;
-    if (q) items = items.filter((a) => a.name.toLowerCase().includes(q));
 
-    if (items.length === 0) {
-      listEl.innerHTML = '<div class="status-msg">Nenhum artista encontrado.</div>';
+    let items = artistsMod.slice();
+    if (q) {
+      items = items.filter((a) => {
+        if (a.name.toLowerCase().includes(q)) return true;
+        return tracksForArtist(a.id).some((t) => (t.title || '').toLowerCase().includes(q));
+      });
+    }
+
+    // Também mostra faixas órfãs (artista não está na lista)
+    const artistIds = new Set(artistsMod.map((a) => a.id));
+    const orphanTracks = catalogTracks.filter((t) => !artistIds.has(t.artist_id));
+    if (q) {
+      // filter orphans by title/artist name
+    }
+
+    if (items.length === 0 && orphanTracks.length === 0) {
+      listEl.innerHTML = '<div class="status-msg">Nenhum artista ou música encontrado.</div>';
       return;
     }
 
-    // A "playlist" de cada artista é o conjunto de faixas dele já
-    // carregadas no catálogo público (mesma lista usada na aba Rádio).
-    listEl.innerHTML = items.map((a) => {
-      const tracks = radioCatalog.filter((t) => t.artist_id === a.id);
-      const preview = tracks.length
-        ? tracks.map((t) => escapeHtml(t.title)).join(' • ')
-        : 'Nenhuma música enviada ainda';
+    let html = items.map((a) => {
+      const tracks = tracksForArtist(a.id);
+      const open = expandedArtistId === a.id;
+      const tracksHtml = open
+        ? (tracks.length
+            ? tracks.map((t) => renderCatalogTrackRow(t)).join('')
+            : '<div class="status-msg" style="padding:8px 4px;">Nenhuma música neste artista.</div>')
+        : '';
       return '' +
-        '<div class="track-row" style="align-items:flex-start;">' +
-          '<div class="track-info">' +
-            '<p class="track-title">' + escapeHtml(a.name) + '</p>' +
-            '<p class="track-artist">' + tracks.length + ' música' + (tracks.length === 1 ? '' : 's') + ' — ' + preview + '</p>' +
-          '</div>' +
+        '<div class="artist-block" style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:6px;background:var(--surface-2);">' +
+          '<button type="button" class="track-row" style="width:100%;border:none;border-radius:0;cursor:pointer;text-align:left;" onclick="toggleArtistExpand(\'' + a.id + '\')">' +
+            '<div class="track-info">' +
+              '<p class="track-title">' + escapeHtml(a.name) + '</p>' +
+              '<p class="track-artist">' + tracks.length + ' música' + (tracks.length === 1 ? '' : 's') + (open ? ' · clique para recolher' : ' · clique para ver') + '</p>' +
+            '</div>' +
+            '<span class="track-actions"><span class="track-btn" style="pointer-events:none;">' + (open ? '▾' : '▸') + '</span></span>' +
+          '</button>' +
+          (open ? '<div style="padding:6px 8px 10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;">' + tracksHtml + '</div>' : '') +
         '</div>';
     }).join('');
+
+    // Faixas sem artista na lista (raro)
+    const orphans = catalogTracks.filter((t) => !artistIds.has(t.artist_id));
+    let orphansFiltered = orphans;
+    if (q) {
+      orphansFiltered = orphans.filter((t) =>
+        (t.title || '').toLowerCase().includes(q) ||
+        (t.artist_name || '').toLowerCase().includes(q)
+      );
+    }
+    if (orphansFiltered.length) {
+      html += '<div class="status-msg" style="margin:8px 0 4px;text-align:left;">Outras faixas</div>';
+      html += orphansFiltered.map((t) => renderCatalogTrackRow(t)).join('');
+    }
+
+    listEl.innerHTML = html;
+  }
+
+  function renderCatalogTrackRow(t) {
+    return '' +
+      '<div class="track-row" id="catalog-track-' + t.id + '">' +
+        '<div class="track-info">' +
+          '<p class="track-title">' + escapeHtml(t.title || '(sem título)') + '</p>' +
+          '<p class="track-artist">' + escapeHtml(t.artist_name || '') +
+            (t.duration ? ' · ' + Math.round(t.duration) + 's' : '') +
+            (t.plays_count != null ? ' · ' + t.plays_count + ' plays' : '') +
+          '</p>' +
+        '</div>' +
+        '<div class="track-actions">' +
+          '<button type="button" class="track-btn" title="Editar título" onclick="event.stopPropagation();editCatalogTrack(\'' + t.id + '\')">✎</button>' +
+          '<button type="button" class="track-btn danger" title="Apagar faixa" onclick="event.stopPropagation();deleteCatalogTrack(\'' + t.id + '\')">✕</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  async function editCatalogTrack(id) {
+    const track = catalogTracks.find((t) => t.id === id);
+    if (!track) return;
+    const novo = prompt('Novo título da faixa:', track.title || '');
+    if (novo === null) return;
+    const titulo = novo.trim();
+    if (!titulo) {
+      alert('O título não pode ficar vazio.');
+      return;
+    }
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/tracks?id=' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + secret(),
+        },
+        body: JSON.stringify({ titulo }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || ('HTTP ' + res.status));
+      }
+      const updated = await res.json();
+      const idx = catalogTracks.findIndex((t) => t.id === id);
+      if (idx >= 0) catalogTracks[idx] = { ...catalogTracks[idx], ...updated };
+      // Mantém o catálogo da rádio em sincronia se existir
+      if (typeof radioCatalog !== 'undefined' && Array.isArray(radioCatalog)) {
+        const rIdx = radioCatalog.findIndex((t) => t.id === id);
+        if (rIdx >= 0) radioCatalog[rIdx] = { ...radioCatalog[rIdx], title: updated.title };
+        if (typeof renderRadioCatalog === 'function') renderRadioCatalog();
+      }
+      renderArtistsList();
+    } catch (err) {
+      alert('Erro ao editar faixa: ' + (err.message || err));
+    }
+  }
+
+  async function deleteCatalogTrack(id) {
+    const track = catalogTracks.find((t) => t.id === id);
+    const label = track ? track.title : id;
+    if (!confirm('Apagar a faixa "' + label + '"?\nEla some do catálogo e fica 30 dias na lixeira do sistema.')) {
+      return;
+    }
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/tracks?id=' + encodeURIComponent(id), {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || ('HTTP ' + res.status));
+      }
+      catalogTracks = catalogTracks.filter((t) => t.id !== id);
+      if (typeof radioCatalog !== 'undefined' && Array.isArray(radioCatalog)) {
+        radioCatalog = radioCatalog.filter((t) => t.id !== id);
+        if (typeof renderRadioCatalog === 'function') renderRadioCatalog();
+        if (typeof renderRadioPlaylist === 'function') renderRadioPlaylist();
+      }
+      renderArtistsList();
+    } catch (err) {
+      alert('Erro ao apagar faixa: ' + (err.message || err));
+    }
   }
 
   async function createArtistaMod() {
@@ -2010,10 +2158,9 @@
            (errorCount > 0 ? (' (' + errorCount + ' com erro)') : ''))
         : (errorCount > 0 ? 'Nenhuma música enviada — confira os erros abaixo.' : '');
 
-      // Atualiza o catálogo (usado tanto na aba Rádio quanto nas
-      // playlists por artista aqui embaixo) pra já mostrar as novas faixas.
+      // Atualiza o catálogo da rádio e o catálogo administrativo (artistas/faixas).
       await loadRadioCatalog();
-      renderArtistsList();
+      await loadArtistsMod();
       setTimeout(() => { statusEl.textContent = ''; }, 5000);
     } catch (err) {
       statusEl.textContent = '';
