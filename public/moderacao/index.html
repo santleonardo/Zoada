@@ -875,6 +875,7 @@
   <div class="section-switch" id="sectionSwitch">
     <button class="tab active" id="tabSectionDenuncias" onclick="switchSection('denuncias')">🚩 Denúncias</button>
     <button class="tab" id="tabSectionAvisos" onclick="switchSection('avisos')">📣 Avisos</button>
+    <button class="tab" id="tabSectionFeed" onclick="switchSection('feed')">📝 Feed (Fãs)</button>
     <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
     <button class="tab" id="tabSectionRadio" onclick="switchSection('radio')">📻 Rádio Zôada</button>
     <button class="tab" id="tabSectionMusicas" onclick="switchSection('musicas')">🎤 Músicas</button>
@@ -908,6 +909,38 @@
         <button class="btn-primary" onclick="publishAviso()">Publicar aviso</button>
         <button class="btn-danger" onclick="removeAviso()" id="removeAvisoBtn" style="display:none;">Remover aviso atual</button>
       </div>
+    </div>
+  </div>
+
+  <div id="section-feed" style="display:none;">
+    <div class="section-head">
+      <h2>📝 Postar no feed</h2>
+      <p>Publica direto no feed geral que aparece na aba <b>Fãs</b> do app, como se fosse a conta oficial <b>Zôada</b> (foto de perfil = logo do app).</p>
+    </div>
+
+    <div class="aviso-box">
+      <h2>💜 Novo post como Zôada</h2>
+      <p class="sub">Escreva um texto, opcionalmente anexe uma música do catálogo, e publique. Aparece na hora pra todo mundo, igual a um post normal de usuário.</p>
+
+      <textarea id="feedPostTexto" maxlength="280" placeholder="O que a Zôada quer contar pros fãs hoje?"></textarea>
+
+      <div class="field" style="margin-bottom:10px;">
+        <label for="feedPostTrackSelect">Anexar música do catálogo (opcional)</label>
+        <select id="feedPostTrackSelect">
+          <option value="">Nenhuma música</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary" onclick="publishFeedPost()" id="publishFeedPostBtn">Publicar no feed</button>
+      </div>
+      <p class="status-msg" id="feedPostStatus" style="display:none;"></p>
+    </div>
+
+    <div class="radio-panel" style="margin-top:16px;">
+      <h3>🗂️ Últimos posts da Zôada</h3>
+      <p class="sub">Posts publicados por aqui. Apagar aqui remove do feed de todo mundo (fica 30 dias restaurável no banco).</p>
+      <div id="feedPostsList"><div class="status-msg">Conecte-se acima para ver os posts.</div></div>
     </div>
   </div>
 
@@ -1334,16 +1367,22 @@
   function switchSection(section) {
     document.getElementById('section-denuncias').style.display = section === 'denuncias' ? '' : 'none';
     document.getElementById('section-avisos').style.display = section === 'avisos' ? '' : 'none';
+    document.getElementById('section-feed').style.display = section === 'feed' ? '' : 'none';
     document.getElementById('section-mensagens').style.display = section === 'mensagens' ? '' : 'none';
     document.getElementById('section-radio').style.display = section === 'radio' ? '' : 'none';
     document.getElementById('section-musicas').style.display = section === 'musicas' ? '' : 'none';
     document.getElementById('tabSectionDenuncias').classList.toggle('active', section === 'denuncias');
     document.getElementById('tabSectionAvisos').classList.toggle('active', section === 'avisos');
+    document.getElementById('tabSectionFeed').classList.toggle('active', section === 'feed');
     document.getElementById('tabSectionMensagens').classList.toggle('active', section === 'mensagens');
     document.getElementById('tabSectionRadio').classList.toggle('active', section === 'radio');
     document.getElementById('tabSectionMusicas').classList.toggle('active', section === 'musicas');
     if (section === 'avisos') {
       loadAviso();
+    }
+    if (section === 'feed') {
+      loadRadioCatalog().then(renderFeedTrackOptions);
+      loadFeedPosts();
     }
     if (section === 'mensagens') {
       // Volta pra lista de conversas ao trocar de aba, nunca deixa preso
@@ -1569,6 +1608,121 @@
   }
 
   loadAviso();
+
+  // ---------- Feed (posts como a conta oficial "Zôada") ----------
+
+  let feedPosts = [];
+
+  // Popula o <select> de músicas do post com o catálogo já carregado pra
+  // outras abas (radioCatalog), sem duplicar a busca.
+  function renderFeedTrackOptions() {
+    const select = document.getElementById('feedPostTrackSelect');
+    const current = select.value;
+    select.innerHTML = '<option value="">Nenhuma música</option>' +
+      radioCatalog.map((t) =>
+        '<option value="' + t.id + '">' + escapeHtml((t.artist_name ? t.artist_name + ' — ' : '') + t.title) + '</option>'
+      ).join('');
+    select.value = current;
+  }
+
+  async function loadFeedPosts() {
+    const listEl = document.getElementById('feedPostsList');
+    if (!secret()) {
+      listEl.innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+      return;
+    }
+    listEl.innerHTML = '<div class="status-msg">Carregando posts…</div>';
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/posts', {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (res.status === 401) {
+        listEl.innerHTML = '<div class="status-msg">Chave de moderação inválida.</div>';
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      feedPosts = data.posts || [];
+      renderFeedPostsList();
+    } catch (err) {
+      listEl.innerHTML = '<div class="status-msg">Erro ao carregar: ' + escapeHtml(String(err.message || err)) + '</div>';
+    }
+  }
+
+  function renderFeedPostsList() {
+    const listEl = document.getElementById('feedPostsList');
+    if (feedPosts.length === 0) {
+      listEl.innerHTML = '<div class="status-msg">Nenhum post publicado pela Zôada ainda.</div>';
+      return;
+    }
+    listEl.innerHTML = feedPosts.map((p) => {
+      const trackLine = p.track
+        ? '<p class="thread-preview">🎵 ' + escapeHtml((p.track.artist_name ? p.track.artist_name + ' — ' : '') + p.track.title) + '</p>'
+        : '';
+      return (
+        '<div class="track-row">' +
+          '<img src="/zoada-logo.png" alt="" style="width:34px;height:34px;border-radius:999px;object-fit:cover;flex-shrink:0;">' +
+          '<div class="track-info">' +
+            '<p class="thread-name" style="margin:0 0 2px;">' + escapeHtml(p.content || '(sem texto)') + '</p>' +
+            trackLine +
+            '<p class="thread-date" style="margin:2px 0 0;">' + fmtDate(p.created_at) + '</p>' +
+          '</div>' +
+          '<div class="track-actions">' +
+            '<button class="track-btn danger" title="Apagar" onclick="deleteFeedPost(\'' + p.id + '\')">✕</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  async function publishFeedPost() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    const content = document.getElementById('feedPostTexto').value.trim();
+    const trackId = document.getElementById('feedPostTrackSelect').value;
+    if (!content && !trackId) { alert('Escreva um texto ou escolha uma música antes de publicar.'); return; }
+
+    const btn = document.getElementById('publishFeedPostBtn');
+    const statusEl = document.getElementById('feedPostStatus');
+    btn.disabled = true;
+    statusEl.style.display = '';
+    statusEl.textContent = 'Publicando...';
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ content, track_id: trackId || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || ('HTTP ' + res.status));
+      }
+      document.getElementById('feedPostTexto').value = '';
+      document.getElementById('feedPostTrackSelect').value = '';
+      statusEl.textContent = 'Publicado no feed! 🎉';
+      await loadFeedPosts();
+      setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+    } catch (err) {
+      statusEl.style.display = 'none';
+      alert('Erro ao publicar: ' + (err.message || err));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function deleteFeedPost(id) {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    if (!confirm('Apagar este post do feed? Ele some pra todo mundo na hora.')) return;
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/posts?id=' + encodeURIComponent(id), {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await loadFeedPosts();
+    } catch (err) {
+      alert('Erro ao apagar post: ' + (err.message || err));
+    }
+  }
 
   // ---------- Rádio Zôada (playlist curada + controles da moderação) ----------
 
