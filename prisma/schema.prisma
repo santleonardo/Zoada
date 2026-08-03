@@ -39,6 +39,7 @@ model Usuario {
   curtidasPostagem CurtidaPostagem[]
   comentariosRadio ComentarioRadio[]
   enviado      Mensagem[] @relation("Enviadas")
+  mensagensModeracao MensagemModeracao[]
   recebido     Mensagem[] @relation("Recebidas")
   artistas     Artista[]
   seguindo     Seguindo[]
@@ -334,6 +335,36 @@ model Mensagem {
   @@index([createdAt])
   @@index([faixaId])
   @@map("mensagens")
+}
+
+// Quem mandou uma mensagem no canal de suporte/moderação: o próprio
+// usuário, ou alguém do time de moderação respondendo pelo painel externo
+// (public/moderacao/index.html, autenticado com MODERATION_SECRET).
+enum RemetenteModeracao {
+  USUARIO
+  MODERADOR
+}
+
+// Canal de mensagens direto entre um usuário e a moderação — diferente de
+// Denuncia (que é sobre um conteúdo específico), aqui é uma conversa livre
+// tipo "fale conosco": dúvidas, apelar de uma denúncia, pedir ajuda com a
+// conta, etc. Uma thread por usuário (não por assunto).
+model MensagemModeracao {
+  id         String             @id @default(cuid())
+  usuarioId  String             @map("usuario_id")
+  usuario    Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  remetente  RemetenteModeracao
+  conteudo   String
+  // Rastreados separadamente porque cada lado lê a conversa em momentos
+  // diferentes: o usuário quando abre o painel dele, o moderador quando
+  // abre o painel externo.
+  lidaPeloUsuario   Boolean @default(false) @map("lida_pelo_usuario")
+  lidaPeloModerador Boolean @default(false) @map("lida_pelo_moderador")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  @@index([usuarioId])
+  @@index([createdAt])
+  @@map("mensagens_moderacao")
 }
 
 // ---------- Estação de Rádio (cada usuário pode ter uma) ----------

@@ -113,6 +113,8 @@ O app funciona com **dados demo** quando o Neon não está configurado.
 | POST | `/api/reports` | ✅ (usuário) | Denunciar postagem/comentário/faixa/perfil |
 | GET | `/api/reports` | 🔐 (moderador) | Listar denúncias — painel de moderação |
 | PATCH | `/api/reports` | 🔐 (moderador) | Atualizar status/nota de uma denúncia |
+| GET | `/api/moderacao/mensagens` | ✅ (usuário) / 🔐 (moderador) | Ler a conversa (usuário: a própria; moderador: `?usuario_id=` ou lista de threads) |
+| POST | `/api/moderacao/mensagens` | ✅ (usuário) / 🔐 (moderador) | Enviar mensagem no canal de suporte com a moderação |
 
 ## Painel de moderação (denúncias)
 
@@ -137,6 +139,20 @@ qualquer lugar.
   estrutura inicial pedida; dá pra evoluir depois para remoção automática
   e notificação às autoridades nos casos de exploração infantil, exigidos
   pela ECA Digital.
+
+### Canal de mensagens com a moderação
+
+Além das denúncias (sobre um conteúdo específico), existe um canal de
+mensagens tipo "fale conosco" entre cada usuário e a equipe de moderação —
+uma thread única por usuário, para dúvidas, contestar uma denúncia, pedir
+ajuda com a conta, etc.
+
+- **Lado do usuário:** painel "Fale com a Moderação", dentro do Perfil no
+  app (`SupportChatPanel`).
+- **Lado da moderação:** aba "💬 Mensagens" no mesmo painel externo
+  (`/moderacao`), autenticada com a mesma `MODERATION_SECRET` — lista as
+  conversas com badge de não lidas e permite responder.
+- **API:** `/api/moderacao/mensagens` (ver tabela acima).
 
 ## Instalar no celular
 

@@ -178,6 +178,69 @@
 
   footer { text-align: center; padding: 30px 20px; font-size: 12px; color: var(--muted-2); }
   code { background: rgba(26,27,37,.06); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+
+  /* ---------- Seção "Mensagens" (canal de suporte com usuários) ---------- */
+  .section-switch { display: flex; gap: 8px; margin-bottom: 20px; }
+  .section-switch .tab { font-size: 14px; padding: 10px 16px; }
+
+  .thread-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
+  }
+  .thread-item:hover { background: rgba(108,92,231,.04); }
+  .thread-name { font-weight: 700; font-size: 14px; margin: 0 0 3px; }
+  .thread-preview { font-size: 12.5px; color: var(--muted); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 420px; }
+  .thread-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .thread-date { font-size: 11px; color: var(--muted-2); white-space: nowrap; }
+  .thread-unread {
+    min-width: 20px; height: 20px; padding: 0 6px;
+    border-radius: 999px; background: var(--pink); color: #fff;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .conv-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .conv-back { background: rgba(26,27,37,.06); color: var(--ink); padding: 8px 12px; }
+  .conv-title { margin: 0; font-size: 16px; }
+
+  .conv-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+    max-height: 55vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .msg-bubble {
+    max-width: 75%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg-bubble.user { align-self: flex-start; background: var(--bg); color: var(--ink); border-bottom-left-radius: 4px; }
+  .msg-bubble.mod { align-self: flex-end; background: linear-gradient(90deg, var(--orange), var(--pink)); color: #fff; border-bottom-right-radius: 4px; }
+  .msg-bubble .msg-time { display: block; margin-top: 4px; font-size: 10px; opacity: .7; }
+
+  .reply-row { display: flex; gap: 8px; }
+  .reply-row textarea { flex: 1; min-height: 44px; resize: vertical; }
 </style>
 </head>
 <body>
@@ -185,7 +248,7 @@
 <header>
   <div class="wrap" style="padding:0;">
     <h1>🚩 Zôada — Painel de Moderação</h1>
-    <p>Canal de denúncias (postagens, comentários, faixas e perfis) — separado do app, fala com <code>/api/reports</code>.</p>
+    <p>Denúncias (<code>/api/reports</code>) e o canal de mensagens direto com usuários (<code>/api/moderacao/mensagens</code>) — tudo separado do app.</p>
   </div>
 </header>
 
@@ -203,22 +266,48 @@
     <button class="btn-primary" onclick="saveConfigAndLoad()">Conectar</button>
   </div>
 
-  <div class="aviso-box">
-    <h2>📣 Aviso para todo o app</h2>
-    <p class="sub">Mensagem que aparece no topo da tela inicial de qualquer pessoa que abrir o Zôada (ex: manutenção programada, alerta de golpe, comunicado legal). Só existe um aviso ativo por vez — publicar um novo substitui o anterior.</p>
-
-    <div id="avisoAtualWrap"></div>
-
-    <textarea id="avisoTexto" maxlength="280" placeholder="Escreva o aviso que vai aparecer para todo mundo..."></textarea>
-    <div class="actions">
-      <button class="btn-primary" onclick="publishAviso()">Publicar aviso</button>
-      <button class="btn-danger" onclick="removeAviso()" id="removeAvisoBtn" style="display:none;">Remover aviso atual</button>
-    </div>
+  <div class="section-switch" id="sectionSwitch">
+    <button class="tab active" id="tabSectionDenuncias" onclick="switchSection('denuncias')">🚩 Denúncias</button>
+    <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
   </div>
 
-  <div class="tabs" id="tabs"></div>
+  <div id="section-denuncias">
+    <div class="aviso-box">
+      <h2>📣 Aviso para todo o app</h2>
+      <p class="sub">Mensagem que aparece no topo da tela inicial de qualquer pessoa que abrir o Zôada (ex: manutenção programada, alerta de golpe, comunicado legal). Só existe um aviso ativo por vez — publicar um novo substitui o anterior.</p>
 
-  <div id="list"></div>
+      <div id="avisoAtualWrap"></div>
+
+      <textarea id="avisoTexto" maxlength="280" placeholder="Escreva o aviso que vai aparecer para todo mundo..."></textarea>
+      <div class="actions">
+        <button class="btn-primary" onclick="publishAviso()">Publicar aviso</button>
+        <button class="btn-danger" onclick="removeAviso()" id="removeAvisoBtn" style="display:none;">Remover aviso atual</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div id="list"></div>
+  </div>
+
+  <div id="section-mensagens" style="display:none;">
+    <div id="threadsView">
+      <p class="sub" style="margin: 0 0 14px;">Conversas iniciadas pelos usuários no painel deles ("Fale com a Moderação"). Clique numa pra responder.</p>
+      <div id="threadsList"></div>
+    </div>
+
+    <div id="conversationView" style="display:none;">
+      <div class="conv-header">
+        <button class="conv-back" onclick="backToThreads()">← Voltar</button>
+        <h2 class="conv-title" id="conversationTitle"></h2>
+      </div>
+      <div class="conv-box" id="conversationBox"></div>
+      <div class="reply-row">
+        <textarea id="replyText" placeholder="Escreva a resposta..." maxlength="2000"></textarea>
+        <button class="btn-primary" onclick="sendReply()" id="sendReplyBtn">Enviar</button>
+      </div>
+    </div>
+  </div>
 
 </div>
 
@@ -258,6 +347,7 @@
     localStorage.setItem(LS_BASE, apiBase());
     localStorage.setItem(LS_SECRET, secret());
     loadReports();
+    loadThreads();
   }
 
   function restoreConfig() {
@@ -404,8 +494,173 @@
 
   restoreConfig();
   renderTabs();
-  if (secret()) loadReports();
+  if (secret()) { loadReports(); loadThreads(); }
   else document.getElementById('list').innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+
+  // ---------- Mensagens (canal de suporte direto com usuários) ----------
+
+  let threads = [];
+  let activeThreadUserId = null;
+  let activeThreadUserName = '';
+
+  function switchSection(section) {
+    const isDenuncias = section === 'denuncias';
+    document.getElementById('section-denuncias').style.display = isDenuncias ? '' : 'none';
+    document.getElementById('section-mensagens').style.display = isDenuncias ? 'none' : '';
+    document.getElementById('tabSectionDenuncias').classList.toggle('active', isDenuncias);
+    document.getElementById('tabSectionMensagens').classList.toggle('active', !isDenuncias);
+    if (!isDenuncias) {
+      // Volta pra lista de conversas ao trocar de aba, nunca deixa preso
+      // numa conversa antiga.
+      backToThreads();
+      loadThreads();
+    }
+  }
+
+  function fmtBadgeCount(n) { return n > 99 ? '99+' : String(n); }
+
+  function renderMsgUnreadBadge() {
+    const total = threads.reduce((acc, t) => acc + t.unread_count, 0);
+    const badge = document.getElementById('msgUnreadBadge');
+    badge.innerHTML = total > 0 ? ' <span class="count">' + fmtBadgeCount(total) + '</span>' : '';
+  }
+
+  async function loadThreads() {
+    const listEl = document.getElementById('threadsList');
+    if (!secret()) {
+      listEl.innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+      return;
+    }
+    listEl.innerHTML = '<div class="status-msg">Carregando conversas…</div>';
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/mensagens', {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (res.status === 401) {
+        listEl.innerHTML = '<div class="status-msg">Chave de moderação inválida.</div>';
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      threads = data.threads || [];
+      // Mais recente primeiro.
+      threads.sort((a, b) => new Date(b.last_message.created_at) - new Date(a.last_message.created_at));
+      renderMsgUnreadBadge();
+      renderThreadsList();
+    } catch (err) {
+      listEl.innerHTML = '<div class="status-msg">Erro ao carregar: ' + escapeHtml(String(err.message || err)) + '</div>';
+    }
+  }
+
+  function renderThreadsList() {
+    const listEl = document.getElementById('threadsList');
+    if (threads.length === 0) {
+      listEl.innerHTML = '<div class="status-msg">Nenhuma conversa por aqui ainda.</div>';
+      return;
+    }
+    listEl.innerHTML = threads.map((t) => {
+      const m = t.last_message;
+      const preview = (m.remetente === 'MODERADOR' ? 'Você: ' : '') + m.conteudo;
+      return '' +
+        '<button class="thread-item" onclick="openThread(\'' + t.usuario.id + '\', \'' + escapeHtml(t.usuario.name).replace(/'/g, '&#39;') + '\')">' +
+          '<div style="min-width:0;">' +
+            '<p class="thread-name">' + escapeHtml(t.usuario.name || 'Sem nome') + '</p>' +
+            '<p class="thread-preview">' + escapeHtml(preview) + '</p>' +
+          '</div>' +
+          '<div class="thread-meta">' +
+            (t.unread_count > 0 ? '<span class="thread-unread">' + fmtBadgeCount(t.unread_count) + '</span>' : '') +
+            '<span class="thread-date">' + fmtDate(m.created_at) + '</span>' +
+          '</div>' +
+        '</button>';
+    }).join('');
+  }
+
+  async function openThread(usuarioId, usuarioName) {
+    activeThreadUserId = usuarioId;
+    activeThreadUserName = usuarioName;
+    document.getElementById('threadsView').style.display = 'none';
+    document.getElementById('conversationView').style.display = '';
+    document.getElementById('conversationTitle').textContent = usuarioName || 'Conversa';
+    document.getElementById('replyText').value = '';
+    await loadConversation();
+  }
+
+  function backToThreads() {
+    activeThreadUserId = null;
+    document.getElementById('conversationView').style.display = 'none';
+    document.getElementById('threadsView').style.display = '';
+  }
+
+  async function loadConversation() {
+    const box = document.getElementById('conversationBox');
+    box.innerHTML = '<div class="status-msg">Carregando mensagens…</div>';
+    try {
+      const res = await fetch(
+        apiBase() + '/api/moderacao/mensagens?usuario_id=' + encodeURIComponent(activeThreadUserId),
+        { headers: { Authorization: 'Bearer ' + secret() } }
+      );
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      renderConversation(data.messages || []);
+      // A leitura marcou as mensagens do usuário como lidas — atualiza o
+      // contador da lista/badge sem precisar recarregar tudo de novo.
+      loadThreads();
+    } catch (err) {
+      box.innerHTML = '<div class="status-msg">Erro ao carregar: ' + escapeHtml(String(err.message || err)) + '</div>';
+    }
+  }
+
+  function renderConversation(messages) {
+    const box = document.getElementById('conversationBox');
+    if (messages.length === 0) {
+      box.innerHTML = '<div class="status-msg">Nenhuma mensagem ainda.</div>';
+      return;
+    }
+    box.innerHTML = messages.map((m) => {
+      const cls = m.remetente === 'MODERADOR' ? 'mod' : 'user';
+      return '' +
+        '<div class="msg-bubble ' + cls + '">' +
+          escapeHtml(m.conteudo) +
+          '<span class="msg-time">' + fmtDate(m.created_at) + '</span>' +
+        '</div>';
+    }).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function sendReply() {
+    if (!activeThreadUserId) return;
+    const textEl = document.getElementById('replyText');
+    const conteudo = textEl.value.trim();
+    if (!conteudo) return;
+
+    const btn = document.getElementById('sendReplyBtn');
+    btn.disabled = true;
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/mensagens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + secret(),
+        },
+        body: JSON.stringify({ usuario_id: activeThreadUserId, conteudo }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      textEl.value = '';
+      await loadConversation();
+    } catch (err) {
+      alert('Erro ao enviar resposta: ' + (err.message || err));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Enter envia a resposta (Shift+Enter quebra linha), igual ao chat do app.
+  document.getElementById('replyText').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendReply();
+    }
+  });
 
   // ---------- Aviso global (banner na tela inicial) ----------
 
