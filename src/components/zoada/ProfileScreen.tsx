@@ -33,6 +33,13 @@ import AudioQualityDialog from './AudioQualityDialog';
 import DeleteAccountDialog from './DeleteAccountDialog';
 import TrashDialog from './TrashDialog';
 
+// Feature flags: "Enviar música" e "Criar estação de rádio" viraram
+// funções premium (a serem lançadas no futuro). Por enquanto ficam
+// ocultas do perfil, mas o código/painéis continuam aqui prontos —
+// basta virar isto pra `true` quando o premium for lançado.
+const PREMIUM_UPLOAD_MUSIC_ENABLED = false;
+const PREMIUM_RADIO_STATION_ENABLED = false;
+
 const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, selectArtist, setUser, authToken } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
@@ -324,14 +331,18 @@ const ProfileScreen: React.FC = () => {
       <MyTracksPanel refreshKey={tracksRefreshKey} />
 
       {/* Upload de músicas novas — também é aqui que a edição de perfil de
-          artista acontece de fato, quando "focada" por fora. */}
-      <UploadMusicPanel
-        userName={user.name}
-        onUploaded={() => setTracksRefreshKey((k) => k + 1)}
-        refreshKey={artistsRefreshKey}
-        focusArtistId={focusArtistId}
-        focusToken={focusToken}
-      />
+          artista acontece de fato, quando "focada" por fora.
+          Função premium (futura): oculta do perfil por enquanto, sem
+          remover o painel — ver PREMIUM_UPLOAD_MUSIC_ENABLED acima. */}
+      {PREMIUM_UPLOAD_MUSIC_ENABLED && (
+        <UploadMusicPanel
+          userName={user.name}
+          onUploaded={() => setTracksRefreshKey((k) => k + 1)}
+          refreshKey={artistsRefreshKey}
+          focusArtistId={focusArtistId}
+          focusToken={focusToken}
+        />
+      )}
 
       {/* Seus artistas: seção própria, separada do envio, com opção de
           editar (que leva pro painel de envio acima, já selecionado) e de
@@ -348,8 +359,10 @@ const ProfileScreen: React.FC = () => {
         }}
       />
 
-      {/* Estação de rádio pessoal: criar/editar/publicar/despublicar/apagar. */}
-      <MyRadioStationPanel />
+      {/* Estação de rádio pessoal: criar/editar/publicar/despublicar/apagar.
+          Função premium (futura): oculta do perfil por enquanto, sem
+          remover o painel — ver PREMIUM_RADIO_STATION_ENABLED acima. */}
+      {PREMIUM_RADIO_STATION_ENABLED && <MyRadioStationPanel />}
 
       {/* Canal de mensagens direto com a Moderação — do outro lado está o
           painel externo em public/moderacao/index.html. */}
