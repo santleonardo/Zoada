@@ -403,8 +403,6 @@
   .radio-pill-fallback { background: rgba(26,27,37,.08); color: var(--muted); }
 
   .radio-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
-  @media (max-width: 760px) { .radio-cols { grid-template-columns: 1fr; } }
-
   .radio-panel {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -514,13 +512,69 @@
   .upload-submit-row button { flex-shrink: 0; }
   #uploadFaixaStatus { margin: 0; }
 
-  @media (max-width: 640px) {
-    header { padding: 14px 16px; }
-    header p { display: none; }
-    .page, .wrap { padding: 16px 14px 40px; }
-    .section-switch { top: 66px; }
-    .card, .radio-panel, .aviso-box, .conv-box { padding: 14px 16px; }
+  /* ---------- Responsivo (preserva o visual original, só adapta) ---------- */
+  @media (max-width: 760px) {
+    .radio-cols { grid-template-columns: 1fr; }
+    .auth-box { flex-direction: column; align-items: stretch; }
+    .field { min-width: 0; width: 100%; }
+    .radio-status { flex-wrap: wrap; }
+    .radio-status-actions { width: 100%; }
   }
+
+  @media (max-width: 640px) {
+    header { padding: 12px 14px; }
+    header h1 { font-size: 16px; }
+    header p { display: none; }
+    header .brand-icon { width: 34px; height: 34px; font-size: 17px; }
+    header .conn-indicator { padding: 6px 10px 6px 8px; font-size: 11px; }
+
+    .page, .wrap { padding: 12px 12px 28px; }
+
+    .section-switch {
+      top: 60px;
+      gap: 6px;
+      padding: 8px 0 6px;
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .section-switch::-webkit-scrollbar { display: none; }
+    .section-switch .tab {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+
+    .auth-box { padding: 12px 14px; gap: 10px; margin-bottom: 12px; }
+    .card, .radio-panel, .aviso-box, .conv-box { padding: 12px 14px; }
+    .card { margin-bottom: 10px; }
+
+    .section-head h2 { font-size: 15.5px; }
+    .section-head p { font-size: 12.5px; }
+
+    .msg-list { max-height: min(50vh, 360px); }
+    .track-list { max-height: min(40vh, 320px); }
+
+    .reply-row { flex-direction: column; }
+    .reply-row textarea { min-height: 56px; }
+    .reply-row button { width: 100%; }
+
+    .actions { flex-direction: column; align-items: stretch; }
+    .actions select, .actions button { width: 100%; }
+
+    .upload-dropzone { padding: 14px; }
+    footer { padding: 18px 14px 28px; font-size: 11px; }
+  }
+
+  @media (max-width: 400px) {
+    header h1 { font-size: 14.5px; }
+    .section-switch .tab { padding: 7px 10px; font-size: 11.5px; }
+  }
+
+  /* Evita rolagem horizontal acidental */
+  html, body { overflow-x: hidden; max-width: 100%; }
+  img, video { max-width: 100%; height: auto; }
 </style>
 </head>
 <body>
