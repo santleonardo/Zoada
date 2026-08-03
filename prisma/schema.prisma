@@ -7,8 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "sqlite"
+  provider  = "postgresql"
   url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 // ---------- Usuários ----------
@@ -109,7 +110,6 @@ model Faixa {
   reproducoes Reproducao[]
   faixasEstacao FaixaEstacao[]
   faixasRadioPadrao FaixaRadioPadrao[]
-  faixasRadioOficial FaixaRadioOficial[]
   postagens  Postagem[]
 
   @@index([deletedAt])
@@ -527,49 +527,6 @@ model Denuncia {
   @@index([tipoAlvo, alvoId])
   @@index([createdAt])
   @@map("denuncias")
-}
-
-// ---------- Rádios Oficiais do Zôada (criadas pela moderação) ----------
-// Rádios oficiais são estações pertencentes ao aplicativo, criadas e
-// gerenciadas exclusivamente pela moderação via painel. Diferentes de
-// EstacaoRadio (uma por usuário) e de RadioPadrao (singleton padrão),
-// podem existir várias rádios oficiais, cada uma com sua própria
-// playlist independente. Apenas uma pode estar "no ar" (onAir) por vez.
-model RadioOficial {
-  id          String    @id @default(cuid())
-  nome        String
-  capaUrl     String?   @map("capa_url")
-  // Publicada = visível para os usuários no app (Explorar, dial).
-  publicada   Boolean   @default(false) @map("publicada")
-  // true = esta é a transmissão oficial global no ar. Apenas uma
-  // rádio pode ter onAir=true por vez (garantido na API).
-  onAir       Boolean   @default(false) @map("on_air")
-  // Faixa atual da transmissão + timestamp (mesmo mecanismo de
-  // EstacaoRadio e RadioPadrao, pra sincronizar ouvintes).
-  faixaAtualId     String?   @map("faixa_atual_id")
-  faixaAtualInicio DateTime? @map("faixa_atual_inicio")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  faixas FaixaRadioOficial[]
-
-  @@map("radios_oficiais")
-}
-
-// ---------- Faixas de uma Rádio Oficial (playlist ordenada) ----------
-model FaixaRadioOficial {
-  id        String   @id @default(cuid())
-  radioId   String   @map("radio_id")
-  faixaId   String   @map("faixa_id")
-  ordem     Int
-  createdAt DateTime @default(now()) @map("created_at")
-
-  radio RadioOficial @relation(fields: [radioId], references: [id], onDelete: Cascade)
-  faixa Faixa        @relation(fields: [faixaId], references: [id], onDelete: Cascade)
-
-  @@unique([radioId, faixaId])
-  @@index([radioId])
-  @@map("faixas_radio_oficial")
 }
 
 // ---------- Avisos (banner global disparado pelo painel de moderação) ----------
