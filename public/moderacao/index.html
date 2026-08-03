@@ -961,9 +961,9 @@
 
       <div class="radio-panel">
         <h3>🎵 Catálogo</h3>
-        <p class="sub">Clique em <b>+</b> pra adicionar uma faixa à playlist da Rádio Zôada.</p>
+        <p class="sub">Acordeão por artista. Abra e use <b>+</b> para colocar faixas na playlist da Rádio Zôada.</p>
         <input type="text" class="track-search" id="radioCatalogSearch" placeholder="Buscar por título ou artista..." oninput="renderRadioCatalog()">
-        <div class="track-list" id="radioCatalogList"></div>
+        <div class="catalog-list" id="radioCatalogList" role="list"></div>
       </div>
     </div>
   </div>
@@ -1563,6 +1563,7 @@
   let radioState = null;       // último estado vindo de /api/moderacao/radio
   let radioCatalog = [];       // todas as faixas (GET /api/tracks, público)
   let radioPlaylistIds = [];   // playlist em edição (ordem = ordem de reprodução)
+  let expandedRadioArtistId = null; // acordeão do catálogo da rádio
 
   async function loadRadioCatalog() {
     try {
@@ -1665,35 +1666,96 @@
     }).join('');
   }
 
+  function radioCatalogArtists() {
+    const map = new Map();
+    radioCatalog.forEach((t) => {
+      const id = t.artist_id || ('name:' + (t.artist_name || 'Sem artista'));
+      const name = t.artist_name || 'Sem artista';
+      if (!map.has(id)) map.set(id, { id: id, name: name, tracks: [] });
+      map.get(id).tracks.push(t);
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }
+
+  function toggleRadioArtistExpand(artistId) {
+    expandedRadioArtistId = expandedRadioArtistId === artistId ? null : artistId;
+    renderRadioCatalog();
+  }
+
   function renderRadioCatalog() {
     const list = document.getElementById('radioCatalogList');
+    if (!list) return;
+
     const q = (document.getElementById('radioCatalogSearch').value || '').trim().toLowerCase();
-    let items = radioCatalog;
+    let artists = radioCatalogArtists();
+
     if (q) {
-      items = items.filter((t) =>
-        t.title.toLowerCase().includes(q) || t.artist_name.toLowerCase().includes(q)
-      );
+      artists = artists
+        .map((a) => ({
+          ...a,
+          tracks: a.tracks.filter((t) =>
+            (t.title || '').toLowerCase().includes(q) ||
+            (t.artist_name || '').toLowerCase().includes(q) ||
+            (a.name || '').toLowerCase().includes(q)
+          ),
+        }))
+        .filter((a) => a.tracks.length > 0 || (a.name || '').toLowerCase().includes(q));
+
+      // Se a busca bate em faixa, abre o artista correspondente
+      if (!expandedRadioArtistId) {
+        const hit = artists.find((a) =>
+          a.tracks.some((t) => (t.title || '').toLowerCase().includes(q))
+        );
+        if (hit) expandedRadioArtistId = hit.id;
+      }
     }
 
-    if (items.length === 0) {
-      list.innerHTML = '<div class="status-msg">Nenhuma faixa encontrada.</div>';
+    if (artists.length === 0) {
+      list.innerHTML = '<div class="status-msg" style="padding:16px;">Nenhuma faixa encontrada.</div>';
       return;
     }
 
-    list.innerHTML = items.map((t) => {
-      const already = radioPlaylistIds.includes(t.id);
+    list.innerHTML = artists.map((a) => {
+      const open = expandedRadioArtistId === a.id;
+      const panelId = 'radio-acc-panel-' + String(a.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const tracksHtml = a.tracks.length
+        ? a.tracks.map((t, i) => renderRadioCatalogTrackRow(t, i + 1)).join('')
+        : '<p class="acc-empty">Nenhuma música neste artista.</p>';
       return '' +
-        '<div class="track-row">' +
-          '<div class="track-info">' +
-            '<p class="track-title">' + escapeHtml(t.title) + '</p>' +
-            '<p class="track-artist">' + escapeHtml(t.artist_name) + '</p>' +
-          '</div>' +
-          '<div class="track-actions">' +
-            '<button class="track-btn" title="' + (already ? 'Já está na playlist' : 'Adicionar') + '" ' +
-              (already ? 'disabled' : '') + ' onclick="addRadioTrack(\'' + t.id + '\')">' + (already ? '✓' : '+') + '</button>' +
-          '</div>' +
+        '<div class="acc-item' + (open ? ' is-open' : '') + '" role="listitem">' +
+          '<button type="button" class="acc-trigger" aria-expanded="' + (open ? 'true' : 'false') + '" aria-controls="' + panelId + '" onclick="toggleRadioArtistExpand(\'' + String(a.id).replace(/'/g, "\\'") + '\')">' +
+            '<span class="acc-icon" aria-hidden="true">' + (open ? '−' : '+') + '</span>' +
+            '<span class="acc-label">' +
+              '<strong>' + escapeHtml(a.name) + '</strong>' +
+              '<span>' + (open ? 'Recolher lista' : 'Ver músicas') + '</span>' +
+            '</span>' +
+            '<span class="acc-badge">' + a.tracks.length + ' faixa' + (a.tracks.length === 1 ? '' : 's') + '</span>' +
+          '</button>' +
+          '<div class="acc-panel" id="' + panelId + '">' + tracksHtml + '</div>' +
         '</div>';
     }).join('');
+  }
+
+  function renderRadioCatalogTrackRow(t, num) {
+    const already = radioPlaylistIds.includes(t.id);
+    const dur = t.duration
+      ? (Math.floor(t.duration / 60) + ':' + String(Math.floor(t.duration % 60)).padStart(2, '0'))
+      : '';
+    const plays = (t.plays_count != null) ? (t.plays_count + ' plays') : '';
+    const metaBits = [dur, plays].filter(Boolean);
+    return '' +
+      '<div class="acc-track" id="radio-catalog-track-' + t.id + '">' +
+        '<span class="acc-track-n">' + (num || '·') + '</span>' +
+        '<div class="acc-track-body">' +
+          '<p class="t">' + escapeHtml(t.title || '(sem título)') + '</p>' +
+          '<p class="m">' + escapeHtml(metaBits.join(' · ') || (already ? 'Já na playlist' : 'Disponível')) + '</p>' +
+        '</div>' +
+        '<div class="acc-track-btns">' +
+          (already
+            ? '<button type="button" disabled title="Já está na playlist">Na playlist</button>'
+            : '<button type="button" onclick="event.stopPropagation();addRadioTrack(\'' + t.id + '\')">+ Adicionar</button>') +
+        '</div>' +
+      '</div>';
   }
 
   function addRadioTrack(id) {
