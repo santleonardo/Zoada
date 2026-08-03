@@ -366,6 +366,51 @@ export async function sendMessageApi(receiverId: string, content: string, trackI
   }
 }
 
+// ---------- Canal de mensagens com a Moderação ----------
+// Conversa única e direta entre o usuário logado e a equipe de moderação
+// (painel externo em public/moderacao/index.html). Diferente do chat entre
+// usuários (/api/messages) — aqui não existe "lista de conversas", é
+// sempre uma única thread por usuário.
+
+export interface SupportMessage {
+  id: string;
+  usuario_id: string;
+  remetente: 'USUARIO' | 'MODERADOR';
+  conteudo: string;
+  lida_pelo_usuario: boolean;
+  lida_pelo_moderador: boolean;
+  created_at: string;
+}
+
+// Busca a thread de mensagens do usuário logado com a moderação.
+export async function fetchSupportMessages(): Promise<SupportMessage[]> {
+  try {
+    const res = await apiFetch('/api/moderacao/mensagens');
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.messages) ? data.messages : [];
+  } catch (err) {
+    console.warn('[fetchSupportMessages] falha ao buscar mensagens com a moderação:', err);
+    return [];
+  }
+}
+
+// Envia uma mensagem para a moderação, na thread do usuário logado.
+export async function sendSupportMessage(conteudo: string): Promise<SupportMessage | null> {
+  try {
+    const res = await apiFetch('/api/moderacao/mensagens', {
+      method: 'POST',
+      body: JSON.stringify({ conteudo }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.message ?? null;
+  } catch (err) {
+    console.warn('[sendSupportMessage] falha ao enviar mensagem para a moderação:', err);
+    return null;
+  }
+}
+
 // Busca todas as faixas disponíveis no catálogo (usado pelo seletor de
 // "compartilhar música" no chat).
 export async function fetchAllTracks(): Promise<Track[]> {
