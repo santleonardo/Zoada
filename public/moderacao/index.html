@@ -986,6 +986,7 @@
     <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
     <button class="tab" id="tabSectionRadio" onclick="switchSection('radio')">📻 Rádio Zôada</button>
     <button class="tab" id="tabSectionMusicas" onclick="switchSection('musicas')">🎤 Músicas</button>
+    <button class="tab" id="tabSectionAdmins" onclick="switchSection('admins')">🔑 Admins</button>
   </div>
 
   <div id="section-denuncias">
@@ -1219,6 +1220,31 @@
         <div class="catalog-list" id="artistsList" role="list"></div>
         <p class="catalog-summary">Artistas: <strong id="artistasCount">0</strong> · Faixas: <strong id="faixasCount">0</strong></p>
       </div>
+    </div>
+  </div>
+
+  <div id="section-admins" style="display:none;">
+    <div class="section-head">
+      <h2>🔑 Admins do painel</h2>
+      <p>Quem pode entrar aqui pela tela de login. A pessoa precisa <b>já ter uma conta cadastrada no app</b> — convidar só libera o acesso, não cria conta nenhuma.</p>
+    </div>
+
+    <div class="aviso-box">
+      <h2>➕ Convidar novo admin</h2>
+      <p class="sub">Digite o email exato usado na conta do app. Se não existir conta com esse email, o convite não vai funcionar.</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <div class="field" style="flex:1; min-width:220px; margin-bottom:0;">
+          <label for="inviteAdminEmail">Email cadastrado no app</label>
+          <input type="text" id="inviteAdminEmail" placeholder="pessoa@email.com" autocomplete="off">
+        </div>
+        <button class="btn-primary" onclick="inviteAdmin()" id="inviteAdminBtn">Convidar admin</button>
+      </div>
+      <p class="status-msg" id="inviteAdminStatus" style="display:none;"></p>
+    </div>
+
+    <div class="radio-panel" style="margin-top:16px;">
+      <h3>👥 Admins atuais</h3>
+      <div id="adminsList"><div class="status-msg">Carregando…</div></div>
     </div>
   </div>
 
@@ -1555,12 +1581,14 @@
     document.getElementById('section-mensagens').style.display = section === 'mensagens' ? '' : 'none';
     document.getElementById('section-radio').style.display = section === 'radio' ? '' : 'none';
     document.getElementById('section-musicas').style.display = section === 'musicas' ? '' : 'none';
+    document.getElementById('section-admins').style.display = section === 'admins' ? '' : 'none';
     document.getElementById('tabSectionDenuncias').classList.toggle('active', section === 'denuncias');
     document.getElementById('tabSectionAvisos').classList.toggle('active', section === 'avisos');
     document.getElementById('tabSectionFeed').classList.toggle('active', section === 'feed');
     document.getElementById('tabSectionMensagens').classList.toggle('active', section === 'mensagens');
     document.getElementById('tabSectionRadio').classList.toggle('active', section === 'radio');
     document.getElementById('tabSectionMusicas').classList.toggle('active', section === 'musicas');
+    document.getElementById('tabSectionAdmins').classList.toggle('active', section === 'admins');
     if (section === 'avisos') {
       loadAviso();
     }
@@ -1581,6 +1609,9 @@
     if (section === 'musicas') {
       loadArtistsMod();
       loadRadioCatalog();
+    }
+    if (section === 'admins') {
+      loadAdmins();
     }
   }
 
@@ -1905,6 +1936,116 @@
       await loadFeedPosts();
     } catch (err) {
       alert('Erro ao apagar post: ' + (err.message || err));
+    }
+  }
+
+  // ---------- Admins do painel (convite de novos admins) ----------
+
+  let adminsCache = [];
+
+  function currentUserEmail() {
+    try {
+      const u = JSON.parse(localStorage.getItem(LS_USER) || 'null');
+      return u ? (u.email || '') : '';
+    } catch { return ''; }
+  }
+
+  async function loadAdmins() {
+    const listEl = document.getElementById('adminsList');
+    if (!secret()) {
+      listEl.innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+      return;
+    }
+    listEl.innerHTML = '<div class="status-msg">Carregando…</div>';
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/admins', {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (res.status === 401) {
+        listEl.innerHTML = '<div class="status-msg">Chave de moderação inválida.</div>';
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      adminsCache = data.admins || [];
+      renderAdminsList();
+    } catch (err) {
+      listEl.innerHTML = '<div class="status-msg">Erro ao carregar: ' + escapeHtml(String(err.message || err)) + '</div>';
+    }
+  }
+
+  function renderAdminsList() {
+    const listEl = document.getElementById('adminsList');
+    if (adminsCache.length === 0) {
+      listEl.innerHTML = '<div class="status-msg">Nenhum admin configurado.</div>';
+      return;
+    }
+    const me = currentUserEmail().toLowerCase();
+    listEl.innerHTML = adminsCache.map((a) => {
+      const isMe = a.email.toLowerCase() === me;
+      const badge = a.source === 'env'
+        ? '<span class="status-chip" title="Configurado via env var no servidor">🔒 Fixo</span>'
+        : '<span class="status-chip status-chip-done">✅ Convidado</span>';
+      const removeBtn = a.source === 'db'
+        ? '<button class="track-btn danger" title="Remover" onclick="removeAdmin(\'' + escapeHtml(a.email).replace(/'/g, '&#39;') + '\')">✕</button>'
+        : '';
+      return (
+        '<div class="track-row">' +
+          '<span class="track-file-icon">👤</span>' +
+          '<div class="track-info">' +
+            '<p class="thread-name" style="margin:0 0 2px;">' + escapeHtml(a.name || a.email) + (isMe ? ' <span style="font-weight:600;color:var(--muted);">(você)</span>' : '') + '</p>' +
+            (a.name ? '<p class="thread-preview">' + escapeHtml(a.email) + '</p>' : '') +
+          '</div>' +
+          '<div class="track-actions">' + badge + removeBtn + '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  async function inviteAdmin() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    const emailInput = document.getElementById('inviteAdminEmail');
+    const email = emailInput.value.trim();
+    if (!email) { alert('Digite o email da pessoa que já tem conta no app.'); return; }
+
+    const btn = document.getElementById('inviteAdminBtn');
+    const statusEl = document.getElementById('inviteAdminStatus');
+    btn.disabled = true;
+    statusEl.style.display = '';
+    statusEl.textContent = 'Convidando...';
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      emailInput.value = '';
+      statusEl.textContent = 'Admin adicionado! 🎉';
+      await loadAdmins();
+      setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+    } catch (err) {
+      statusEl.style.display = 'none';
+      alert('Erro ao convidar admin: ' + (err.message || err));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function removeAdmin(email) {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    if (!confirm('Remover o acesso de ' + email + ' ao painel de moderação?')) return;
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/admins?email=' + encodeURIComponent(email), {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      await loadAdmins();
+    } catch (err) {
+      alert('Erro ao remover admin: ' + (err.message || err));
     }
   }
 

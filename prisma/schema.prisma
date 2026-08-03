@@ -545,3 +545,16 @@ model Aviso {
   @@index([ativo])
   @@map("avisos")
 }
+
+// Admins do painel de moderação convidados dinamicamente (além dos fixos
+// via env var MODERATION_ADMIN_EMAILS). O email precisa já existir como
+// conta cadastrada no app (Usuario) — checado na hora de convidar, não
+// aqui no banco (evita ter que manter uma FK que quebraria se a conta
+// fosse apagada).
+model AdminModeracao {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("admins_moderacao")
+}
