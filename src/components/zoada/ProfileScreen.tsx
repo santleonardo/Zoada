@@ -28,6 +28,7 @@ import MyTracksPanel from './MyTracksPanel';
 import MyArtistsPanel from './MyArtistsPanel';
 import MyRadioStationPanel from './MyRadioStationPanel';
 import UserFeedPanel from './UserFeedPanel';
+import SupportChatPanel from './SupportChatPanel';
 import AudioQualityDialog from './AudioQualityDialog';
 import DeleteAccountDialog from './DeleteAccountDialog';
 import TrashDialog from './TrashDialog';
@@ -349,6 +350,10 @@ const ProfileScreen: React.FC = () => {
 
       {/* Estação de rádio pessoal: criar/editar/publicar/despublicar/apagar. */}
       <MyRadioStationPanel />
+
+      {/* Canal de mensagens direto com a Moderação — do outro lado está o
+          painel externo em public/moderacao/index.html. */}
+      <SupportChatPanel />
 
       {/* Settings */}
       <div className="space-y-2 mb-6">
