@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioStation } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchUserFavorites, toggleTrackFavorite, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchPublishedRadioStations, fetchRadioStationById, advanceRadioStation } from '@/lib/api';
+import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioStation, RadioPadrao } from '@/types';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchUserFavorites, toggleTrackFavorite, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchPublishedRadioStations, fetchRadioStationById, advanceRadioStation, fetchRadioPadrao } from '@/lib/api';
 
 // Abas da tela inicial ("Início"). 'fans' é a busca de outros usuários
 // por nome — sem conteúdo próprio na store, é só mais uma aba client-side
@@ -137,6 +137,10 @@ interface AppState {
   // Dados completos da estação selecionada (com faixas), carregados
   // sob demanda quando o usuário seleciona uma estação no dial.
   selectedStation: RadioStation | null;
+  // Estado da "Rádio Zôada" (estação padrão) definido pela moderação em
+  // /api/moderacao/radio: playlist curada, pausada ou não, faixa atual.
+  // null = moderação ainda não configurou nada (cai no shuffle padrão).
+  radioPadrao: RadioPadrao | null;
 
   // Actions - Auth
   setUser: (user: User | null, token?: string | null) => void;
@@ -220,6 +224,14 @@ interface AppState {
   tuneIntoStation: (stationId: string) => Promise<void>;
   // Avança a faixa atual da estação selecionada no servidor (fire-and-forget).
   advanceStationTrack: () => Promise<void>;
+  // Busca o estado atual da Rádio Zôada (playlist curada, pausada, faixa
+  // atual) definido pela moderação, e guarda em `radioPadrao`.
+  loadRadioPadrao: () => Promise<void>;
+  // Começa a tocar a Rádio Zôada usando a playlist curada pela moderação,
+  // sincronizada com a faixa/tempo atual da transmissão (mesmo cálculo de
+  // `tuneIntoStation`, pra quem entra no meio de uma faixa já ouvir
+  // sincronizado com os demais).
+  startDefaultRadioSynced: (radio: RadioPadrao) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -245,6 +257,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   publishedStations: [],
   selectedStationId: null,
   selectedStation: null,
+  radioPadrao: null,
 
   player: {
     currentTrack: null,
@@ -901,5 +914,51 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (updated) {
       set({ selectedStation: updated });
     }
+  },
+
+  // Busca o estado atual da Rádio Zôada definido pela moderação.
+  loadRadioPadrao: async () => {
+    const radio = await fetchRadioPadrao();
+    set({ radioPadrao: radio });
+  },
+
+  // Sintoniza a Rádio Zôada com a playlist curada pela moderação, já
+  // calculando qual faixa deveria estar tocando agora (mesma lógica de
+  // `tuneIntoStation`, pra sincronizar com quem mais estiver ouvindo).
+  startDefaultRadioSynced: (radio) => {
+    const stationTracks = radio.tracks;
+    if (stationTracks.length === 0) return;
+
+    let startIndex = 0;
+    if (radio.current_track_started_at && radio.current_track_id) {
+      const startedAt = new Date(radio.current_track_started_at).getTime();
+      const elapsedMs = Date.now() - startedAt;
+      let accumulated = 0;
+      for (let i = 0; i < stationTracks.length; i++) {
+        accumulated += (stationTracks[i].duration || 0) * 1000;
+        if (accumulated > elapsedMs) {
+          startIndex = i;
+          break;
+        }
+        if (i === stationTracks.length - 1) startIndex = i;
+      }
+    }
+
+    const startingTrack = stationTracks[startIndex];
+    const state = get();
+    set({
+      radioEnabled: true,
+      shuffleEnabled: false,
+      repeatMode: 'all',
+      queue: stationTracks,
+      queueIndex: startIndex,
+      shuffleBag: [],
+      player: {
+        ...state.player,
+        currentTrack: startingTrack,
+        isPlaying: true,
+        progress: 0,
+      },
+    });
   },
 }));

@@ -218,6 +218,22 @@ export interface RadioStation {
   tracks_count?: number;
 }
 
+// Estação padrão "Rádio Zôada" (singleton, controlada pela moderação em
+// /api/moderacao/radio). Lida publicamente em /api/radio-padrao.
+export interface RadioPadrao {
+  nome: string;
+  cover_url: string | null;
+  // true = moderação pausou a Rádio Zôada pra todo mundo.
+  pausada: boolean;
+  // Faixa atual + quando começou a tocar (mesmo mecanismo de RadioStation,
+  // pra sincronizar quem estiver ouvindo).
+  current_track_id: string | null;
+  current_track_started_at: string | null;
+  // Playlist curada pela moderação, na ordem escolhida. Vazia = a Rádio
+  // Zôada volta ao comportamento padrão (shuffle de todo o catálogo).
+  tracks: Track[];
+}
+
 // Resultado da busca de usuários por nome (aba "Fãs") — versão enxuta do
 // perfil público, só com o necessário pra listar/clicar num resultado.
 export interface UserSearchResult {

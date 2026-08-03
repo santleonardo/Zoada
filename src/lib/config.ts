@@ -50,6 +50,12 @@ export const CRON_SECRET = process.env.CRON_SECRET || '';
 // definindo a env var MODERATION_SECRET.
 export const MODERATION_SECRET = process.env.MODERATION_SECRET || 'zoada-dev-moderation-secret-change-in-production';
 
+// ---------- RÁDIO ZÔADA (estação padrão, singleton) ----------
+// ID fixo da única linha da tabela `radio_padrao` — não existe (e nunca
+// deve existir) mais de uma. Usado por /api/radio-padrao (leitura pública)
+// e /api/moderacao/radio (escrita, painel de moderação).
+export const RADIO_PADRAO_ID = 'radio-padrao-zoada';
+
 // ---------- Helpers ----------
 export const isNeonConfigured = !!NEON_CONFIG.DATABASE_URL;
 export const isR2Configured = !!(R2_CONFIG.ACCOUNT_ID && R2_CONFIG.ACCESS_KEY_ID && R2_CONFIG.SECRET_ACCESS_KEY);

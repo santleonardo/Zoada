@@ -16,7 +16,7 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
-import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, Post, PostComment } from '@/types';
+import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, RadioPadrao, Post, PostComment } from '@/types';
 
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
@@ -583,6 +583,22 @@ export async function fetchPublishedRadioStations(): Promise<RadioStation[]> {
   } catch (err) {
     console.warn('[fetchPublishedRadioStations] falha:', err);
     return [];
+  }
+}
+
+// Busca o estado atual da "Rádio Zôada" (estação padrão, curada pela
+// moderação em /api/moderacao/radio). Retorna null se a moderação ainda
+// não configurou nada — nesse caso o cliente cai no fallback antigo
+// (shuffle de todo o catálogo).
+export async function fetchRadioPadrao(): Promise<RadioPadrao | null> {
+  try {
+    const res = await apiFetch('/api/radio-padrao');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.radio ?? null;
+  } catch (err) {
+    console.warn('[fetchRadioPadrao] falha:', err);
+    return null;
   }
 }
 
