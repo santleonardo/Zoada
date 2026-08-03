@@ -56,6 +56,14 @@ export const MODERATION_SECRET = process.env.MODERATION_SECRET || 'zoada-dev-mod
 // e /api/moderacao/radio (escrita, painel de moderação).
 export const RADIO_PADRAO_ID = 'radio-padrao-zoada';
 
+// ---------- CONTA OFICIAL "ZÔADA" (posts no feed via painel de moderação) ----------
+// Email fixo usado para localizar/criar (upsert) a conta oficial que aparece
+// como dona dos posts publicados pela moderação na aba "Fãs" do app. Nome e
+// avatar (logo) são sempre reforçados no upsert, então dá pra trocar aqui.
+export const ZOADA_OFICIAL_EMAIL = process.env.ZOADA_OFICIAL_EMAIL || 'oficial@zoada.app';
+export const ZOADA_OFICIAL_NOME = 'Zôada';
+export const ZOADA_OFICIAL_AVATAR = '/zoada-logo.png';
+
 // ---------- Helpers ----------
 export const isNeonConfigured = !!NEON_CONFIG.DATABASE_URL;
 export const isR2Configured = !!(R2_CONFIG.ACCOUNT_ID && R2_CONFIG.ACCESS_KEY_ID && R2_CONFIG.SECRET_ACCESS_KEY);
