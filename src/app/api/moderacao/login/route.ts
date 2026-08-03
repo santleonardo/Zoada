@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
-import { isNeonConfigured, MODERATION_SECRET, MODERATION_ADMIN_EMAILS } from '@/lib/config';
+import { isNeonConfigured, MODERATION_SECRET } from '@/lib/config';
+import { isModerationAdminEmail } from '@/lib/moderation-admins';
 
 // ============================================================
 // /api/moderacao/login — Tela de login do painel de moderação
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email ou senha incorretos' }, { status: 401 });
     }
 
-    if (!MODERATION_ADMIN_EMAILS.includes(user.email.trim().toLowerCase())) {
+    if (!(await isModerationAdminEmail(user.email))) {
       return NextResponse.json(
         { error: 'Esta conta não tem acesso ao painel de moderação' },
         { status: 403 }
