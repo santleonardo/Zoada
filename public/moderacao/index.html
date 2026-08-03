@@ -309,7 +309,7 @@
 <header>
   <div class="wrap" style="padding:0;">
     <h1>🚩 Zôada — Painel de Moderação</h1>
-    <p>Denúncias (<code>/api/reports</code>), mensagens diretas com usuários (<code>/api/moderacao/mensagens</code>) e controle total da Rádio Zôada (<code>/api/moderacao/radio</code>) — tudo separado do app.</p>
+    <p>Denúncias (<code>/api/reports</code>), mensagens diretas com usuários (<code>/api/moderacao/mensagens</code>), controle total da Rádio Zôada (<code>/api/moderacao/radio</code>) e envio de músicas/criação de artistas-playlist (<code>/api/moderacao/tracks</code> e <code>/api/moderacao/artists</code>) — tudo separado do app.</p>
   </div>
 </header>
 
@@ -331,6 +331,7 @@
     <button class="tab active" id="tabSectionDenuncias" onclick="switchSection('denuncias')">🚩 Denúncias</button>
     <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
     <button class="tab" id="tabSectionRadio" onclick="switchSection('radio')">📻 Rádio Zôada</button>
+    <button class="tab" id="tabSectionMusicas" onclick="switchSection('musicas')">🎤 Músicas</button>
   </div>
 
   <div id="section-denuncias">
@@ -409,6 +410,37 @@
     </div>
   </div>
 
+  <div id="section-musicas" style="display:none;">
+    <div class="radio-panel" style="margin-bottom:16px;">
+      <h3>🎤 Criar artista (playlist)</h3>
+      <p class="sub">Cada artista funciona como uma playlist: crie um artista aqui e depois envie músicas pra ele ao lado. Útil pra popular o catálogo com playlists oficiais (ex: "Sertanejo Zôada", "Forró Raiz").</p>
+      <input type="text" id="artistaNomeInput" maxlength="100" placeholder="Nome do artista/playlist">
+      <input type="text" id="artistaGeneroInput" maxlength="60" placeholder="Gênero (opcional)">
+      <textarea id="artistaBioInput" maxlength="500" placeholder="Bio (opcional)" style="width:100%; min-height:44px; margin-bottom:8px;"></textarea>
+      <button class="btn-primary" onclick="createArtistaMod()">Criar artista</button>
+    </div>
+
+    <div class="radio-cols">
+      <div class="radio-panel">
+        <h3>⬆️ Enviar música</h3>
+        <p class="sub">Escolha o artista dono da faixa, o título e o arquivo de áudio. O upload vai direto pro armazenamento.</p>
+        <input type="text" id="faixaTituloInput" maxlength="200" placeholder="Título da música">
+        <select id="faixaArtistaSelect" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); font-size:14px; margin-bottom:8px; font-family:inherit;"></select>
+        <input type="text" id="faixaCapaInput" placeholder="URL da capa (opcional)">
+        <input type="file" id="faixaArquivoInput" accept="audio/*" style="width:100%; margin-bottom:10px;">
+        <button class="btn-primary" onclick="uploadFaixaMod()" id="uploadFaixaBtn">Enviar música</button>
+        <p class="sub" id="uploadFaixaStatus" style="margin-top:8px; min-height:16px;"></p>
+      </div>
+
+      <div class="radio-panel">
+        <h3>🎧 Artistas e playlists (<span id="artistasCount">0</span>)</h3>
+        <p class="sub">Cada card é a playlist de um artista — as músicas que ele já tem no catálogo.</p>
+        <input type="text" class="track-search" id="artistaSearchInput" placeholder="Buscar artista..." oninput="renderArtistsList()">
+        <div class="track-list" id="artistsList" style="max-height:420px;"></div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <footer>
@@ -450,6 +482,7 @@
     loadThreads();
     loadRadioModeracao();
     loadRadioCatalog();
+    loadArtistsMod();
   }
 
   function restoreConfig() {
@@ -596,7 +629,7 @@
 
   restoreConfig();
   renderTabs();
-  if (secret()) { loadReports(); loadThreads(); loadRadioModeracao(); }
+  if (secret()) { loadReports(); loadThreads(); loadRadioModeracao(); loadArtistsMod(); }
   else document.getElementById('list').innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
   loadRadioCatalog();
 
@@ -610,9 +643,11 @@
     document.getElementById('section-denuncias').style.display = section === 'denuncias' ? '' : 'none';
     document.getElementById('section-mensagens').style.display = section === 'mensagens' ? '' : 'none';
     document.getElementById('section-radio').style.display = section === 'radio' ? '' : 'none';
+    document.getElementById('section-musicas').style.display = section === 'musicas' ? '' : 'none';
     document.getElementById('tabSectionDenuncias').classList.toggle('active', section === 'denuncias');
     document.getElementById('tabSectionMensagens').classList.toggle('active', section === 'mensagens');
     document.getElementById('tabSectionRadio').classList.toggle('active', section === 'radio');
+    document.getElementById('tabSectionMusicas').classList.toggle('active', section === 'musicas');
     if (section === 'mensagens') {
       // Volta pra lista de conversas ao trocar de aba, nunca deixa preso
       // numa conversa antiga.
@@ -621,6 +656,10 @@
     }
     if (section === 'radio') {
       loadRadioModeracao();
+      loadRadioCatalog();
+    }
+    if (section === 'musicas') {
+      loadArtistsMod();
       loadRadioCatalog();
     }
   }
@@ -1071,6 +1110,205 @@
       renderRadioStatus();
     } catch (err) {
       alert('Erro ao pular faixa: ' + (err.message || err));
+    }
+  }
+
+  // ---------- Músicas (criar artistas/playlists + enviar faixas) ----------
+
+  let artistsMod = []; // artistas carregados de /api/moderacao/artists
+
+  async function loadArtistsMod() {
+    const selectEl = document.getElementById('faixaArtistaSelect');
+    if (!secret()) {
+      selectEl.innerHTML = '<option value="">Conecte-se primeiro...</option>';
+      document.getElementById('artistsList').innerHTML =
+        '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+      return;
+    }
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/artists', {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (res.status === 401) {
+        selectEl.innerHTML = '<option value="">Chave inválida</option>';
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      artistsMod = data.artists || [];
+      renderArtistaSelect();
+      renderArtistsList();
+    } catch (err) {
+      selectEl.innerHTML = '<option value="">Erro ao carregar artistas</option>';
+      console.error('[loadArtistsMod]', err);
+    }
+  }
+
+  function renderArtistaSelect() {
+    const selectEl = document.getElementById('faixaArtistaSelect');
+    if (artistsMod.length === 0) {
+      selectEl.innerHTML = '<option value="">Nenhum artista ainda — crie um acima</option>';
+      return;
+    }
+    const prev = selectEl.value;
+    selectEl.innerHTML = artistsMod.map((a) =>
+      '<option value="' + a.id + '">' + escapeHtml(a.name) + '</option>'
+    ).join('');
+    if (prev && artistsMod.some((a) => a.id === prev)) selectEl.value = prev;
+  }
+
+  function renderArtistsList() {
+    const listEl = document.getElementById('artistsList');
+    document.getElementById('artistasCount').textContent = String(artistsMod.length);
+
+    const q = (document.getElementById('artistaSearchInput').value || '').trim().toLowerCase();
+    let items = artistsMod;
+    if (q) items = items.filter((a) => a.name.toLowerCase().includes(q));
+
+    if (items.length === 0) {
+      listEl.innerHTML = '<div class="status-msg">Nenhum artista encontrado.</div>';
+      return;
+    }
+
+    // A "playlist" de cada artista é o conjunto de faixas dele já
+    // carregadas no catálogo público (mesma lista usada na aba Rádio).
+    listEl.innerHTML = items.map((a) => {
+      const tracks = radioCatalog.filter((t) => t.artist_id === a.id);
+      const preview = tracks.length
+        ? tracks.map((t) => escapeHtml(t.title)).join(' • ')
+        : 'Nenhuma música enviada ainda';
+      return '' +
+        '<div class="track-row" style="align-items:flex-start;">' +
+          '<div class="track-info">' +
+            '<p class="track-title">' + escapeHtml(a.name) + '</p>' +
+            '<p class="track-artist">' + tracks.length + ' música' + (tracks.length === 1 ? '' : 's') + ' — ' + preview + '</p>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  async function createArtistaMod() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    const nome = document.getElementById('artistaNomeInput').value.trim();
+    const genero = document.getElementById('artistaGeneroInput').value.trim();
+    const bio = document.getElementById('artistaBioInput').value.trim();
+    if (!nome) { alert('Digite o nome do artista/playlist.'); return; }
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/artists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ nome, genero, bio }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || ('HTTP ' + res.status));
+      }
+      document.getElementById('artistaNomeInput').value = '';
+      document.getElementById('artistaGeneroInput').value = '';
+      document.getElementById('artistaBioInput').value = '';
+      await loadArtistsMod();
+    } catch (err) {
+      alert('Erro ao criar artista: ' + (err.message || err));
+    }
+  }
+
+  /** Lê a duração real do arquivo de áudio no navegador, sem precisar subir nada. */
+  function readAudioDurationMod(file) {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const audio = new Audio();
+      audio.preload = 'metadata';
+      const cleanup = () => URL.revokeObjectURL(url);
+      audio.onloadedmetadata = () => {
+        const duration = isFinite(audio.duration) ? Math.round(audio.duration) : 0;
+        cleanup();
+        resolve(duration);
+      };
+      audio.onerror = () => { cleanup(); resolve(0); };
+      audio.src = url;
+    });
+  }
+
+  async function uploadFaixaMod() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    const titulo = document.getElementById('faixaTituloInput').value.trim();
+    const artistaId = document.getElementById('faixaArtistaSelect').value;
+    const coverUrl = document.getElementById('faixaCapaInput').value.trim();
+    const fileInput = document.getElementById('faixaArquivoInput');
+    const file = fileInput.files[0];
+    const statusEl = document.getElementById('uploadFaixaStatus');
+    const btn = document.getElementById('uploadFaixaBtn');
+
+    if (!titulo) { alert('Digite o título da música.'); return; }
+    if (!artistaId) { alert('Escolha (ou crie) um artista antes de enviar.'); return; }
+    if (!file) { alert('Escolha o arquivo de áudio.'); return; }
+
+    btn.disabled = true;
+    try {
+      statusEl.textContent = 'Lendo duração do áudio...';
+      const duracao = await readAudioDurationMod(file);
+
+      statusEl.textContent = 'Gerando link de upload...';
+      const presignRes = await fetch(apiBase() + '/api/moderacao/storage/presign-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type || 'application/octet-stream',
+          folder: 'tracks',
+        }),
+      });
+      if (!presignRes.ok) {
+        const err = await presignRes.json().catch(() => ({}));
+        throw new Error(err.error || ('Falha ao gerar link de upload (HTTP ' + presignRes.status + ')'));
+      }
+      const { uploadUrl, publicUrl } = await presignRes.json();
+
+      statusEl.textContent = 'Enviando arquivo...';
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      });
+      if (!putRes.ok) {
+        throw new Error(
+          'Falha ao enviar o arquivo pro armazenamento (HTTP ' + putRes.status + '). ' +
+          'Confira se o bucket tem CORS liberando PUT para este domínio.'
+        );
+      }
+
+      statusEl.textContent = 'Salvando faixa...';
+      const trackRes = await fetch(apiBase() + '/api/moderacao/tracks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({
+          titulo,
+          artistaId,
+          coverUrl: coverUrl || null,
+          audioUrl: publicUrl,
+          duracao,
+        }),
+      });
+      if (!trackRes.ok) {
+        const err = await trackRes.json().catch(() => ({}));
+        throw new Error(err.error || ('Falha ao salvar a faixa (HTTP ' + trackRes.status + ')'));
+      }
+
+      statusEl.textContent = 'Música enviada! 🎉';
+      document.getElementById('faixaTituloInput').value = '';
+      document.getElementById('faixaCapaInput').value = '';
+      fileInput.value = '';
+
+      // Atualiza o catálogo (usado tanto na aba Rádio quanto nas
+      // playlists por artista aqui embaixo) pra já mostrar a nova faixa.
+      await loadRadioCatalog();
+      renderArtistsList();
+      setTimeout(() => { statusEl.textContent = ''; }, 4000);
+    } catch (err) {
+      statusEl.textContent = '';
+      alert('Erro ao enviar música: ' + (err.message || err));
+    } finally {
+      btn.disabled = false;
     }
   }
 
