@@ -1146,7 +1146,16 @@
   let activeStatus = 'PENDENTE';
   let reports = [];
 
-  function apiBase() { return document.getElementById('apiBase').value.trim().replace(/\/$/, ''); }
+  // Normaliza o valor digitado em "URL do app (API base)": remove barra
+  // final e, principalmente, remove um "/moderacao" (ou "/moderacao/...")
+  // no fim — erro comum de colar a URL do próprio painel (que já termina
+  // em /moderacao) nesse campo, o que faria todas as chamadas de API
+  // caírem em /moderacao/api/... (404) em vez de /api/... na raiz.
+  function apiBase() {
+    let v = document.getElementById('apiBase').value.trim().replace(/\/$/, '');
+    v = v.replace(/\/moderacao(\/index\.html)?$/i, '');
+    return v;
+  }
   function secret() { return document.getElementById('secret').value.trim(); }
 
   function updateConnIndicator() {
