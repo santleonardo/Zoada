@@ -697,6 +697,7 @@
 
   <div class="section-switch" id="sectionSwitch">
     <button class="tab active" id="tabSectionDenuncias" onclick="switchSection('denuncias')">🚩 Denúncias</button>
+    <button class="tab" id="tabSectionAvisos" onclick="switchSection('avisos')">📣 Avisos</button>
     <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
     <button class="tab" id="tabSectionRadio" onclick="switchSection('radio')">📻 Rádio Zôada</button>
     <button class="tab" id="tabSectionMusicas" onclick="switchSection('musicas')">🎤 Músicas</button>
@@ -708,9 +709,20 @@
       <p>Conteúdo e usuários denunciados pela comunidade, organizados por status.</p>
     </div>
 
+    <div class="tabs" id="tabs"></div>
+
+    <div id="list"></div>
+  </div>
+
+  <div id="section-avisos" style="display:none;">
+    <div class="section-head">
+      <h2>📣 Avisos</h2>
+      <p>Mensagem global que aparece no topo da tela inicial para qualquer pessoa que abrir o Zôada.</p>
+    </div>
+
     <div class="aviso-box">
       <h2>📣 Aviso para todo o app</h2>
-      <p class="sub">Mensagem que aparece no topo da tela inicial de qualquer pessoa que abrir o Zôada (ex: manutenção programada, alerta de golpe, comunicado legal). Só existe um aviso ativo por vez — publicar um novo substitui o anterior.</p>
+      <p class="sub">Ex.: manutenção programada, alerta de golpe, comunicado legal. Só existe um aviso ativo por vez — publicar um novo substitui o anterior.</p>
 
       <div id="avisoAtualWrap"></div>
 
@@ -720,10 +732,6 @@
         <button class="btn-danger" onclick="removeAviso()" id="removeAvisoBtn" style="display:none;">Remover aviso atual</button>
       </div>
     </div>
-
-    <div class="tabs" id="tabs"></div>
-
-    <div id="list"></div>
   </div>
 
   <div id="section-mensagens" style="display:none;">
@@ -1147,13 +1155,18 @@
 
   function switchSection(section) {
     document.getElementById('section-denuncias').style.display = section === 'denuncias' ? '' : 'none';
+    document.getElementById('section-avisos').style.display = section === 'avisos' ? '' : 'none';
     document.getElementById('section-mensagens').style.display = section === 'mensagens' ? '' : 'none';
     document.getElementById('section-radio').style.display = section === 'radio' ? '' : 'none';
     document.getElementById('section-musicas').style.display = section === 'musicas' ? '' : 'none';
     document.getElementById('tabSectionDenuncias').classList.toggle('active', section === 'denuncias');
+    document.getElementById('tabSectionAvisos').classList.toggle('active', section === 'avisos');
     document.getElementById('tabSectionMensagens').classList.toggle('active', section === 'mensagens');
     document.getElementById('tabSectionRadio').classList.toggle('active', section === 'radio');
     document.getElementById('tabSectionMusicas').classList.toggle('active', section === 'musicas');
+    if (section === 'avisos') {
+      loadAviso();
+    }
     if (section === 'mensagens') {
       // Volta pra lista de conversas ao trocar de aba, nunca deixa preso
       // numa conversa antiga.
