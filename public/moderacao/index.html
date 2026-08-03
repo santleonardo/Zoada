@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zôada — Painel de Moderação</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root {
+    --orange: #FF8C42;
+    --purple: #6C5CE7;
+    --pink: #E84393;
+    --bg: #F7F7FB;
+    --card: #FFFFFF;
+    --ink: #1A1B25;
+    --muted: rgba(26,27,37,.5);
+    --muted-2: rgba(26,27,37,.3);
+    --border: rgba(26,27,37,.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    background: linear-gradient(90deg, var(--orange), var(--pink), var(--purple));
+    padding: 20px 24px;
+    color: #fff;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: .9; }
+
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px; }
+
+  .auth-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: end;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--muted); }
+  input[type="text"], input[type="password"], textarea {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+  }
+  input:focus, textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,140,66,.15); }
+
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 16px;
+  }
+  .btn-primary { background: linear-gradient(90deg, var(--orange), var(--pink)); color: #fff; }
+  .btn-primary:hover { opacity: .92; }
+  .btn-secondary { background: rgba(26,27,37,.06); color: var(--ink); }
+  .btn-secondary:hover { background: rgba(26,27,37,.1); }
+  .btn-danger { background: rgba(232,67,147,.12); color: var(--pink); }
+  .btn-danger:hover { background: rgba(232,67,147,.2); }
+  .btn-ok { background: rgba(46,204,113,.14); color: #1a9c56; }
+  .btn-ok:hover { background: rgba(46,204,113,.24); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab {
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tab .count {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 11px;
+    opacity: .7;
+  }
+
+  .status-msg { text-align: center; color: var(--muted-2); padding: 40px 0; font-size: 14px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+  .badge-tipo { background: rgba(108,92,231,.12); color: var(--purple); }
+  .badge-status-PENDENTE { background: rgba(255,140,66,.15); color: #cc6a1f; }
+  .badge-status-EM_ANALISE { background: rgba(108,92,231,.15); color: var(--purple); }
+  .badge-status-RESOLVIDA { background: rgba(46,204,113,.15); color: #1a9c56; }
+  .badge-status-REJEITADA { background: rgba(26,27,37,.08); color: var(--muted); }
+
+  .card-date { font-size: 11px; color: var(--muted-2); white-space: nowrap; }
+  .card-motivo { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
+  .card-desc { font-size: 13px; color: var(--muted); margin: 0 0 10px; white-space: pre-wrap; word-break: break-word; }
+
+  .snapshot {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .snapshot .who { font-weight: 700; font-size: 12px; margin-bottom: 3px; }
+  .snapshot .content { color: var(--muted); word-break: break-word; }
+
+  .meta-row { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted-2); margin-bottom: 10px; }
+  .meta-row b { color: var(--muted); font-weight: 600; }
+
+  .note-box { margin-bottom: 10px; }
+  .note-box textarea { width: 100%; min-height: 50px; resize: vertical; }
+  .existing-note {
+    font-size: 12.5px;
+    color: var(--muted);
+    background: rgba(255,140,66,.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+  }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  footer { text-align: center; padding: 30px 20px; font-size: 12px; color: var(--muted-2); }
+  code { background: rgba(26,27,37,.06); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap" style="padding:0;">
+    <h1>🚩 Zôada — Painel de Moderação</h1>
+    <p>Canal de denúncias (postagens, comentários, faixas e perfis) — separado do app, fala com <code>/api/reports</code>.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="auth-box">
+    <div class="field">
+      <label for="apiBase">URL do app (API base)</label>
+      <input type="text" id="apiBase" placeholder="https://seu-zoada.vercel.app (vazio = mesma origem)">
+    </div>
+    <div class="field">
+      <label for="secret">Chave de moderação (MODERATION_SECRET)</label>
+      <input type="password" id="secret" placeholder="Cole aqui a chave do servidor">
+    </div>
+    <button class="btn-primary" onclick="saveConfigAndLoad()">Conectar</button>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div id="list"></div>
+
+</div>
+
+<footer>
+  Este painel é só HTML/JS estático (sem framework). A chave de moderação fica salva
+  apenas no <code>localStorage</code> deste navegador — nunca é exposta no app normal.
+  Configure a env var <code>MODERATION_SECRET</code> no servidor antes de usar em produção.
+</footer>
+
+<script>
+  const LS_BASE = 'zoada-mod-api-base';
+  const LS_SECRET = 'zoada-mod-secret';
+
+  const STATUSES = [
+    { key: null, label: 'Todas' },
+    { key: 'PENDENTE', label: 'Pendentes' },
+    { key: 'EM_ANALISE', label: 'Em análise' },
+    { key: 'RESOLVIDA', label: 'Resolvidas' },
+    { key: 'REJEITADA', label: 'Rejeitadas' },
+  ];
+
+  const TIPO_LABELS = {
+    POSTAGEM: 'Postagem',
+    COMENTARIO_POSTAGEM: 'Comentário (post)',
+    COMENTARIO_FAIXA: 'Comentário (faixa)',
+    FAIXA: 'Faixa',
+    USUARIO: 'Usuário',
+  };
+
+  let activeStatus = 'PENDENTE';
+  let reports = [];
+
+  function apiBase() { return document.getElementById('apiBase').value.trim().replace(/\/$/, ''); }
+  function secret() { return document.getElementById('secret').value.trim(); }
+
+  function saveConfigAndLoad() {
+    localStorage.setItem(LS_BASE, apiBase());
+    localStorage.setItem(LS_SECRET, secret());
+    loadReports();
+  }
+
+  function restoreConfig() {
+    document.getElementById('apiBase').value = localStorage.getItem(LS_BASE) || '';
+    document.getElementById('secret').value = localStorage.getItem(LS_SECRET) || '';
+  }
+
+  function renderTabs() {
+    const tabsEl = document.getElementById('tabs');
+    tabsEl.innerHTML = '';
+    STATUSES.forEach((s) => {
+      const btn = document.createElement('button');
+      btn.className = 'tab' + (activeStatus === s.key ? ' active' : '');
+      const count = s.key ? reports.filter((r) => r.status === s.key).length : reports.length;
+      btn.innerHTML = s.label + (reports.length ? '<span class="count">' + count + '</span>' : '');
+      btn.onclick = () => { activeStatus = s.key; loadReports(); };
+      tabsEl.appendChild(btn);
+    });
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  async function loadReports() {
+    const listEl = document.getElementById('list');
+    if (!secret()) {
+      listEl.innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+      renderTabs();
+      return;
+    }
+    listEl.innerHTML = '<div class="status-msg">Carregando denúncias…</div>';
+    try {
+      const qs = activeStatus ? ('?status=' + activeStatus) : '';
+      const res = await fetch(apiBase() + '/api/reports' + qs, {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (res.status === 401) {
+        listEl.innerHTML = '<div class="status-msg">Chave de moderação inválida.</div>';
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      reports = data.reports || [];
+
+      // Se a aba ativa é "Todas", já buscamos tudo; senão, buscamos também
+      // o total geral só pra popular os contadores das outras abas.
+      if (activeStatus) {
+        const all = await fetch(apiBase() + '/api/reports', { headers: { Authorization: 'Bearer ' + secret() } });
+        if (all.ok) {
+          const allData = await all.json();
+          reports = allData.reports || [];
+        }
+      }
+      renderTabs();
+      renderList();
+    } catch (err) {
+      listEl.innerHTML = '<div class="status-msg">Erro ao carregar: ' + escapeHtml(String(err.message || err)) + '</div>';
+    }
+  }
+
+  function renderList() {
+    const listEl = document.getElementById('list');
+    const filtered = activeStatus ? reports.filter((r) => r.status === activeStatus) : reports;
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="status-msg">Nenhuma denúncia por aqui. 🎉</div>';
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(renderCard).join('');
+  }
+
+  function renderCard(r) {
+    const tipoLabel = TIPO_LABELS[r.tipo_alvo] || r.tipo_alvo;
+    return '' +
+      '<div class="card" data-id="' + r.id + '">' +
+        '<div class="card-top">' +
+          '<div class="badges">' +
+            '<span class="badge badge-tipo">' + escapeHtml(tipoLabel) + '</span>' +
+            '<span class="badge badge-status-' + r.status + '">' + r.status.replace('_', ' ') + '</span>' +
+          '</div>' +
+          '<span class="card-date">' + fmtDate(r.created_at) + '</span>' +
+        '</div>' +
+
+        '<p class="card-motivo">' + escapeHtml(r.motivo) + '</p>' +
+        (r.descricao ? '<p class="card-desc">' + escapeHtml(r.descricao) + '</p>' : '') +
+
+        (r.conteudo_snapshot || r.autor_snapshot ? (
+          '<div class="snapshot">' +
+            (r.autor_snapshot ? '<div class="who">Autor(a): ' + escapeHtml(r.autor_snapshot) + '</div>' : '') +
+            (r.conteudo_snapshot ? '<div class="content">"' + escapeHtml(r.conteudo_snapshot) + '"</div>' : '') +
+          '</div>'
+        ) : '') +
+
+        '<div class="meta-row">' +
+          '<span><b>ID do alvo:</b> ' + escapeHtml(r.alvo_id) + '</span>' +
+          '<span><b>Denunciado por:</b> ' + escapeHtml(r.denunciante ? r.denunciante.name : 'usuário removido') + '</span>' +
+          (r.resolved_at ? '<span><b>Resolvido em:</b> ' + fmtDate(r.resolved_at) + '</span>' : '') +
+        '</div>' +
+
+        (r.nota_moderacao ? '<div class="existing-note"><b>Nota do moderador:</b> ' + escapeHtml(r.nota_moderacao) + '</div>' : '') +
+
+        '<div class="note-box">' +
+          '<textarea placeholder="Nota interna (opcional) — por que foi resolvida/rejeitada, ação tomada, etc."></textarea>' +
+        '</div>' +
+
+        '<div class="actions">' +
+          (r.status !== 'EM_ANALISE' ? '<button class="btn-secondary" onclick="updateStatus(\'' + r.id + '\', \'EM_ANALISE\', this)">Marcar em análise</button>' : '') +
+          (r.status !== 'RESOLVIDA' ? '<button class="btn-ok" onclick="updateStatus(\'' + r.id + '\', \'RESOLVIDA\', this)">Resolver (conteúdo removido)</button>' : '') +
+          (r.status !== 'REJEITADA' ? '<button class="btn-danger" onclick="updateStatus(\'' + r.id + '\', \'REJEITADA\', this)">Rejeitar (improcedente)</button>' : '') +
+          (r.status !== 'PENDENTE' ? '<button class="btn-secondary" onclick="updateStatus(\'' + r.id + '\', \'PENDENTE\', this)">Voltar para pendente</button>' : '') +
+        '</div>' +
+      '</div>';
+  }
+
+  async function updateStatus(id, status, btnEl) {
+    const card = btnEl.closest('.card');
+    const note = card.querySelector('textarea').value.trim();
+    card.querySelectorAll('button').forEach((b) => (b.disabled = true));
+    try {
+      const res = await fetch(apiBase() + '/api/reports', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + secret(),
+        },
+        body: JSON.stringify({ id, status, nota_moderacao: note || undefined }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await loadReports();
+    } catch (err) {
+      alert('Erro ao atualizar denúncia: ' + (err.message || err));
+      card.querySelectorAll('button').forEach((b) => (b.disabled = false));
+    }
+  }
+
+  restoreConfig();
+  renderTabs();
+  if (secret()) loadReports();
+  else document.getElementById('list').innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+</script>
+
+</body>
+</html>

@@ -7,6 +7,13 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // Painel de moderação de denúncias (public/moderacao/index.html) — fica
+  // fora do app (React) de propósito, é HTML puro que só fala com
+  // /api/reports. Esse rewrite só deixa acessar por /moderacao em vez de
+  // precisar digitar /moderacao/index.html.
+  async rewrites() {
+    return [{ source: "/moderacao", destination: "/moderacao/index.html" }];
+  },
 };
 
 export default nextConfig;

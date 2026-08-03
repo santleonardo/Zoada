@@ -47,6 +47,7 @@ model Usuario {
   seguidos     SeguirUsuario[] @relation("Seguidos")
   estacoesRadio EstacaoRadio[]
   postagens    Postagem[]
+  denuncias    Denuncia[]
 
   @@map("usuarios")
 }
@@ -387,4 +388,65 @@ model FaixaEstacao {
   @@unique([estacaoId, faixaId])
   @@index([estacaoId])
   @@map("faixas_estacao")
+}
+
+// ---------- Denúncias (canal de denúncia/reporte — Marco Civil pós-STF 2025) ----------
+// Cobre o ponto da decisão do STF de 2025 (Temas 533 e 987): o app precisa
+// de um canal pelo qual QUALQUER usuário (não só o dono do conteúdo) possa
+// notificar conteúdo ilícito/problemático, para que o Zôada possa agir de
+// forma "clara e fundamentada" sem depender de ordem judicial. Cada
+// denúncia é resolvida no painel de moderação separado (ver
+// public/moderacao/index.html), que fala com /api/reports.
+enum TipoAlvoDenuncia {
+  POSTAGEM             // Postagem do feed (Postagem)
+  COMENTARIO_POSTAGEM  // Comentário de uma postagem do feed (ComentarioPostagem)
+  COMENTARIO_FAIXA     // Comentário numa faixa, no player (Comentario)
+  FAIXA                // Faixa/música enviada (Faixa) — inclui infração de direitos autorais
+  USUARIO              // Perfil/conta de um usuário (Usuario)
+
+  @@map("tipo_alvo_denuncia")
+}
+
+enum StatusDenuncia {
+  PENDENTE     // Ainda não analisada
+  EM_ANALISE   // Um moderador está olhando
+  RESOLVIDA    // Procedente — conteúdo removido/ação tomada
+  REJEITADA    // Improcedente — nenhuma ação necessária
+
+  @@map("status_denuncia")
+}
+
+model Denuncia {
+  id        String           @id @default(cuid())
+  tipoAlvo  TipoAlvoDenuncia @map("tipo_alvo")
+  alvoId    String           @map("alvo_id")
+  motivo    String
+  // Detalhamento livre de quem denuncia (opcional).
+  descricao String?
+
+  // "Retrato" do conteúdo/autor denunciado, capturado no momento da
+  // denúncia. Garante que o painel de moderação sempre tenha contexto
+  // pra decidir, mesmo que o autor apague o conteúdo original depois
+  // (o que, sem isso, faria a denúncia perder sentido).
+  conteudoSnapshot String? @map("conteudo_snapshot")
+  autorSnapshot    String? @map("autor_snapshot")
+  autorId          String? @map("autor_id")
+
+  // Quem denunciou. Nullable porque, se a conta de quem denunciou for
+  // apagada depois, a denúncia em si deve continuar existindo (o registro
+  // de moderação não pode sumir com a conta do denunciante).
+  denuncianteId String?  @map("denunciante_id")
+  denunciante   Usuario? @relation(fields: [denuncianteId], references: [id], onDelete: SetNull)
+
+  status        StatusDenuncia @default(PENDENTE)
+  // Anotação interna do moderador (motivo da resolução/rejeição).
+  notaModeracao String?        @map("nota_moderacao")
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  @@index([status])
+  @@index([tipoAlvo, alvoId])
+  @@index([createdAt])
+  @@map("denuncias")
 }

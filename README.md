@@ -110,6 +110,33 @@ O app funciona com **dados demo** quando o Neon não está configurado.
 | POST | `/api/storage/upload` | ✅ | Upload para R2 |
 | GET | `/api/storage/presign` | ✅ | URL assinada R2 |
 | DELETE | `/api/storage/delete` | ✅ | Deletar do R2 |
+| POST | `/api/reports` | ✅ (usuário) | Denunciar postagem/comentário/faixa/perfil |
+| GET | `/api/reports` | 🔐 (moderador) | Listar denúncias — painel de moderação |
+| PATCH | `/api/reports` | 🔐 (moderador) | Atualizar status/nota de uma denúncia |
+
+## Painel de moderação (denúncias)
+
+Canal de denúncia + painel de moderação, para responder ao ponto do Marco
+Civil (pós-decisão do STF de jun/2025): qualquer usuário logado pode
+denunciar uma postagem, comentário, faixa ou perfil pelo próprio app (botão
+🚩), e essas denúncias caem num painel **separado do app**, em HTML puro
+(sem build, sem dependências), pensado pra quem modera acessar rápido de
+qualquer lugar.
+
+- **Onde:** `/moderacao` (arquivo real: `public/moderacao/index.html`).
+- **Como autenticar:** defina `MODERATION_SECRET` no `.env` (veja
+  `.env.example`) e cole o mesmo valor no campo "Chave de moderação" do
+  painel — ele fica salvo só no `localStorage` do seu navegador.
+- **O que dá pra fazer:** ver denúncias por status (pendente / em análise /
+  resolvida / rejeitada), ver um retrato do conteúdo denunciado (mesmo que
+  o autor já tenha apagado o original) e mudar o status com uma nota
+  interna.
+- **O que este painel básico ainda NÃO faz:** remover o conteúdo
+  automaticamente ao marcar "Resolvida" — hoje isso ainda é manual (apagar
+  pelo `/api/posts`, `/api/tracks` etc., ou direto no banco). É a
+  estrutura inicial pedida; dá pra evoluir depois para remoção automática
+  e notificação às autoridades nos casos de exploração infantil, exigidos
+  pela ECA Digital.
 
 ## Instalar no celular
 
