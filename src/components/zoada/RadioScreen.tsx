@@ -78,7 +78,7 @@ const RadioScreen: React.FC = () => {
     if (selectedStationId) return; // só relevante pra estação padrão
     const interval = setInterval(() => {
       loadRadioPadrao();
-    }, 20000);
+    }, 6000);
     return () => clearInterval(interval);
   }, [selectedStationId, loadRadioPadrao]);
 
