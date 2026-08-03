@@ -35,10 +35,6 @@ const ExploreScreen: React.FC = () => {
     radioPadrao,
     loadRadioPadrao,
     startDefaultRadioSynced,
-    publishedOfficialRadios,
-    onAirOfficialRadio,
-    loadOfficialRadios,
-    tuneIntoOfficialRadio,
   } = useAppStore();
 
   const [search, setSearch] = useState('');
@@ -67,8 +63,7 @@ const ExploreScreen: React.FC = () => {
 
     loadPublishedStations();
     loadRadioPadrao();
-    loadOfficialRadios();
-  }, [loadPublishedStations, loadRadioPadrao, loadOfficialRadios]);
+  }, [loadPublishedStations, loadRadioPadrao]);
 
   // Busca usuários por nome quando a sub-seção "Usuários" está ativa — com
   // um pequeno debounce pra não disparar uma chamada a cada tecla digitada.
@@ -114,15 +109,7 @@ const ExploreScreen: React.FC = () => {
   // usada no dial da Rádio e no ranking da Início) e leva o usuário pra
   // tela de Rádio, que é quem cuida de fato da reprodução.
   const DEFAULT_STATION_ID = '__default__';
-  const OFFICIAL_PREFIX = '__official__';
   const handlePlayStation = (stationId: string) => {
-    if (stationId.startsWith(OFFICIAL_PREFIX)) {
-      // Rádio oficial — busca por ID e toca.
-      const officialId = stationId.slice(OFFICIAL_PREFIX.length);
-      tuneIntoOfficialRadio(officialId);
-      navigate('radio');
-      return;
-    }
     if (stationId === DEFAULT_STATION_ID) {
       selectStation(null);
       if (!radioEnabled && !radioPadrao?.pausada) {
@@ -371,10 +358,10 @@ const ExploreScreen: React.FC = () => {
         </div>
       )}
 
-      {/* Estações: estação padrão + rádios oficiais + estações publicadas por usuários, em grid */}
+      {/* Estações: estação padrão + estações publicadas por usuários, em grid */}
       {exploreSection === 'estacoes' && (
         <div>
-          {filteredStations.length === 0 && publishedOfficialRadios.length === 0 && (
+          {filteredStations.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
                 <RadioTower size={28} className="text-black/20" />
@@ -391,15 +378,6 @@ const ExploreScreen: React.FC = () => {
                 : (radioPadrao?.tracks.length ? 'Estação padrão · Selecionada pela equipe' : 'Estação padrão · Shuffle infinito'),
               radioPadrao?.cover_url || '/zoada-logo.png',
               () => handlePlayStation(DEFAULT_STATION_ID)
-            )}
-            {publishedOfficialRadios.map((radio) =>
-              renderStationCard(
-                `${OFFICIAL_PREFIX}${radio.id}`,
-                radio.nome,
-                `Oficial${radio.on_air ? ' · No ar' : ''} · ${radio.tracks_count} faixas`,
-                radio.cover_url || null,
-                () => handlePlayStation(`${OFFICIAL_PREFIX}${radio.id}`)
-              )
             )}
             {filteredStations.map((station) =>
               renderStationCard(
