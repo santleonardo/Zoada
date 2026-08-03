@@ -327,8 +327,10 @@ const ProfileScreen: React.FC = () => {
       {/* Seu feed: músicas que você postou no próprio perfil, com opção de apagar. */}
       <UserFeedPanel userId={user.id} isSelf />
 
-      {/* Suas músicas enviadas (seção separada, com opção de editar e apagar) */}
-      <MyTracksPanel refreshKey={tracksRefreshKey} />
+      {/* Suas músicas enviadas (seção separada, com opção de editar e apagar).
+          Função premium (futura): oculta do perfil por enquanto, sem
+          remover o painel — ver PREMIUM_UPLOAD_MUSIC_ENABLED acima. */}
+      {PREMIUM_UPLOAD_MUSIC_ENABLED && <MyTracksPanel refreshKey={tracksRefreshKey} />}
 
       {/* Upload de músicas novas — também é aqui que a edição de perfil de
           artista acontece de fato, quando "focada" por fora.
@@ -346,18 +348,22 @@ const ProfileScreen: React.FC = () => {
 
       {/* Seus artistas: seção própria, separada do envio, com opção de
           editar (que leva pro painel de envio acima, já selecionado) e de
-          apagar — ação destrutiva que merece confirmação própria. */}
-      <MyArtistsPanel
-        refreshKey={artistsRefreshKey}
-        onArtistDeleted={() => {
-          setArtistsRefreshKey((k) => k + 1);
-          setTracksRefreshKey((k) => k + 1);
-        }}
-        onEditArtist={(artistId) => {
-          setFocusArtistId(artistId);
-          setFocusToken((t) => t + 1);
-        }}
-      />
+          apagar — ação destrutiva que merece confirmação própria.
+          Função premium (futura): oculta do perfil por enquanto, sem
+          remover o painel — ver PREMIUM_UPLOAD_MUSIC_ENABLED acima. */}
+      {PREMIUM_UPLOAD_MUSIC_ENABLED && (
+        <MyArtistsPanel
+          refreshKey={artistsRefreshKey}
+          onArtistDeleted={() => {
+            setArtistsRefreshKey((k) => k + 1);
+            setTracksRefreshKey((k) => k + 1);
+          }}
+          onEditArtist={(artistId) => {
+            setFocusArtistId(artistId);
+            setFocusToken((t) => t + 1);
+          }}
+        />
+      )}
 
       {/* Estação de rádio pessoal: criar/editar/publicar/despublicar/apagar.
           Função premium (futura): oculta do perfil por enquanto, sem
