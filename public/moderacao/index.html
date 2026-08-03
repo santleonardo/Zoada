@@ -390,7 +390,11 @@
         <h3>⚙️ Nome e capa</h3>
         <p class="sub">Como a estação aparece no dial e no seletor de estações do app.</p>
         <input type="text" id="radioNomeInput" maxlength="60" placeholder="Nome da estação">
-        <input type="text" id="radioCapaInput" placeholder="URL da capa (opcional)">
+        <div class="field" style="margin-bottom:8px;">
+          <label for="radioCapaArquivoInput">Capa (imagem)</label>
+          <input type="file" id="radioCapaArquivoInput" accept="image/*" onchange="previewRadioCapaArquivo(this)">
+        </div>
+        <input type="text" id="radioCapaInput" placeholder="...ou cole a URL da capa (opcional se enviar imagem acima)">
         <button class="btn-primary" onclick="saveRadioInfo()">Salvar nome/capa</button>
 
         <h3 style="margin-top:20px;">🎶 Playlist atual (<span id="radioPlaylistCount">0</span>)</h3>
@@ -426,8 +430,13 @@
         <p class="sub">Escolha o artista dono da faixa, o título e o arquivo de áudio. O upload vai direto pro armazenamento.</p>
         <input type="text" id="faixaTituloInput" maxlength="200" placeholder="Título da música">
         <select id="faixaArtistaSelect" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); font-size:14px; margin-bottom:8px; font-family:inherit;"></select>
-        <input type="text" id="faixaCapaInput" placeholder="URL da capa (opcional)">
-        <input type="file" id="faixaArquivoInput" accept="audio/*" style="width:100%; margin-bottom:10px;">
+        <div class="field" style="margin-bottom:8px;">
+          <label for="faixaCapaArquivoInput">Capa (imagem)</label>
+          <input type="file" id="faixaCapaArquivoInput" accept="image/*" onchange="previewFaixaCapa(this)">
+          <img id="faixaCapaPreview" style="display:none; width:64px; height:64px; border-radius:10px; object-fit:cover; margin-top:6px;" alt="">
+        </div>
+        <input type="text" id="faixaCapaInput" placeholder="...ou cole a URL da capa (opcional se enviar imagem acima)">
+        <input type="file" id="faixaArquivoInput" accept="audio/*" style="width:100%; margin-bottom:10px; margin-top:8px;">
         <button class="btn-primary" onclick="uploadFaixaMod()" id="uploadFaixaBtn">Enviar música</button>
         <p class="sub" id="uploadFaixaStatus" style="margin-top:8px; min-height:16px;"></p>
       </div>
@@ -1056,9 +1065,14 @@
   async function saveRadioInfo() {
     if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
     const nome = document.getElementById('radioNomeInput').value.trim();
-    const capaUrl = document.getElementById('radioCapaInput').value.trim();
+    let capaUrl = document.getElementById('radioCapaInput').value.trim();
+    const capaFileInput = document.getElementById('radioCapaArquivoInput');
+    const capaFile = capaFileInput.files[0];
     if (!nome) { alert('O nome da estação não pode ficar vazio.'); return; }
     try {
+      if (capaFile) {
+        capaUrl = await uploadImageMod(capaFile, 'radio-covers');
+      }
       const res = await fetch(apiBase() + '/api/moderacao/radio', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
@@ -1067,11 +1081,18 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       radioState = data.radio;
+      capaFileInput.value = '';
       renderRadioStatus();
       renderRadioForm();
     } catch (err) {
       alert('Erro ao salvar nome/capa: ' + (err.message || err));
     }
+  }
+
+  function previewRadioCapaArquivo(inputEl) {
+    const file = inputEl.files[0];
+    if (!file) return;
+    document.getElementById('radioCoverPreview').src = URL.createObjectURL(file);
   }
 
   async function toggleRadioPause() {
@@ -1212,6 +1233,38 @@
     }
   }
 
+  /** Sobe uma imagem (capa de música, capa de estação, etc.) pro armazenamento e devolve a URL pública. */
+  async function uploadImageMod(file, folder) {
+    const presignRes = await fetch(apiBase() + '/api/moderacao/storage/presign-upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type || 'application/octet-stream',
+        folder,
+      }),
+    });
+    if (!presignRes.ok) {
+      const err = await presignRes.json().catch(() => ({}));
+      throw new Error(err.error || ('Falha ao gerar link de upload da imagem (HTTP ' + presignRes.status + ')'));
+    }
+    const { uploadUrl, publicUrl } = await presignRes.json();
+
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    });
+    if (!putRes.ok) {
+      throw new Error(
+        'Falha ao enviar a imagem pro armazenamento (HTTP ' + putRes.status + '). ' +
+        'Confira se o bucket tem CORS liberando PUT para este domínio.'
+      );
+    }
+
+    return publicUrl;
+  }
+
   /** Lê a duração real do arquivo de áudio no navegador, sem precisar subir nada. */
   function readAudioDurationMod(file) {
     return new Promise((resolve) => {
@@ -1229,11 +1282,21 @@
     });
   }
 
+  function previewFaixaCapa(inputEl) {
+    const file = inputEl.files[0];
+    const img = document.getElementById('faixaCapaPreview');
+    if (!file) { img.style.display = 'none'; return; }
+    img.src = URL.createObjectURL(file);
+    img.style.display = '';
+  }
+
   async function uploadFaixaMod() {
     if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
     const titulo = document.getElementById('faixaTituloInput').value.trim();
     const artistaId = document.getElementById('faixaArtistaSelect').value;
-    const coverUrl = document.getElementById('faixaCapaInput').value.trim();
+    let coverUrl = document.getElementById('faixaCapaInput').value.trim();
+    const capaFileInput = document.getElementById('faixaCapaArquivoInput');
+    const capaFile = capaFileInput.files[0];
     const fileInput = document.getElementById('faixaArquivoInput');
     const file = fileInput.files[0];
     const statusEl = document.getElementById('uploadFaixaStatus');
@@ -1245,6 +1308,13 @@
 
     btn.disabled = true;
     try {
+      // Se uma imagem de capa foi escolhida, ela tem prioridade sobre a
+      // URL colada manualmente.
+      if (capaFile) {
+        statusEl.textContent = 'Enviando capa...';
+        coverUrl = await uploadImageMod(capaFile, 'track-covers');
+      }
+
       statusEl.textContent = 'Lendo duração do áudio...';
       const duracao = await readAudioDurationMod(file);
 
@@ -1297,6 +1367,8 @@
       statusEl.textContent = 'Música enviada! 🎉';
       document.getElementById('faixaTituloInput').value = '';
       document.getElementById('faixaCapaInput').value = '';
+      capaFileInput.value = '';
+      document.getElementById('faixaCapaPreview').style.display = 'none';
       fileInput.value = '';
 
       // Atualiza o catálogo (usado tanto na aba Rádio quanto nas
