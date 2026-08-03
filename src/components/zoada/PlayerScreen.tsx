@@ -19,6 +19,7 @@ import {
   X,
   Search,
   Newspaper,
+  Flag,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { audioEngine } from '@/lib/audioEngine';
@@ -27,6 +28,7 @@ import { fetchConversations, sendMessageApi, searchUsers, createPost } from '@/l
 import type { Conversation, User, Track } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
+import ReportModal from './ReportModal';
 import { cn, formatNumber } from '@/lib/utils';
 
 const PlayerScreen: React.FC = () => {
@@ -47,6 +49,8 @@ const PlayerScreen: React.FC = () => {
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showSendToChat, setShowSendToChat] = useState(false);
   const [showPostToFeed, setShowPostToFeed] = useState(false);
+  const [reportTrackOpen, setReportTrackOpen] = useState(false);
+  const [reportingCommentId, setReportingCommentId] = useState<string | null>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
   const isLiked = currentTrack ? likes.some((l) => l.track_id === currentTrack.id) : false;
@@ -264,9 +268,29 @@ const PlayerScreen: React.FC = () => {
             >
               <Share2 size={22} className="text-black/30" />
             </button>
+            <button
+              onClick={() => {
+                if (!user) {
+                  toast.error('Entre na sua conta para denunciar');
+                  return;
+                }
+                setReportTrackOpen(true);
+              }}
+              className="p-2.5 rounded-full hover:bg-black/5 transition-colors active:scale-90"
+              aria-label="Denunciar faixa"
+            >
+              <Flag size={20} className="text-black/30" />
+            </button>
           </div>
         </div>
       </div>
+
+      <ReportModal
+        open={reportTrackOpen}
+        onClose={() => setReportTrackOpen(false)}
+        targetType="FAIXA"
+        targetId={currentTrack.id}
+      />
 
       {/* Progress bar */}
       <div className="px-6 mb-3">
@@ -411,6 +435,23 @@ const PlayerScreen: React.FC = () => {
                       </div>
                       <p className="text-sm text-black/60 mt-0.5">{comment.content}</p>
                     </div>
+
+                    {!isMe && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!user) {
+                            toast.error('Entre na sua conta para denunciar');
+                            return;
+                          }
+                          setReportingCommentId(comment.id);
+                        }}
+                        className="self-start mt-0.5 p-1 rounded-full text-black/15 hover:text-[#E84393] hover:bg-[#E84393]/10 flex-shrink-0"
+                        aria-label="Denunciar comentário"
+                      >
+                        <Flag size={11} />
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -437,6 +478,13 @@ const PlayerScreen: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ReportModal
+        open={!!reportingCommentId}
+        onClose={() => setReportingCommentId(null)}
+        targetType="COMENTARIO_FAIXA"
+        targetId={reportingCommentId || ''}
+      />
 
       {/* Bottom spacing */}
       <div className="h-8" />

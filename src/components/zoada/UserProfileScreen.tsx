@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { ChevronLeft, Flame, MessageCircle, Music2, Users, UserPlus, UserCheck } from 'lucide-react';
+import { ChevronLeft, Flame, MessageCircle, Music2, Users, UserPlus, UserCheck, Flag } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { fetchPublicUserProfile, fetchTopListenedTracks, toggleUserFollow } from '@/lib/api';
 import { isOnline, formatLastSeen } from '@/lib/presence';
 import { formatNumber } from '@/lib/utils';
+import { toast } from 'sonner';
 import type { PublicUserProfile, TopListenedTrack } from '@/types';
 import CoverArt from './CoverArt';
 import UserFeedPanel from './UserFeedPanel';
+import ReportModal from './ReportModal';
 
 /**
  * Perfil público de OUTRO usuário — aberto quando alguém clica no nome de
@@ -28,6 +30,7 @@ const UserProfileScreen: React.FC = () => {
   // sem depender de um re-fetch do perfil inteiro).
   const [localIsFollowing, setLocalIsFollowing] = useState<boolean | null>(null);
   const [localFollowersCount, setLocalFollowersCount] = useState<number | null>(null);
+  const [reportProfileOpen, setReportProfileOpen] = useState(false);
 
   const isFollowing = localIsFollowing ?? profile?.is_following ?? false;
   const followersCount = localFollowersCount ?? profile?.followers_count ?? 0;
@@ -122,7 +125,22 @@ const UserProfileScreen: React.FC = () => {
         >
           <ChevronLeft size={22} className="text-[#1A1B25]" />
         </button>
-        <h1 className="text-xl font-bold text-[#1A1B25] truncate">Perfil</h1>
+        <h1 className="text-xl font-bold text-[#1A1B25] truncate flex-1">Perfil</h1>
+        {!isSelf && (
+          <button
+            onClick={() => {
+              if (!user) {
+                toast.error('Entre na sua conta para denunciar');
+                return;
+              }
+              setReportProfileOpen(true);
+            }}
+            className="p-2 rounded-full bg-black/5 hover:bg-[#E84393]/10 hover:text-[#E84393] text-black/40 transition-colors"
+            aria-label="Denunciar perfil"
+          >
+            <Flag size={18} />
+          </button>
+        )}
       </div>
 
       {isLoading && <p className="text-black/40 text-sm text-center py-16">Carregando...</p>}
@@ -326,6 +344,13 @@ const UserProfileScreen: React.FC = () => {
 
       {/* Bottom spacing for nav + mini player */}
       <div className="h-32" />
+
+      <ReportModal
+        open={reportProfileOpen}
+        onClose={() => setReportProfileOpen(false)}
+        targetType="USUARIO"
+        targetId={selectedUserId}
+      />
     </div>
   );
 };

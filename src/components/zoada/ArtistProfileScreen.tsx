@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, Music2, Play, Users, MessageCircle, UserPlus, UserCheck } from 'lucide-react';
+import { ChevronLeft, Music2, Play, Users, MessageCircle, UserPlus, UserCheck, Flag } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { DEMO_ARTISTS, DEMO_TRACKS } from '@/lib/demo-data';
+import { toast } from 'sonner';
 import type { Artist, Track } from '@/types';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
+import ReportModal from './ReportModal';
 import { cn, formatNumber } from '@/lib/utils';
 
 const ArtistProfileScreen: React.FC = () => {
@@ -16,6 +18,7 @@ const ArtistProfileScreen: React.FC = () => {
   const [artist, setArtist] = useState<Artist | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [reportProfileOpen, setReportProfileOpen] = useState(false);
 
   // Mantém o número de reproduções exibido em sincronia assim que uma
   // reprodução é contabilizada de verdade (ver audioEngine.ts), sem
@@ -104,7 +107,22 @@ const ArtistProfileScreen: React.FC = () => {
         >
           <ChevronLeft size={22} className="text-[#1A1B25]" />
         </button>
-        <h1 className="text-xl font-bold text-[#1A1B25] truncate">Perfil do artista</h1>
+        <h1 className="text-xl font-bold text-[#1A1B25] truncate flex-1">Perfil do artista</h1>
+        {artist?.user_id && artist.user_id !== user?.id && (
+          <button
+            onClick={() => {
+              if (!user) {
+                toast.error('Entre na sua conta para denunciar');
+                return;
+              }
+              setReportProfileOpen(true);
+            }}
+            className="p-2 rounded-full bg-black/5 hover:bg-[#E84393]/10 hover:text-[#E84393] text-black/40 transition-colors"
+            aria-label="Denunciar perfil"
+          >
+            <Flag size={18} />
+          </button>
+        )}
       </div>
 
       {!artist && !isLoading && (
@@ -263,6 +281,15 @@ const ArtistProfileScreen: React.FC = () => {
 
       {/* Bottom spacing for nav + mini player */}
       <div className="h-32" />
+
+      {artist?.user_id && (
+        <ReportModal
+          open={reportProfileOpen}
+          onClose={() => setReportProfileOpen(false)}
+          targetType="USUARIO"
+          targetId={artist.user_id}
+        />
+      )}
     </div>
   );
 };
