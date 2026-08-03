@@ -10,6 +10,7 @@ import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import PostCard from './PostCard';
 import PostComposer from './PostComposer';
+import AnnouncementBanner from './AnnouncementBanner';
 import { cn, formatNumber } from '@/lib/utils';
 
 type Tab = MainTab;
@@ -748,6 +749,8 @@ const MainScreen: React.FC = () => {
 
   return (
     <div className="px-4 pt-4 pb-4">
+      <AnnouncementBanner />
+
       {/* Header: na aba de faixas o título "Início" some pra dar mais
           espaço/destaque à vitrine de mais tocadas logo abaixo. Nas
           outras abas o cabeçalho continua normal. */}
