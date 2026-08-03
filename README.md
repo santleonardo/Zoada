@@ -115,6 +115,9 @@ O app funciona com **dados demo** quando o Neon não está configurado.
 | PATCH | `/api/reports` | 🔐 (moderador) | Atualizar status/nota de uma denúncia |
 | GET | `/api/moderacao/mensagens` | ✅ (usuário) / 🔐 (moderador) | Ler a conversa (usuário: a própria; moderador: `?usuario_id=` ou lista de threads) |
 | POST | `/api/moderacao/mensagens` | ✅ (usuário) / 🔐 (moderador) | Enviar mensagem no canal de suporte com a moderação |
+| GET | `/api/radio-padrao` | ❌ | Estado atual da Rádio Zôada (playlist, pausada, faixa atual) |
+| GET | `/api/moderacao/radio` | 🔐 (moderador) | Estado atual da Rádio Zôada, para o painel de moderação |
+| PATCH | `/api/moderacao/radio` | 🔐 (moderador) | Controlar a Rádio Zôada: `set_info`, `set_tracks`, `pause`, `resume`, `advance` |
 
 ## Painel de moderação (denúncias)
 
@@ -153,6 +156,24 @@ ajuda com a conta, etc.
   (`/moderacao`), autenticada com a mesma `MODERATION_SECRET` — lista as
   conversas com badge de não lidas e permite responder.
 - **API:** `/api/moderacao/mensagens` (ver tabela acima).
+
+### Controle total da Rádio Zôada
+
+A "Rádio Zôada" é a estação padrão/sempre disponível do app (a primeira
+opção no dial da tela de Rádio). A moderação tem controle total sobre ela
+pelo mesmo painel externo:
+
+- **Lado da moderação:** aba "📻 Rádio Zôada" em `/moderacao`, autenticada
+  com a mesma `MODERATION_SECRET`. Dá pra: montar/reordenar a playlist a
+  partir de todo o catálogo de faixas, pausar/retomar a transmissão pra
+  todo mundo, pular pra próxima faixa, e editar o nome/capa da estação.
+- **Lado do app:** todo mundo que abrir a Rádio Zôada ouve a playlist
+  curada, sincronizada (quem entra no meio de uma faixa já ouve a partir
+  do ponto certo) e some do ar se a moderação pausar. Sem nenhuma playlist
+  configurada, a estação volta ao comportamento padrão (shuffle de todo o
+  catálogo).
+- **API:** `/api/radio-padrao` (leitura pública) e `/api/moderacao/radio`
+  (controle, ver tabela acima).
 
 ## Instalar no celular
 

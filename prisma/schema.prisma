@@ -109,6 +109,7 @@ model Faixa {
   mensagens  Mensagem[]
   reproducoes Reproducao[]
   faixasEstacao FaixaEstacao[]
+  faixasRadioPadrao FaixaRadioPadrao[]
   postagens  Postagem[]
 
   @@index([deletedAt])
@@ -419,6 +420,52 @@ model FaixaEstacao {
   @@unique([estacaoId, faixaId])
   @@index([estacaoId])
   @@map("faixas_estacao")
+}
+
+// ---------- Rádio Zôada (estação padrão, controlada pela moderação) ----------
+// A "Rádio Zôada" é a estação padrão/sempre disponível do app (dial da
+// RadioScreen, ID especial '__default__' no cliente). Diferente das
+// EstacaoRadio (uma por usuário), esta é uma SINGLETON — só existe uma
+// linha, com ID fixo (RADIO_PADRAO_ID em src/lib/config.ts), controlada
+// exclusivamente pelo painel de moderação (public/moderacao/index.html)
+// via /api/moderacao/radio, com o mesmo MODERATION_SECRET de /api/reports
+// e /api/aviso. O app só LÊ o estado atual, publicamente, via
+// /api/radio-padrao (GET).
+model RadioPadrao {
+  id       String @id
+  nome     String @default("Rádio Zôada")
+  capaUrl  String? @map("capa_url")
+  // Pausada pela moderação: enquanto true, o app não toca a Rádio Zôada
+  // pra ninguém (mostra estado de "pausada" no lugar do player).
+  pausada  Boolean @default(false)
+
+  // Faixa atual da transmissão + timestamp de quando ela começou a tocar
+  // (mesmo mecanismo de EstacaoRadio, usado pra sincronizar quem estiver
+  // ouvindo ao mesmo tempo). Atualizado pela moderação ao avançar/pular
+  // faixa, ou automaticamente ao trocar a playlist.
+  faixaAtualId     String?   @map("faixa_atual_id")
+  faixaAtualInicio DateTime? @map("faixa_atual_inicio")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  faixas FaixaRadioPadrao[]
+
+  @@map("radio_padrao")
+}
+
+// ---------- Faixas da Rádio Zôada (playlist ordenada, curada pela moderação) ----------
+model FaixaRadioPadrao {
+  id      String @id @default(cuid())
+  radioId String @map("radio_id")
+  faixaId String @map("faixa_id")
+  ordem   Int    @default(0)
+
+  radio RadioPadrao @relation(fields: [radioId], references: [id], onDelete: Cascade)
+  faixa Faixa       @relation(fields: [faixaId], references: [id], onDelete: Cascade)
+
+  @@unique([radioId, faixaId])
+  @@index([radioId])
+  @@map("faixas_radio_padrao")
 }
 
 // ---------- Denúncias (canal de denúncia/reporte — Marco Civil pós-STF 2025) ----------
