@@ -54,6 +54,82 @@
   ::-webkit-scrollbar-thumb { background: rgba(26,27,37,.16); border-radius: 999px; border: 2px solid var(--bg); }
   ::-webkit-scrollbar-thumb:hover { background: rgba(26,27,37,.28); }
 
+  /* ---------- Tela de login ---------- */
+  .login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background-image:
+      radial-gradient(900px 420px at 8% -6%, rgba(255,140,66,.16), transparent 60%),
+      radial-gradient(900px 420px at 100% 0%, rgba(108,92,231,.16), transparent 60%);
+  }
+  .login-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 28px 26px 26px;
+  }
+  .login-card .login-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+  .login-card .login-brand-icon {
+    width: 44px; height: 44px; border-radius: 13px;
+    background: var(--gradient-brand);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 21px; flex-shrink: 0; box-shadow: var(--shadow-sm);
+  }
+  .login-card .login-brand h1 { margin: 0; font-size: 16.5px; font-weight: 800; letter-spacing: -.2px; }
+  .login-card .login-brand p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+  .login-card form { display: flex; flex-direction: column; gap: 12px; }
+  .login-card .field label { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+  .login-card input[type="email"], .login-card input[type="password"] { width: 100%; }
+  .login-card .btn-primary { width: 100%; margin-top: 4px; padding: 11px 16px; font-size: 13.5px; }
+  .login-error {
+    display: none;
+    background: rgba(232,67,147,.1);
+    border: 1px solid rgba(232,67,147,.28);
+    color: #b0245e;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    line-height: 1.4;
+  }
+  .login-error.is-visible { display: block; }
+  .login-hint {
+    margin: 16px 0 0;
+    font-size: 11.5px;
+    color: var(--muted-2);
+    line-height: 1.5;
+    text-align: center;
+  }
+  .header-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .header-user .btn-ghost {
+    background: rgba(255,255,255,.16);
+    border: 1px solid rgba(255,255,255,.28);
+    color: #fff;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .header-user .btn-ghost:hover { background: rgba(255,255,255,.26); }
+  .header-user-name { font-size: 12.5px; font-weight: 700; opacity: .95; white-space: nowrap; }
+
   /* ---------- Cabeçalho fixo ---------- */
   header {
     position: sticky;
@@ -831,6 +907,33 @@
 </head>
 <body>
 
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-brand-icon">🚩</div>
+      <div>
+        <h1>Painel de Moderação</h1>
+        <p>Entre com a conta admin da Zôada</p>
+      </div>
+    </div>
+    <form id="loginForm" onsubmit="return handleLoginSubmit(event)">
+      <p class="login-error" id="loginError"></p>
+      <div class="field">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="seu@email.com" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="loginPassword">Senha</label>
+        <input type="password" id="loginPassword" placeholder="Sua senha" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn-primary" id="loginSubmitBtn">Entrar</button>
+    </form>
+    <p class="login-hint">Só a conta admin cadastrada no app tem acesso a este painel.</p>
+  </div>
+</div>
+
+<div id="dashboardApp" style="display:none;">
+
 <header>
   <div class="wrap" style="padding:0;">
     <div class="brand">
@@ -840,7 +943,11 @@
         <p>Denúncias (<code>/api/reports</code>), mensagens com usuários, controle da Rádio Zôada e envio de músicas — tudo separado do app.</p>
       </div>
     </div>
-    <span class="conn-indicator" id="connIndicator"><span class="conn-dot" id="connDot"></span><span id="connText">Desconectado</span></span>
+    <div class="header-user">
+      <span class="conn-indicator" id="connIndicator"><span class="conn-dot" id="connDot"></span><span id="connText">Desconectado</span></span>
+      <span class="header-user-name" id="headerUserName"></span>
+      <button type="button" class="btn-ghost" onclick="doLogout()">Sair</button>
+    </div>
   </div>
 </header>
 
@@ -1123,9 +1230,73 @@
   Configure a env var <code>MODERATION_SECRET</code> no servidor antes de usar em produção.
 </footer>
 
+</div>
+
 <script>
   const LS_BASE = 'zoada-mod-api-base';
   const LS_SECRET = 'zoada-mod-secret';
+  const LS_USER = 'zoada-mod-user';
+
+  // ---------- Login (tela inicial, só a conta admin entra) ----------
+
+  function showLoginScreen() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('dashboardApp').style.display = 'none';
+  }
+
+  function showDashboard() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboardApp').style.display = '';
+    const user = JSON.parse(localStorage.getItem(LS_USER) || 'null');
+    document.getElementById('headerUserName').textContent = user ? ('👤 ' + (user.name || user.email)) : '';
+  }
+
+  function loginBase() {
+    // A URL do app é opcional na tela de login (mesma origem por padrão);
+    // reaproveita o mesmo campo avançado usado pelo resto do painel.
+    return apiBase();
+  }
+
+  async function handleLoginSubmit(event) {
+    event.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginSubmitBtn');
+    errEl.classList.remove('is-visible');
+    errEl.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'Entrando...';
+    try {
+      const res = await fetch(loginBase() + '/api/moderacao/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || ('Erro ao entrar (HTTP ' + res.status + ')'));
+      }
+      localStorage.setItem(LS_SECRET, data.secret);
+      localStorage.setItem(LS_BASE, loginBase());
+      localStorage.setItem(LS_USER, JSON.stringify({ name: data.user && data.user.name, email: data.user && data.user.email }));
+      // Recarrega a página: reaproveita o mesmo fluxo de inicialização que
+      // já sabe carregar tudo quando encontra a chave salva no localStorage.
+      location.reload();
+    } catch (err) {
+      errEl.textContent = err.message || String(err);
+      errEl.classList.add('is-visible');
+      btn.disabled = false;
+      btn.textContent = 'Entrar';
+    }
+  }
+
+  function doLogout() {
+    if (!confirm('Sair do painel de moderação?')) return;
+    localStorage.removeItem(LS_SECRET);
+    localStorage.removeItem(LS_USER);
+    location.reload();
+  }
 
   const STATUSES = [
     { key: null, label: 'Todas' },
@@ -1363,9 +1534,13 @@
 
   restoreConfig();
   renderTabs();
-  if (secret()) { loadReports(); loadThreads(); loadRadioModeracao(); loadArtistsMod(); }
-  else document.getElementById('list').innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
-  loadRadioCatalog();
+  if (secret()) {
+    showDashboard();
+    loadReports(); loadThreads(); loadRadioModeracao(); loadArtistsMod();
+    loadRadioCatalog();
+  } else {
+    showLoginScreen();
+  }
 
   // ---------- Mensagens (canal de suporte direto com usuários) ----------
 
