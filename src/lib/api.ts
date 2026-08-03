@@ -940,3 +940,20 @@ export async function reportContent(
     return 'Não foi possível enviar a denúncia.';
   }
 }
+
+// Aviso global (banner na tela inicial), publicado pelo painel de
+// moderação (public/moderacao). Leitura pública — funciona mesmo sem
+// login. Retorna null se não houver nenhum aviso ativo no momento.
+export type Aviso = { id: string; mensagem: string; created_at: string };
+
+export async function fetchActiveAviso(): Promise<Aviso | null> {
+  try {
+    const res = await apiFetch('/api/aviso');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.aviso || null;
+  } catch (err) {
+    console.warn('[fetchActiveAviso] falha ao buscar aviso:', err);
+    return null;
+  }
+}
