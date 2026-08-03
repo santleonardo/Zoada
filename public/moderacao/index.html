@@ -498,6 +498,18 @@
   .track-row .track-title { font-size: 13px; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .track-row .track-artist { font-size: 11.5px; color: var(--muted-2); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .track-row .track-actions { display: flex; gap: 5px; flex-shrink: 0; }
+
+  /* ---------- Drag-and-drop da playlist da rádio ---------- */
+  .track-row.draggable { cursor: grab; }
+  .track-row.draggable:active { cursor: grabbing; }
+  .track-row .drag-handle {
+    flex-shrink: 0; width: 18px; height: 28px; display: flex; align-items: center; justify-content: center;
+    color: var(--muted-2); font-size: 15px; line-height: 1; cursor: grab; touch-action: none; user-select: none;
+  }
+  .track-row .drag-handle:active { cursor: grabbing; }
+  .track-row.is-dragging { opacity: .4; }
+  .track-row.drag-over-top { box-shadow: inset 0 2px 0 0 var(--orange); }
+  .track-row.drag-over-bottom { box-shadow: inset 0 -2px 0 0 var(--orange); }
   .track-btn {
     width: 28px; height: 28px; padding: 0; border-radius: var(--radius-sm);
     display: flex; align-items: center; justify-content: center; font-size: 13px;
@@ -1652,18 +1664,74 @@
       const title = t ? t.title : '(faixa removida do catálogo)';
       const artist = t ? t.artist_name : id;
       return '' +
-        '<div class="track-row">' +
+        '<div class="track-row draggable" draggable="true" data-idx="' + idx + '" ' +
+          'ondragstart="onRadioTrackDragStart(event, ' + idx + ')" ' +
+          'ondragover="onRadioTrackDragOver(event, ' + idx + ')" ' +
+          'ondragleave="onRadioTrackDragLeave(event)" ' +
+          'ondrop="onRadioTrackDrop(event, ' + idx + ')" ' +
+          'ondragend="onRadioTrackDragEnd(event)">' +
+          '<span class="drag-handle" title="Arraste para reordenar">⠿</span>' +
           '<div class="track-info">' +
             '<p class="track-title">' + escapeHtml(title) + '</p>' +
             '<p class="track-artist">' + escapeHtml(artist) + '</p>' +
           '</div>' +
           '<div class="track-actions">' +
-            (idx > 0 ? '<button class="track-btn" title="Mover pra cima" onclick="moveRadioTrack(' + idx + ', -1)">↑</button>' : '') +
-            (idx < radioPlaylistIds.length - 1 ? '<button class="track-btn" title="Mover pra baixo" onclick="moveRadioTrack(' + idx + ', 1)">↓</button>' : '') +
             '<button class="track-btn danger" title="Remover" onclick="removeRadioTrack(' + idx + ')">✕</button>' +
           '</div>' +
         '</div>';
     }).join('');
+  }
+
+  // ---------- Drag-and-drop da playlist da rádio ----------
+  let radioDragIdx = null;
+
+  function onRadioTrackDragStart(ev, idx) {
+    radioDragIdx = idx;
+    ev.dataTransfer.effectAllowed = 'move';
+    try { ev.dataTransfer.setData('text/plain', String(idx)); } catch (e) { /* alguns browsers exigem isso */ }
+    ev.currentTarget.classList.add('is-dragging');
+  }
+
+  function onRadioTrackDragOver(ev, idx) {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'move';
+    if (radioDragIdx === null || radioDragIdx === idx) return;
+    const row = ev.currentTarget;
+    const rect = row.getBoundingClientRect();
+    const before = (ev.clientY - rect.top) < rect.height / 2;
+    row.classList.toggle('drag-over-top', before);
+    row.classList.toggle('drag-over-bottom', !before);
+  }
+
+  function onRadioTrackDragLeave(ev) {
+    ev.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
+  }
+
+  function onRadioTrackDrop(ev, idx) {
+    ev.preventDefault();
+    const row = ev.currentTarget;
+    const rect = row.getBoundingClientRect();
+    const before = (ev.clientY - rect.top) < rect.height / 2;
+    row.classList.remove('drag-over-top', 'drag-over-bottom');
+
+    if (radioDragIdx === null || radioDragIdx === idx) return;
+
+    const [moved] = radioPlaylistIds.splice(radioDragIdx, 1);
+    let target = idx;
+    if (radioDragIdx < idx) target -= 1; // o splice acima já deslocou os índices depois do original
+    if (!before) target += 1;
+    target = Math.max(0, Math.min(radioPlaylistIds.length, target));
+    radioPlaylistIds.splice(target, 0, moved);
+
+    radioDragIdx = null;
+    renderRadioPlaylist();
+  }
+
+  function onRadioTrackDragEnd(ev) {
+    ev.currentTarget.classList.remove('is-dragging');
+    document.querySelectorAll('#radioPlaylistList .drag-over-top, #radioPlaylistList .drag-over-bottom')
+      .forEach((el) => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+    radioDragIdx = null;
   }
 
   function radioCatalogArtists() {
@@ -1769,15 +1837,6 @@
     radioPlaylistIds.splice(idx, 1);
     renderRadioPlaylist();
     renderRadioCatalog();
-  }
-
-  function moveRadioTrack(idx, delta) {
-    const target = idx + delta;
-    if (target < 0 || target >= radioPlaylistIds.length) return;
-    const tmp = radioPlaylistIds[idx];
-    radioPlaylistIds[idx] = radioPlaylistIds[target];
-    radioPlaylistIds[target] = tmp;
-    renderRadioPlaylist();
   }
 
   async function saveRadioPlaylist() {
