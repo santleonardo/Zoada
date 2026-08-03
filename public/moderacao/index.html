@@ -94,17 +94,89 @@
   .wrap { max-width: 1080px; margin: 0 auto; padding: 20px; }
 
   /* ---------- Barra de conexão ---------- */
-  .auth-box {
+  /* ---------- Barra de conexão (resumo + painel separável) ---------- */
+  .conn-bar {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
-    padding: 16px 18px;
     margin-bottom: 18px;
+    overflow: hidden;
+  }
+  .conn-bar-summary {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+  }
+  .conn-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .conn-bar-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: -.1px;
+  }
+  .conn-bar-status .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: #ffd479;
+    box-shadow: 0 0 0 3px rgba(255, 212, 121, .22);
+    flex-shrink: 0;
+  }
+  .conn-bar-status.is-on .dot {
+    background: #2ecc71;
+    box-shadow: 0 0 0 3px rgba(46, 204, 113, .2);
+  }
+  .conn-bar-status.is-on { color: #1a9c56; }
+  .conn-bar-status:not(.is-on) { color: var(--muted); }
+  .conn-bar-hint {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .conn-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .conn-bar-actions .btn-ghost {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 7px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .conn-bar-actions .btn-ghost:hover {
+    border-color: var(--border-strong);
+    background: #fff;
+  }
+
+  .auth-box {
+    display: none;
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+    padding: 14px 16px 16px;
     gap: 12px;
     flex-wrap: wrap;
     align-items: end;
+  }
+  .auth-box.is-open {
+    display: flex;
   }
   .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 220px; }
   .field label { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
@@ -515,8 +587,10 @@
   /* ---------- Responsivo (preserva o visual original, só adapta) ---------- */
   @media (max-width: 760px) {
     .radio-cols { grid-template-columns: 1fr; }
-    .auth-box { flex-direction: column; align-items: stretch; }
+    .auth-box.is-open { flex-direction: column; align-items: stretch; }
     .field { min-width: 0; width: 100%; }
+    .conn-bar-summary { padding: 10px 12px; }
+    .conn-bar-hint { display: none; }
     .radio-status { flex-wrap: wrap; }
     .radio-status-actions { width: 100%; }
   }
@@ -546,7 +620,8 @@
       font-size: 12px;
     }
 
-    .auth-box { padding: 12px 14px; gap: 10px; margin-bottom: 12px; }
+    .conn-bar { margin-bottom: 12px; }
+    .auth-box.is-open { padding: 12px 14px; gap: 10px; }
     .card, .radio-panel, .aviso-box, .conv-box { padding: 12px 14px; }
     .card { margin-bottom: 10px; }
 
@@ -594,16 +669,30 @@
 
 <div class="wrap">
 
-  <div class="auth-box">
-    <div class="field">
-      <label for="apiBase">URL do app (API base)</label>
-      <input type="text" id="apiBase" placeholder="https://seu-zoada.vercel.app (vazio = mesma origem)">
+  <div class="conn-bar" id="connBar">
+    <div class="conn-bar-summary">
+      <div class="conn-bar-left">
+        <div class="conn-bar-status" id="connBarStatus">
+          <span class="dot" id="connBarDot"></span>
+          <span id="connBarLabel">Desconectado</span>
+        </div>
+        <span class="conn-bar-hint" id="connBarHint">Configure a URL e a chave de moderação</span>
+      </div>
+      <div class="conn-bar-actions">
+        <button type="button" class="btn-ghost" id="connToggleBtn" onclick="toggleConnPanel()">Mostrar</button>
+      </div>
     </div>
-    <div class="field">
-      <label for="secret">Chave de moderação (MODERATION_SECRET)</label>
-      <input type="password" id="secret" placeholder="Cole aqui a chave do servidor">
+    <div class="auth-box" id="authBox">
+      <div class="field">
+        <label for="apiBase">URL do app (API base)</label>
+        <input type="text" id="apiBase" placeholder="https://seu-zoada.vercel.app (vazio = mesma origem)" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="secret">Chave de moderação (MODERATION_SECRET)</label>
+        <input type="password" id="secret" placeholder="Cole aqui a chave do servidor" autocomplete="off">
+      </div>
+      <button type="button" class="btn-primary" onclick="saveConfigAndLoad()">Conectar</button>
     </div>
-    <button class="btn-primary" onclick="saveConfigAndLoad()">Conectar</button>
   </div>
 
   <div class="section-switch" id="sectionSwitch">
@@ -842,21 +931,56 @@
   function secret() { return document.getElementById('secret').value.trim(); }
 
   function updateConnIndicator() {
-    const dot = document.getElementById('connDot');
-    const text = document.getElementById('connText');
-    if (secret()) {
-      dot.classList.add('on');
-      text.textContent = 'Conectado';
-    } else {
-      dot.classList.remove('on');
-      text.textContent = 'Desconectado';
+    const connected = !!secret();
+    const headerDot = document.getElementById('connDot');
+    const headerText = document.getElementById('connText');
+    if (headerDot && headerText) {
+      if (connected) {
+        headerDot.classList.add('on');
+        headerText.textContent = 'Conectado';
+      } else {
+        headerDot.classList.remove('on');
+        headerText.textContent = 'Desconectado';
+      }
     }
+
+    const barStatus = document.getElementById('connBarStatus');
+    const barLabel = document.getElementById('connBarLabel');
+    const barHint = document.getElementById('connBarHint');
+    if (barStatus && barLabel) {
+      barStatus.classList.toggle('is-on', connected);
+      barLabel.textContent = connected ? 'Conectado' : 'Desconectado';
+    }
+    if (barHint) {
+      barHint.textContent = connected
+        ? 'Credenciais salvas neste navegador'
+        : 'Configure a URL e a chave de moderação';
+    }
+  }
+
+  function isConnPanelOpen() {
+    const box = document.getElementById('authBox');
+    return !!(box && box.classList.contains('is-open'));
+  }
+
+  function setConnPanelOpen(open) {
+    const box = document.getElementById('authBox');
+    const btn = document.getElementById('connToggleBtn');
+    if (!box || !btn) return;
+    box.classList.toggle('is-open', !!open);
+    btn.textContent = open ? 'Esconder' : 'Mostrar';
+  }
+
+  function toggleConnPanel() {
+    setConnPanelOpen(!isConnPanelOpen());
   }
 
   function saveConfigAndLoad() {
     localStorage.setItem(LS_BASE, apiBase());
     localStorage.setItem(LS_SECRET, secret());
     updateConnIndicator();
+    // Depois de conectar com sucesso, esconde o formulário
+    if (secret()) setConnPanelOpen(false);
     loadReports();
     loadThreads();
     loadRadioModeracao();
@@ -868,6 +992,8 @@
     document.getElementById('apiBase').value = localStorage.getItem(LS_BASE) || '';
     document.getElementById('secret').value = localStorage.getItem(LS_SECRET) || '';
     updateConnIndicator();
+    // Se ainda não há chave, deixa o painel aberto para configurar
+    setConnPanelOpen(!secret());
   }
 
   function renderTabs() {
