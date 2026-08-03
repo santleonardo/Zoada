@@ -36,10 +36,10 @@ O Zôada permite que você envie faixas de música, publique posts e comentário
 - Posts, comentários e mensagens de chat devem respeitar a lei e os direitos de terceiros — nada de discurso de ódio, assédio, ameaças, conteúdo relacionado a abuso ou exploração de crianças e adolescentes, ou qualquer conduta ilícita.
 
 **Se você é titular de direitos autorais e encontrou uma faixa enviada sem sua autorização:**
-Entre em contato pelo canal de notificação em **[email/rota de denúncia]**, identificando a faixa e comprovando, minimamente, a titularidade. Analisaremos e, sendo o caso, removeremos o conteúdo em prazo razoável.
+Entre em contato pelo canal de notificação em **santannaleonardo@hotmail.com**, identificando a faixa e comprovando, minimamente, a titularidade. Analisaremos e, sendo o caso, removeremos o conteúdo em prazo razoável.
 
 **Denúncia de posts, comentários e outros conteúdos:**
-Você pode reportar qualquer post, comentário ou faixa diretamente pelo app, ou pelo canal **[email/rota de denúncia]**. Notificações claras e fundamentadas sobre conteúdo ilícito serão analisadas e, quando cabível, o conteúdo será removido — independentemente de ordem judicial, conforme o entendimento do STF nos Temas 533 e 987 (junho de 2025), exceto nos casos de crimes contra a honra, que continuam exigindo ordem judicial nos termos do art. 19 da Lei nº 12.965/2014 (Marco Civil da Internet).
+Você pode reportar qualquer post, comentário ou faixa diretamente pelo app, ou pelo canal **santannaleonardo@hotmail.com**. Notificações claras e fundamentadas sobre conteúdo ilícito serão analisadas e, quando cabível, o conteúdo será removido — independentemente de ordem judicial, conforme o entendimento do STF nos Temas 533 e 987 (junho de 2025), exceto nos casos de crimes contra a honra, que continuam exigindo ordem judicial nos termos do art. 19 da Lei nº 12.965/2014 (Marco Civil da Internet).
 
 Conteúdo relacionado a abuso, aliciamento ou exploração de crianças e adolescentes será removido e notificado às autoridades competentes imediatamente.
 
@@ -95,7 +95,7 @@ Podemos atualizar estes Termos periodicamente. Mudanças relevantes serão comun
 
 ## 10. Lei aplicável e foro
 
-Estes Termos são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da comarca de **[cidade/UF]** para dirimir eventuais controvérsias, ressalvado o direito do consumidor de optar pelo foro do seu domicílio, conforme o art. 101, I, do CDC.
+Estes Termos são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da comarca de **Feira de Santana, Bahia** para dirimir eventuais controvérsias, ressalvado o direito do consumidor de optar pelo foro do seu domicílio, conforme o art. 101, I, do CDC.
 
 ---
 
@@ -103,6 +103,4 @@ Estes Termos são regidos pelas leis da República Federativa do Brasil. Fica el
 
 Dúvidas, solicitações ou notificações sobre estes Termos: **santannaleonardo@hotmail.com**.
 
----
 
-*Este documento é um modelo de referência baseado em pesquisa jurídica e deve ser revisado por um advogado antes de ser publicado, especialmente os campos entre colchetes [ ].*
