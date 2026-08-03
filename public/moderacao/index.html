@@ -1055,6 +1055,10 @@
 
   async function advanceRadioTrack() {
     if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    if (!radioState || radioState.tracks.length === 0) {
+      alert('A playlist da Rádio Zôada está vazia — adicione faixas e clique em "Salvar playlist" antes de pular.');
+      return;
+    }
     try {
       const res = await fetch(apiBase() + '/api/moderacao/radio', {
         method: 'PATCH',
