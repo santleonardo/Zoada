@@ -50,6 +50,17 @@ export const CRON_SECRET = process.env.CRON_SECRET || '';
 // definindo a env var MODERATION_SECRET.
 export const MODERATION_SECRET = process.env.MODERATION_SECRET || 'zoada-dev-moderation-secret-change-in-production';
 
+// Emails autorizados a entrar no painel de moderação pela tela de login
+// (/api/moderacao/login). Precisa ser uma conta já existente no app (com
+// senha cadastrada) — o login verifica email+senha contra a tabela
+// `Usuario` normal e só libera a chave de moderação se o email bater com
+// um destes. Separado por vírgula na env var pra dar pra ter mais de um
+// admin sem mexer no código.
+export const MODERATION_ADMIN_EMAILS = (process.env.MODERATION_ADMIN_EMAILS || 'zoadaapp@gmail.com')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 // ---------- RÁDIO ZÔADA (estação padrão, singleton) ----------
 // ID fixo da única linha da tabela `radio_padrao` — não existe (e nunca
 // deve existir) mais de uma. Usado por /api/radio-padrao (leitura pública)
