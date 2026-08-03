@@ -438,6 +438,82 @@
   .track-btn.danger:hover { background: rgba(232,67,147,.2); }
   .track-search { margin-bottom: 12px; }
 
+  /* ---------- Enviar música ---------- */
+  .upload-panel { display: flex; flex-direction: column; gap: 18px; }
+  .upload-step { display: flex; gap: 12px; }
+  .upload-step-num {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 999px;
+    background: var(--gradient-btn); color: #fff; font-size: 12px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  }
+  .upload-step-body { flex: 1; min-width: 0; }
+  .upload-step-title { font-size: 13px; font-weight: 800; margin: 0 0 2px; }
+  .upload-step-hint { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin: 0 0 9px; }
+  .upload-divider { height: 1px; background: var(--border); margin: 0; }
+
+  .cover-picker { display: flex; align-items: center; gap: 12px; }
+  .cover-preview-box {
+    flex-shrink: 0; width: 56px; height: 56px; border-radius: 12px;
+    background: var(--surface-2); border: 1.5px dashed var(--border-strong);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    font-size: 20px; color: var(--muted-2);
+  }
+  .cover-preview-box img { width: 100%; height: 100%; object-fit: cover; }
+  .cover-picker-controls { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+  .cover-file-row { display: flex; align-items: center; gap: 8px; }
+  .cover-file-row input[type="file"] { flex: 1; min-width: 0; font-size: 12.5px; }
+  .cover-clear-btn { flex-shrink: 0; }
+
+  .upload-dropzone {
+    display: flex; align-items: center; gap: 12px;
+    border: 1.5px dashed var(--border-strong); border-radius: var(--radius-md);
+    background: var(--surface-2); padding: 14px 16px; cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .upload-dropzone:hover { border-color: var(--pink); background: rgba(232,67,147,.05); }
+  .upload-dropzone.dragover { border-color: var(--pink); background: rgba(232,67,147,.09); }
+  .upload-dropzone input[type="file"] { display: none; }
+  .upload-dropzone-icon {
+    flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px;
+    background: rgba(232,67,147,.12); color: var(--pink);
+    display: flex; align-items: center; justify-content: center; font-size: 17px;
+  }
+  .upload-dropzone-text { min-width: 0; }
+  .upload-dropzone-text strong { display: block; font-size: 13px; font-weight: 700; }
+  .upload-dropzone-text span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+  .queue-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .queue-head span { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .queue-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    text-align: center; padding: 22px 12px; color: var(--muted-2); font-size: 12px;
+    border: 1.5px dashed var(--border); border-radius: var(--radius-sm);
+  }
+  .queue-empty .queue-empty-icon { font-size: 22px; margin-bottom: 2px; }
+
+  .track-row.is-uploading { border-color: rgba(108,92,231,.35); background: rgba(108,92,231,.05); }
+  .track-row.is-done { border-color: rgba(46,204,113,.35); background: rgba(46,204,113,.06); }
+  .track-row.is-error { border-color: rgba(232,67,147,.35); background: rgba(232,67,147,.05); }
+  .track-row .track-file-icon {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .status-chip {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .2px; padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+  }
+  .status-chip-uploading { background: rgba(108,92,231,.14); color: var(--purple); }
+  .status-chip-done { background: rgba(46,204,113,.15); color: #1a9c56; }
+  .status-chip-error { background: rgba(232,67,147,.14); color: var(--pink); cursor: help; }
+
+  .upload-submit-row {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding-top: 4px;
+  }
+  .upload-submit-row button { flex-shrink: 0; }
+  #uploadFaixaStatus { margin: 0; }
+
   @media (max-width: 640px) {
     header { padding: 14px 16px; }
     header p { display: none; }
@@ -594,18 +670,78 @@
     <div class="radio-cols">
       <div class="radio-panel">
         <h3>⬆️ Enviar música</h3>
-        <p class="sub">Escolha o artista dono das faixas e os arquivos de áudio (pode selecionar vários de uma vez). O título de cada uma já vem preenchido com o nome do arquivo — edite se quiser. O upload vai direto pro armazenamento.</p>
-        <select id="faixaArtistaSelect" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); font-size:14px; margin-bottom:8px; font-family:inherit;"></select>
-        <div class="field" style="margin-bottom:8px;">
-          <label for="faixaCapaArquivoInput">Capa (imagem, aplicada a todas as faixas deste envio)</label>
-          <input type="file" id="faixaCapaArquivoInput" accept="image/*" onchange="previewFaixaCapa(this)">
-          <img id="faixaCapaPreview" style="display:none; width:64px; height:64px; border-radius:10px; object-fit:cover; margin-top:6px;" alt="">
+        <p class="sub">Escolha o artista, junte os arquivos e revise a fila antes de enviar. O upload vai direto pro armazenamento.</p>
+
+        <div class="upload-panel">
+          <div class="upload-step">
+            <span class="upload-step-num">1</span>
+            <div class="upload-step-body">
+              <p class="upload-step-title">Artista dono das faixas</p>
+              <select id="faixaArtistaSelect" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); font-size:14px; font-family:inherit;"></select>
+            </div>
+          </div>
+
+          <div class="upload-divider"></div>
+
+          <div class="upload-step">
+            <span class="upload-step-num">2</span>
+            <div class="upload-step-body">
+              <p class="upload-step-title">Capa <span style="font-weight:600; color:var(--muted-2);">(opcional)</span></p>
+              <p class="upload-step-hint">Aplicada a todas as faixas deste envio. Envie uma imagem ou cole uma URL.</p>
+              <div class="cover-picker">
+                <div class="cover-preview-box" id="faixaCapaPreviewBox">
+                  <span id="faixaCapaPlaceholder">🖼️</span>
+                  <img id="faixaCapaPreview" style="display:none;" alt="Prévia da capa">
+                </div>
+                <div class="cover-picker-controls">
+                  <div class="cover-file-row">
+                    <input type="file" id="faixaCapaArquivoInput" accept="image/*" onchange="previewFaixaCapa(this)">
+                    <button type="button" class="track-btn danger cover-clear-btn" title="Remover imagem" onclick="clearFaixaCapaFile()">✕</button>
+                  </div>
+                  <input type="text" id="faixaCapaInput" placeholder="...ou cole a URL da capa">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="upload-divider"></div>
+
+          <div class="upload-step">
+            <span class="upload-step-num">3</span>
+            <div class="upload-step-body">
+              <p class="upload-step-title">Arquivos de áudio</p>
+              <p class="upload-step-hint">Pode selecionar (ou arrastar) vários de uma vez. O título já vem preenchido com o nome do arquivo — edite se quiser.</p>
+              <label class="upload-dropzone" id="faixaDropzone"
+                ondragover="event.preventDefault(); this.classList.add('dragover');"
+                ondragleave="this.classList.remove('dragover');"
+                ondrop="handleFaixaArquivoDrop(event, this)">
+                <span class="upload-dropzone-icon">🎵</span>
+                <span class="upload-dropzone-text">
+                  <strong>Clique ou arraste os áudios aqui</strong>
+                  <span>MP3, WAV, M4A... vários arquivos de uma vez</span>
+                </span>
+                <input type="file" id="faixaArquivoInput" accept="audio/*" multiple onchange="handleFaixaArquivoChange(this)">
+              </label>
+
+              <div style="margin-top:14px;">
+                <div class="queue-head">
+                  <span>Fila de envio</span>
+                  <span id="faixaQueueCount"></span>
+                </div>
+                <div id="faixaQueueList" class="track-list">
+                  <div class="queue-empty"><span class="queue-empty-icon">🎧</span>Nenhum arquivo selecionado ainda</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="upload-divider"></div>
+
+          <div class="upload-submit-row">
+            <button class="btn-primary" onclick="uploadFaixaMod()" id="uploadFaixaBtn" disabled>Enviar música</button>
+            <p class="sub" id="uploadFaixaStatus"></p>
+          </div>
         </div>
-        <input type="text" id="faixaCapaInput" placeholder="...ou cole a URL da capa (opcional se enviar imagem acima)">
-        <input type="file" id="faixaArquivoInput" accept="audio/*" multiple style="width:100%; margin-bottom:10px; margin-top:8px;" onchange="handleFaixaArquivoChange(this)">
-        <div id="faixaQueueList" class="track-list" style="margin-bottom:10px;"></div>
-        <button class="btn-primary" onclick="uploadFaixaMod()" id="uploadFaixaBtn" disabled>Enviar música</button>
-        <p class="sub" id="uploadFaixaStatus" style="margin-top:8px; min-height:16px;"></p>
       </div>
 
       <div class="radio-panel">
@@ -1471,7 +1607,22 @@
   let faixaQueue = [];
 
   function handleFaixaArquivoChange(inputEl) {
-    const files = Array.from(inputEl.files || []);
+    addFilesToFaixaQueue(inputEl.files);
+    // Limpa o input pra permitir escolher mais arquivos depois sem perder
+    // os que já foram adicionados (senão o navegador substituiria a seleção).
+    inputEl.value = '';
+  }
+
+  function handleFaixaArquivoDrop(ev, dropzoneEl) {
+    ev.preventDefault();
+    dropzoneEl.classList.remove('dragover');
+    const dropped = Array.from(ev.dataTransfer.files || []).filter((f) => f.type.startsWith('audio/'));
+    if (dropped.length === 0) return;
+    addFilesToFaixaQueue(dropped);
+  }
+
+  function addFilesToFaixaQueue(fileList) {
+    const files = Array.from(fileList || []);
     if (files.length === 0) return;
     const newItems = files.map((file) => ({
       file,
@@ -1481,9 +1632,6 @@
       status: 'pending',
     }));
     faixaQueue = faixaQueue.concat(newItems);
-    // Limpa o input pra permitir escolher mais arquivos depois sem perder
-    // os que já foram adicionados (senão o navegador substituiria a seleção).
-    inputEl.value = '';
     renderFaixaQueue();
   }
 
@@ -1498,27 +1646,36 @@
 
   function renderFaixaQueue() {
     const listEl = document.getElementById('faixaQueueList');
+    const countEl = document.getElementById('faixaQueueCount');
     const btn = document.getElementById('uploadFaixaBtn');
     const pendingCount = faixaQueue.filter((it) => it.status === 'pending' || it.status === 'error').length;
 
     if (faixaQueue.length === 0) {
-      listEl.innerHTML = '';
+      listEl.innerHTML = '<div class="queue-empty"><span class="queue-empty-icon">🎧</span>Nenhum arquivo selecionado ainda</div>';
+      countEl.textContent = '';
       btn.disabled = true;
       btn.textContent = 'Enviar música';
       return;
     }
 
+    countEl.textContent = faixaQueue.length + ' arquivo' + (faixaQueue.length === 1 ? '' : 's');
+
     listEl.innerHTML = faixaQueue.map((item, idx) => {
-      const statusIcon =
-        item.status === 'uploading' ? '<span class="track-btn" title="Enviando...">⏳</span>' :
-        item.status === 'done' ? '<span class="track-btn" title="Enviado">✅</span>' :
-        item.status === 'error' ? '<span class="track-btn danger" title="' + escapeHtml(item.error || 'Erro') + '">⚠️</span>' :
+      const rowClass =
+        item.status === 'uploading' ? ' is-uploading' :
+        item.status === 'done' ? ' is-done' :
+        item.status === 'error' ? ' is-error' : '';
+      const statusChip =
+        item.status === 'uploading' ? '<span class="status-chip status-chip-uploading">⏳ Enviando</span>' :
+        item.status === 'done' ? '<span class="status-chip status-chip-done">✅ Enviado</span>' :
+        item.status === 'error' ? '<span class="status-chip status-chip-error" title="' + escapeHtml(item.error || 'Erro') + '">⚠️ Erro</span>' :
         '';
       const removeBtn = (item.status === 'pending' || item.status === 'error')
         ? '<button class="track-btn danger" title="Remover" onclick="removeFaixaQueueItem(' + idx + ')">✕</button>'
         : '';
       return (
-        '<div class="track-row">' +
+        '<div class="track-row' + rowClass + '">' +
+          '<span class="track-file-icon">🎵</span>' +
           '<div class="track-info">' +
             '<input type="text" maxlength="200" value="' + escapeHtml(item.title) + '" ' +
             'oninput="updateFaixaQueueTitle(' + idx + ', this.value)" ' +
@@ -1526,7 +1683,7 @@
             'style="width:100%; margin-bottom:0; font-size:13px; padding:6px 8px;" ' +
             'placeholder="Título da música">' +
           '</div>' +
-          '<div class="track-actions">' + statusIcon + removeBtn + '</div>' +
+          '<div class="track-actions">' + statusChip + removeBtn + '</div>' +
         '</div>'
       );
     }).join('');
@@ -1540,9 +1697,17 @@
   function previewFaixaCapa(inputEl) {
     const file = inputEl.files[0];
     const img = document.getElementById('faixaCapaPreview');
-    if (!file) { img.style.display = 'none'; return; }
+    const placeholder = document.getElementById('faixaCapaPlaceholder');
+    if (!file) { img.style.display = 'none'; placeholder.style.display = ''; return; }
     img.src = URL.createObjectURL(file);
     img.style.display = '';
+    placeholder.style.display = 'none';
+  }
+
+  function clearFaixaCapaFile() {
+    const capaFileInput = document.getElementById('faixaCapaArquivoInput');
+    capaFileInput.value = '';
+    previewFaixaCapa(capaFileInput);
   }
 
   async function uploadFaixaMod() {
@@ -1645,6 +1810,7 @@
       capaFileInput.value = '';
       document.getElementById('faixaCapaInput').value = '';
       document.getElementById('faixaCapaPreview').style.display = 'none';
+      document.getElementById('faixaCapaPlaceholder').style.display = '';
 
       statusEl.textContent = successCount > 0
         ? (successCount + ' música' + (successCount === 1 ? '' : 's') + ' enviada' + (successCount === 1 ? '' : 's') + '! 🎉' +
