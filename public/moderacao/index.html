@@ -508,6 +508,179 @@
   .track-btn.danger:hover { background: rgba(232,67,147,.2); }
   .track-search { margin-bottom: 12px; }
 
+  /* ---------- Catálogo (artistas expandíveis + faixas legíveis) ---------- */
+  .catalog-list {
+    max-height: min(62vh, 560px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 4px;
+  }
+  .artist-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .artist-card.is-open {
+    border-color: rgba(108, 92, 231, .35);
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, .08);
+  }
+  .artist-card-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    color: inherit;
+  }
+  .artist-card-head:hover { background: #F7F7FB; }
+  .artist-card.is-open .artist-card-head {
+    background: linear-gradient(180deg, rgba(108,92,231,.06), transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  .artist-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6c5ce7, #e84393);
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .artist-meta { flex: 1; min-width: 0; }
+  .artist-meta .name {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 800;
+    letter-spacing: -.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .artist-meta .sub {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .artist-chevron {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .artist-card.is-open .artist-chevron {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+  }
+  .artist-tracks {
+    padding: 10px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #FAFAFC;
+  }
+  .artist-tracks-empty {
+    font-size: 13px;
+    color: var(--muted);
+    padding: 10px 4px;
+    margin: 0;
+  }
+  .catalog-track {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #fff;
+  }
+  .catalog-track:hover {
+    border-color: var(--border-strong);
+  }
+  .catalog-track-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .catalog-track-info { flex: 1; min-width: 0; }
+  .catalog-track-info .title {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+  .catalog-track-info .meta {
+    margin: 3px 0 0;
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.35;
+  }
+  .catalog-track-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .catalog-track-actions button {
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--ink);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .catalog-track-actions button:hover {
+    background: #fff;
+    border-color: var(--border-strong);
+  }
+  .catalog-track-actions button.danger {
+    background: rgba(232,67,147,.08);
+    color: var(--pink);
+    border-color: rgba(232,67,147,.22);
+  }
+  .catalog-track-actions button.danger:hover {
+    background: rgba(232,67,147,.16);
+  }
+  .catalog-summary {
+    margin: 10px 0 0;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .catalog-summary strong { color: var(--ink); }
+
   /* ---------- Enviar música ---------- */
   .upload-panel { display: flex; flex-direction: column; gap: 18px; }
   .upload-step { display: flex; gap: 12px; }
@@ -897,10 +1070,10 @@
 
       <div class="radio-panel">
         <h3>🎧 Catálogo de músicas</h3>
-        <p class="sub">Artistas e faixas do app. Clique num artista para ver as músicas — edite ou apague pelo painel.</p>
+        <p class="sub">Clique em um artista para abrir a lista de músicas. Use <b>Editar</b> ou <b>Apagar</b> em cada faixa.</p>
         <input type="text" class="track-search" id="artistaSearchInput" placeholder="Buscar artista ou música..." oninput="onCatalogSearchInput()">
-        <div class="track-list" id="artistsList" style="max-height:480px;"></div>
-        <p class="sub" style="margin-top:8px;">Artistas: <strong id="artistasCount">0</strong> · Faixas: <strong id="faixasCount">0</strong></p>
+        <div class="catalog-list" id="artistsList"></div>
+        <p class="catalog-summary">Artistas: <strong id="artistasCount">0</strong> · Faixas: <strong id="faixasCount">0</strong></p>
       </div>
     </div>
   </div>
@@ -1734,69 +1907,80 @@
       });
     }
 
-    // Também mostra faixas órfãs (artista não está na lista)
     const artistIds = new Set(artistsMod.map((a) => a.id));
-    const orphanTracks = catalogTracks.filter((t) => !artistIds.has(t.artist_id));
+    let orphans = catalogTracks.filter((t) => !artistIds.has(t.artist_id));
     if (q) {
-      // filter orphans by title/artist name
+      orphans = orphans.filter((t) =>
+        (t.title || '').toLowerCase().includes(q) ||
+        (t.artist_name || '').toLowerCase().includes(q)
+      );
     }
 
-    if (items.length === 0 && orphanTracks.length === 0) {
+    if (items.length === 0 && orphans.length === 0) {
       listEl.innerHTML = '<div class="status-msg">Nenhum artista ou música encontrado.</div>';
       return;
+    }
+
+    // Se a busca bate em música, já abre o artista correspondente
+    if (q && !expandedArtistId) {
+      const hit = items.find((a) => tracksForArtist(a.id).some((t) => (t.title || '').toLowerCase().includes(q)));
+      if (hit) expandedArtistId = hit.id;
     }
 
     let html = items.map((a) => {
       const tracks = tracksForArtist(a.id);
       const open = expandedArtistId === a.id;
+      const initial = (a.name || '?').trim().charAt(0).toUpperCase() || '?';
       const tracksHtml = open
         ? (tracks.length
-            ? tracks.map((t) => renderCatalogTrackRow(t)).join('')
-            : '<div class="status-msg" style="padding:8px 4px;">Nenhuma música neste artista.</div>')
+            ? tracks.map((t, i) => renderCatalogTrackRow(t, i + 1)).join('')
+            : '<p class="artist-tracks-empty">Nenhuma música neste artista ainda.</p>')
         : '';
       return '' +
-        '<div class="artist-block" style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:6px;background:var(--surface-2);">' +
-          '<button type="button" class="track-row" style="width:100%;border:none;border-radius:0;cursor:pointer;text-align:left;" onclick="toggleArtistExpand(\'' + a.id + '\')">' +
-            '<div class="track-info">' +
-              '<p class="track-title">' + escapeHtml(a.name) + '</p>' +
-              '<p class="track-artist">' + tracks.length + ' música' + (tracks.length === 1 ? '' : 's') + (open ? ' · clique para recolher' : ' · clique para ver') + '</p>' +
-            '</div>' +
-            '<span class="track-actions"><span class="track-btn" style="pointer-events:none;">' + (open ? '▾' : '▸') + '</span></span>' +
+        '<div class="artist-card' + (open ? ' is-open' : '') + '">' +
+          '<button type="button" class="artist-card-head" onclick="toggleArtistExpand(\'' + a.id + '\')">' +
+            '<span class="artist-avatar">' + escapeHtml(initial) + '</span>' +
+            '<span class="artist-meta">' +
+              '<p class="name">' + escapeHtml(a.name) + '</p>' +
+              '<p class="sub">' + tracks.length + ' música' + (tracks.length === 1 ? '' : 's') +
+                (open ? ' · toque para recolher' : ' · toque para ver as faixas') + '</p>' +
+            '</span>' +
+            '<span class="artist-chevron">' + (open ? '▾' : '▸') + '</span>' +
           '</button>' +
-          (open ? '<div style="padding:6px 8px 10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;">' + tracksHtml + '</div>' : '') +
+          (open ? '<div class="artist-tracks">' + tracksHtml + '</div>' : '') +
         '</div>';
     }).join('');
 
-    // Faixas sem artista na lista (raro)
-    const orphans = catalogTracks.filter((t) => !artistIds.has(t.artist_id));
-    let orphansFiltered = orphans;
-    if (q) {
-      orphansFiltered = orphans.filter((t) =>
-        (t.title || '').toLowerCase().includes(q) ||
-        (t.artist_name || '').toLowerCase().includes(q)
-      );
-    }
-    if (orphansFiltered.length) {
-      html += '<div class="status-msg" style="margin:8px 0 4px;text-align:left;">Outras faixas</div>';
-      html += orphansFiltered.map((t) => renderCatalogTrackRow(t)).join('');
+    if (orphans.length) {
+      html += '<div class="artist-card is-open">' +
+        '<div class="artist-card-head" style="cursor:default;">' +
+          '<span class="artist-avatar">?</span>' +
+          '<span class="artist-meta">' +
+            '<p class="name">Outras faixas</p>' +
+            '<p class="sub">' + orphans.length + ' faixa' + (orphans.length === 1 ? '' : 's') + ' sem artista na lista</p>' +
+          '</span>' +
+        '</div>' +
+        '<div class="artist-tracks">' + orphans.map((t, i) => renderCatalogTrackRow(t, i + 1)).join('') + '</div>' +
+      '</div>';
     }
 
     listEl.innerHTML = html;
   }
 
-  function renderCatalogTrackRow(t) {
+  function renderCatalogTrackRow(t, num) {
+    const dur = t.duration ? (Math.floor(t.duration / 60) + ':' + String(Math.floor(t.duration % 60)).padStart(2, '0')) : '';
+    const plays = (t.plays_count != null) ? (t.plays_count + ' plays') : '';
+    const metaBits = [t.artist_name || '', dur, plays].filter(Boolean);
     return '' +
-      '<div class="track-row" id="catalog-track-' + t.id + '">' +
-        '<div class="track-info">' +
-          '<p class="track-title">' + escapeHtml(t.title || '(sem título)') + '</p>' +
-          '<p class="track-artist">' + escapeHtml(t.artist_name || '') +
-            (t.duration ? ' · ' + Math.round(t.duration) + 's' : '') +
-            (t.plays_count != null ? ' · ' + t.plays_count + ' plays' : '') +
-          '</p>' +
+      '<div class="catalog-track" id="catalog-track-' + t.id + '">' +
+        '<span class="catalog-track-num">' + (num || '·') + '</span>' +
+        '<div class="catalog-track-info">' +
+          '<p class="title">' + escapeHtml(t.title || '(sem título)') + '</p>' +
+          '<p class="meta">' + escapeHtml(metaBits.join(' · ')) + '</p>' +
         '</div>' +
-        '<div class="track-actions">' +
-          '<button type="button" class="track-btn" title="Editar título" onclick="event.stopPropagation();editCatalogTrack(\'' + t.id + '\')">✎</button>' +
-          '<button type="button" class="track-btn danger" title="Apagar faixa" onclick="event.stopPropagation();deleteCatalogTrack(\'' + t.id + '\')">✕</button>' +
+        '<div class="catalog-track-actions">' +
+          '<button type="button" onclick="event.stopPropagation();editCatalogTrack(\'' + t.id + '\')">Editar</button>' +
+          '<button type="button" class="danger" onclick="event.stopPropagation();deleteCatalogTrack(\'' + t.id + '\')">Apagar</button>' +
         '</div>' +
       '</div>';
   }
