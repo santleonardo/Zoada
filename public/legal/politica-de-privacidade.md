@@ -143,6 +143,3 @@ Dúvidas, solicitações sobre seus dados, ou reclamações: **santannaleonardo@
 
 Se não ficar satisfeito com nossa resposta, você também pode contatar a Autoridade Nacional de Proteção de Dados (ANPD) — gov.br/anpd.
 
----
-
-*Este documento é um modelo de referência baseado em pesquisa jurídica e reflete o que o app efetivamente implementa até a data da última atualização acima. Ainda assim, deve ser revisado por um advogado antes de ser publicado em produção — especialmente os pontos marcados como "em implementação" e a avaliação de transferência internacional de dados do item 4.*
