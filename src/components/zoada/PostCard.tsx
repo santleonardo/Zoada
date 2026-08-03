@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Play, Trash2, Check, X, Loader2 } from 'lucide-react';
+import { Play, Trash2, Check, X, Loader2, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
 import { deletePost, togglePostLike } from '@/lib/api';
@@ -9,6 +9,7 @@ import type { Post } from '@/types';
 import CoverArt from './CoverArt';
 import PostCommentThread from './PostCommentThread';
 import ReactionHeart from './ReactionHeart';
+import ReportModal from './ReportModal';
 
 interface PostCardProps {
   post: Post;
@@ -26,6 +27,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, showAuthor = false, isOwner =
   const selectUser = useAppStore((state) => state.selectUser);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   // Estado local da reação de coração no OP — começa com o que veio do
   // GET /api/posts e é atualizado otimisticamente ao clicar.
   const [liked, setLiked] = useState(!!post.liked_by_me);
@@ -217,7 +219,26 @@ const PostCard: React.FC<PostCardProps> = ({ post, showAuthor = false, isOwner =
           <ReactionHeart id={post.id} active={liked} size={15} />
           {likesCount > 0 && <span className="text-xs font-medium">{likesCount}</span>}
         </button>
+
+        {!isOwner && (
+          <button
+            type="button"
+            onClick={() => {
+              if (!user) {
+                toast.error('Entre na sua conta para denunciar');
+                return;
+              }
+              setReportOpen(true);
+            }}
+            className="flex items-center gap-1 px-1 py-0.5 rounded-full text-black/25 hover:text-[#E84393] transition-colors"
+            aria-label="Denunciar postagem"
+          >
+            <Flag size={13} />
+          </button>
+        )}
       </div>
+
+      <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} targetType="POSTAGEM" targetId={post.id} />
 
       <PostCommentThread postId={post.id} initialCount={post.comments_count} />
 

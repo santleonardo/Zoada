@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { MessageCircle, Send, Loader2, Trash2, Check, X } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Trash2, Check, X, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
 import { fetchPostComments, postPostComment, deletePostComment, togglePostCommentLike } from '@/lib/api';
 import type { PostComment } from '@/types';
 import { cn } from '@/lib/utils';
 import ReactionHeart from './ReactionHeart';
+import ReportModal from './ReportModal';
 
 interface PostCommentThreadProps {
   postId: string;
@@ -37,6 +38,8 @@ const PostCommentThread: React.FC<PostCommentThreadProps> = ({ postId, initialCo
   const [deletingId, setDeletingId] = useState<string | null>(null);
   // IDs de comentários com uma reação em voo, pra evitar clique duplo.
   const [reactingIds, setReactingIds] = useState<Set<string>>(new Set());
+  // Comentário com o modal de denúncia aberto no momento (só um por vez).
+  const [reportingCommentId, setReportingCommentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || loaded) return;
@@ -233,6 +236,23 @@ const PostCommentThread: React.FC<PostCommentThreadProps> = ({ postId, initialCo
                     </button>
                   </div>
 
+                  {!isMe && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!user) {
+                          toast.error('Entre na sua conta para denunciar');
+                          return;
+                        }
+                        setReportingCommentId(comment.id);
+                      }}
+                      className="self-start mt-0.5 p-1 rounded-full text-black/15 hover:text-[#E84393] hover:bg-[#E84393]/10 flex-shrink-0"
+                      aria-label="Denunciar comentário"
+                    >
+                      <Flag size={11} />
+                    </button>
+                  )}
+
                   {isMe && (
                     <div className="flex items-center flex-shrink-0">
                       {deletingId === comment.id ? (
@@ -296,6 +316,13 @@ const PostCommentThread: React.FC<PostCommentThreadProps> = ({ postId, initialCo
           )}
         </div>
       )}
+
+      <ReportModal
+        open={!!reportingCommentId}
+        onClose={() => setReportingCommentId(null)}
+        targetType="COMENTARIO_POSTAGEM"
+        targetId={reportingCommentId || ''}
+      />
     </div>
   );
 };
