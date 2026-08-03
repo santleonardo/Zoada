@@ -595,7 +595,7 @@
       <div class="radio-panel">
         <h3>⬆️ Enviar música</h3>
         <p class="sub">Escolha o artista dono da faixa, o título e o arquivo de áudio. O upload vai direto pro armazenamento.</p>
-        <input type="text" id="faixaTituloInput" maxlength="200" placeholder="Título da música">
+        <input type="text" id="faixaTituloInput" maxlength="200" placeholder="Título da música (preenchido ao escolher o arquivo)">
         <select id="faixaArtistaSelect" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); font-size:14px; margin-bottom:8px; font-family:inherit;"></select>
         <div class="field" style="margin-bottom:8px;">
           <label for="faixaCapaArquivoInput">Capa (imagem)</label>
@@ -603,7 +603,7 @@
           <img id="faixaCapaPreview" style="display:none; width:64px; height:64px; border-radius:10px; object-fit:cover; margin-top:6px;" alt="">
         </div>
         <input type="text" id="faixaCapaInput" placeholder="...ou cole a URL da capa (opcional se enviar imagem acima)">
-        <input type="file" id="faixaArquivoInput" accept="audio/*" style="width:100%; margin-bottom:10px; margin-top:8px;">
+        <input type="file" id="faixaArquivoInput" accept="audio/*" style="width:100%; margin-bottom:10px; margin-top:8px;" onchange="autoPreencherTituloFaixa(this)">
         <button class="btn-primary" onclick="uploadFaixaMod()" id="uploadFaixaBtn">Enviar música</button>
         <p class="sub" id="uploadFaixaStatus" style="margin-top:8px; min-height:16px;"></p>
       </div>
@@ -1463,6 +1463,23 @@
     });
   }
 
+  /** Preenche o título automaticamente com o nome do arquivo (sem a
+   * extensão), do mesmo jeito que já acontece no app (UploadMusicPanel).
+   * Só preenche se o campo estiver vazio ou ainda tiver o valor
+   * auto-preenchido de um arquivo escolhido antes — se a pessoa já digitou
+   * um título próprio, não sobrescreve. */
+  function autoPreencherTituloFaixa(inputEl) {
+    const file = inputEl.files[0];
+    if (!file) return;
+    const tituloInput = document.getElementById('faixaTituloInput');
+    const tituloAtual = tituloInput.value.trim();
+    if (!tituloAtual || tituloAtual === tituloInput.dataset.autoValue) {
+      const nomeSemExtensao = file.name.replace(/\.[^/.]+$/, '');
+      tituloInput.value = nomeSemExtensao;
+      tituloInput.dataset.autoValue = nomeSemExtensao;
+    }
+  }
+
   function previewFaixaCapa(inputEl) {
     const file = inputEl.files[0];
     const img = document.getElementById('faixaCapaPreview');
@@ -1547,6 +1564,7 @@
 
       statusEl.textContent = 'Música enviada! 🎉';
       document.getElementById('faixaTituloInput').value = '';
+      delete document.getElementById('faixaTituloInput').dataset.autoValue;
       document.getElementById('faixaCapaInput').value = '';
       capaFileInput.value = '';
       document.getElementById('faixaCapaPreview').style.display = 'none';
