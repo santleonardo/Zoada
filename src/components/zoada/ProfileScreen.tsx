@@ -16,6 +16,7 @@ import {
   Download,
   Loader2,
   ShieldOff,
+  Lock,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { TopListenedTrack } from '@/types';
@@ -56,6 +57,7 @@ const ProfileScreen: React.FC = () => {
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [blockedUsersOpen, setBlockedUsersOpen] = useState(false);
+  const [privateProfileSaving, setPrivateProfileSaving] = useState(false);
   const [exportingData, setExportingData] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
@@ -74,6 +76,26 @@ const ProfileScreen: React.FC = () => {
   useEffect(() => {
     fetchTopListenedTracks(10).then(setTopTracks);
   }, []);
+
+  const handleTogglePrivateProfile = async () => {
+    if (!user || privateProfileSaving) return;
+    const next = !user.private_profile;
+    setPrivateProfileSaving(true);
+    try {
+      const updated = await updateMyProfile({ private_profile: next });
+      if (updated) {
+        setUser({
+          ...user,
+          private_profile:
+            updated.private_profile !== undefined ? updated.private_profile : next,
+        });
+      }
+    } catch {
+      // Mantém o valor anterior se falhar
+    } finally {
+      setPrivateProfileSaving(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -380,6 +402,37 @@ const ProfileScreen: React.FC = () => {
       {/* Settings */}
       <div className="space-y-2 mb-6">
         <h3 className="text-lg font-semibold text-[#1A1B25] mb-3">Configurações</h3>
+
+        {/* Perfil privado — toggle visível direto na lista de configurações */}
+        <div className="flex items-center justify-between w-full p-3 rounded-xl bg-white shadow-sm mb-2 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-black/50"><Lock size={18} /></span>
+            <div className="min-w-0">
+              <p className="text-sm text-[#1A1B25] font-medium">Perfil privado</p>
+              <p className="text-[11px] text-black/40 leading-snug">
+                Só seguidores veem postagens, artistas e mais ouvidas
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!user.private_profile}
+            aria-label="Perfil privado"
+            disabled={privateProfileSaving}
+            onClick={handleTogglePrivateProfile}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${
+              user.private_profile ? 'bg-[#FF8C42]' : 'bg-black/15'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                user.private_profile ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
         {([
           { icon: <Settings size={18} />, label: 'Notificações' },
           { icon: <Music2 size={18} />, label: 'Qualidade de áudio', onClick: () => setAudioQualityOpen(true) },
