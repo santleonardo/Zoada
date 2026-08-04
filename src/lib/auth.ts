@@ -98,6 +98,7 @@ export function buildUserResponse(user: {
   avatarUrl: string | null;
   createdAt: Date;
   perfilPrivado?: boolean;
+  ocultarListaSeguidores?: boolean;
 }, token: string): User & { token: string } {
   return {
     id: user.id,
@@ -106,6 +107,7 @@ export function buildUserResponse(user: {
     avatar_url: user.avatarUrl || null,
     created_at: user.createdAt.toISOString(),
     private_profile: !!user.perfilPrivado,
+    hide_follow_lists: !!user.ocultarListaSeguidores,
     token,
   };
 }

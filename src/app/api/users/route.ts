@@ -34,6 +34,7 @@ export async function GET(request: Request) {
           seguidoresCount: true,
           seguindoCount: true,
           perfilPrivado: true,
+          ocultarListaSeguidores: true,
           artistas: {
             where: { ...notDeleted },
             orderBy: { createdAt: 'desc' },
@@ -94,6 +95,10 @@ export async function GET(request: Request) {
           is_private: !!usuario.perfilPrivado,
           // Só o dono recebe o flag editável (pra pré-preencher o toggle).
           private_profile: isOwner ? !!usuario.perfilPrivado : undefined,
+          // Visível pra qualquer um: se true, quem não é o dono não pode
+          // abrir a lista de Seguidores/Seguindo (só os números continuam
+          // aparecendo). Ver GET /api/follow-user, que aplica a restrição.
+          hide_follow_lists: !!usuario.ocultarListaSeguidores,
           // Conteúdo restrito pra não-seguidores quando o perfil é privado.
           artists: canViewFull
             ? usuario.artistas.map((a) => ({
@@ -192,6 +197,11 @@ export async function PATCH(request: Request) {
       body.private_profile !== undefined
         ? body.private_profile
         : body.perfilPrivado;
+    // Aceita tanto hide_follow_lists (snake do front) quanto ocultarListaSeguidores.
+    const hideFollowLists =
+      body.hide_follow_lists !== undefined
+        ? body.hide_follow_lists
+        : body.ocultarListaSeguidores;
 
     if (name !== undefined && !String(name).trim()) {
       return NextResponse.json({ error: 'Nome não pode ficar vazio' }, { status: 400 });
@@ -199,6 +209,10 @@ export async function PATCH(request: Request) {
 
     if (privateProfile !== undefined && typeof privateProfile !== 'boolean') {
       return NextResponse.json({ error: 'private_profile deve ser boolean' }, { status: 400 });
+    }
+
+    if (hideFollowLists !== undefined && typeof hideFollowLists !== 'boolean') {
+      return NextResponse.json({ error: 'hide_follow_lists deve ser boolean' }, { status: 400 });
     }
 
     if (bio !== undefined && bio !== null && typeof bio !== 'string') {
@@ -215,6 +229,7 @@ export async function PATCH(request: Request) {
         ...(avatarUrl !== undefined ? { avatarUrl } : {}),
         ...(bio !== undefined ? { bio: trimmedBio || null } : {}),
         ...(privateProfile !== undefined ? { perfilPrivado: !!privateProfile } : {}),
+        ...(hideFollowLists !== undefined ? { ocultarListaSeguidores: !!hideFollowLists } : {}),
       },
     });
 
@@ -227,6 +242,7 @@ export async function PATCH(request: Request) {
         bio: usuario.bio,
         created_at: usuario.createdAt.toISOString(),
         private_profile: !!usuario.perfilPrivado,
+        hide_follow_lists: !!usuario.ocultarListaSeguidores,
       },
     });
   } catch (error) {

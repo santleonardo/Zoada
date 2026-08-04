@@ -9,6 +9,8 @@ export interface User {
   created_at: string;
   /** Perfil privado: só seguidores veem conteúdo completo. */
   private_profile?: boolean;
+  /** Oculta a lista de Seguidores/Seguindo do público em geral. */
+  hide_follow_lists?: boolean;
 }
 
 // Perfil público de OUTRO usuário (ex: quem comentou numa faixa, ou o
@@ -32,6 +34,8 @@ export interface PublicUserProfile {
   is_private?: boolean;
   /** Só o próprio dono recebe: valor atual do toggle. */
   private_profile?: boolean;
+  /** Dono optou por ocultar a lista de Seguidores/Seguindo do público. */
+  hide_follow_lists?: boolean;
   /** Viewer não pode ver conteúdo (privado e não-seguidor). */
   profile_locked?: boolean;
 }

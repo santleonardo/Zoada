@@ -39,6 +39,19 @@ export async function GET(request: Request) {
     // pessoa junto (join com Usuario), pra alimentar direto a lista da tela
     // "Seguindo" sem precisar de uma chamada por usuário.
     if (followerId) {
+      // Dono pode ter optado por ocultar essa lista do público — só ele
+      // mesmo consegue ver quem segue (autenticado como esse followerId).
+      const dono = await db.usuario.findUnique({
+        where: { id: followerId },
+        select: { ocultarListaSeguidores: true },
+      });
+      if (dono?.ocultarListaSeguidores) {
+        const viewerId = await authenticateRequest(request);
+        if (viewerId !== followerId) {
+          return NextResponse.json({ follows: [], hidden: true });
+        }
+      }
+
       const registros = await db.seguirUsuario.findMany({
         where: { seguidorId: followerId, seguido: { ...notDeleted } },
         orderBy: { createdAt: 'desc' },
@@ -65,6 +78,18 @@ export async function GET(request: Request) {
     // Listar seguidores de um usuário — mesmo formato, só que trazendo quem
     // segue (seguidor) em vez de quem é seguido.
     if (followedId) {
+      // Mesma restrição: se o dono ocultou a lista, só ele vê quem o segue.
+      const dono = await db.usuario.findUnique({
+        where: { id: followedId },
+        select: { ocultarListaSeguidores: true },
+      });
+      if (dono?.ocultarListaSeguidores) {
+        const viewerId = await authenticateRequest(request);
+        if (viewerId !== followedId) {
+          return NextResponse.json({ follows: [], hidden: true });
+        }
+      }
+
       const registros = await db.seguirUsuario.findMany({
         where: { seguidoId: followedId, seguidor: { ...notDeleted } },
         orderBy: { createdAt: 'desc' },

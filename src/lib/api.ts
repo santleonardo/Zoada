@@ -178,6 +178,7 @@ export async function updateMyProfile(fields: {
   avatarUrl?: string | null;
   bio?: string | null;
   private_profile?: boolean;
+  hide_follow_lists?: boolean;
 }): Promise<{
   id: string;
   email: string;
@@ -186,6 +187,7 @@ export async function updateMyProfile(fields: {
   bio?: string | null;
   created_at: string;
   private_profile?: boolean;
+  hide_follow_lists?: boolean;
 } | null> {
   try {
     const res = await apiFetch('/api/users', {
@@ -305,31 +307,40 @@ export interface FollowListItem {
   bio: string | null;
 }
 
+// Resultado de uma busca de seguidores/seguindo: `hidden: true` quando o
+// dono da lista optou por ocultá-la do público (ver toggle no Perfil) e
+// quem está pedindo não é o próprio dono — nesse caso `items` vem vazio
+// de propósito, não é ausência real de seguidores.
+export interface FollowListResult {
+  items: FollowListItem[];
+  hidden: boolean;
+}
+
 // Busca a lista de usuários que um usuário segue ("Seguindo").
-export async function fetchUserFollowing(userId: string): Promise<FollowListItem[]> {
+export async function fetchUserFollowing(userId: string): Promise<FollowListResult> {
   try {
     const res = await apiFetch(`/api/follow-user?follower_id=${encodeURIComponent(userId)}`);
-    if (!res.ok) return [];
+    if (!res.ok) return { items: [], hidden: false };
     const data = await res.json();
     const follows = Array.isArray(data.follows) ? data.follows : [];
-    return follows.map((f: { user: FollowListItem }) => f.user).filter(Boolean);
+    return { items: follows.map((f: { user: FollowListItem }) => f.user).filter(Boolean), hidden: !!data.hidden };
   } catch (err) {
     console.warn('[fetchUserFollowing] falha ao buscar seguindo:', err);
-    return [];
+    return { items: [], hidden: false };
   }
 }
 
 // Busca a lista de quem segue um usuário ("Seguidores").
-export async function fetchUserFollowers(userId: string): Promise<FollowListItem[]> {
+export async function fetchUserFollowers(userId: string): Promise<FollowListResult> {
   try {
     const res = await apiFetch(`/api/follow-user?followed_id=${encodeURIComponent(userId)}`);
-    if (!res.ok) return [];
+    if (!res.ok) return { items: [], hidden: false };
     const data = await res.json();
     const follows = Array.isArray(data.follows) ? data.follows : [];
-    return follows.map((f: { user: FollowListItem }) => f.user).filter(Boolean);
+    return { items: follows.map((f: { user: FollowListItem }) => f.user).filter(Boolean), hidden: !!data.hidden };
   } catch (err) {
     console.warn('[fetchUserFollowers] falha ao buscar seguidores:', err);
-    return [];
+    return { items: [], hidden: false };
   }
 }
 
