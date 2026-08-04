@@ -10,7 +10,7 @@ Esta Política de Privacidade explica quais dados pessoais o Zôada coleta, por 
 
 ## 1. Quem trata seus dados
 
-**Leonardo de Sant'Anna Almeida** é o controlador dos dados pessoais tratados pelo Zôada. Contato do encarregado (DPO) / canal de privacidade: **santannaleonardo@hotmail.com** ou pelo canal **"Fale com a Moderação"**, disponível no seu Perfil dentro do app.
+**Leonardo de Sant'Anna Almeida** é o controlador dos dados pessoais tratados pelo Zôada. Contato do encarregado (DPO) / canal de privacidade: **santannaleonardo@hotmail.com**.
 
 ---
 
@@ -139,7 +139,7 @@ Podemos atualizar esta Política periodicamente. Mudanças relevantes serão com
 
 ## 12. Contato
 
-Dúvidas, solicitações sobre seus dados, ou reclamações: **santannaleonardo@hotmail.com** ou pelo canal **"Fale com a Moderação"**, disponível no seu Perfil dentro do app.
+Dúvidas, solicitações sobre seus dados, ou reclamações: **santannaleonardo@hotmail.com**.
 
 Se não ficar satisfeito com nossa resposta, você também pode contatar a Autoridade Nacional de Proteção de Dados (ANPD) — gov.br/anpd.
 
