@@ -46,6 +46,43 @@ function saveAudioQuality(quality: AudioQuality) {
   localStorage.setItem(AUDIO_QUALITY_KEY, quality);
 }
 
+// Preferências de notificação: quais tipos de notificação a pessoa quer
+// ver na central de notificações (sino) e contar no badge. É um filtro
+// só do lado do cliente — o servidor continua gerando e guardando todas
+// (ver src/lib/notifications.ts), então desligar um tipo aqui não afeta
+// quem recebe notificação de você, só o que você vê chegar. Persistido
+// localmente como o resto das prefs de dispositivo.
+export type NotificationPrefType = 'follow' | 'artist_follow' | 'post_like' | 'post_comment' | 'comment_like';
+
+export type NotificationPrefs = Record<NotificationPrefType, boolean>;
+
+const NOTIFICATION_PREFS_KEY = 'zoada-notification-prefs';
+
+const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
+  follow: true,
+  artist_follow: true,
+  post_like: true,
+  post_comment: true,
+  comment_like: true,
+};
+
+function loadNotificationPrefs(): NotificationPrefs {
+  if (typeof window === 'undefined') return { ...DEFAULT_NOTIFICATION_PREFS };
+  try {
+    const stored = localStorage.getItem(NOTIFICATION_PREFS_KEY);
+    if (!stored) return { ...DEFAULT_NOTIFICATION_PREFS };
+    const parsed = JSON.parse(stored);
+    return { ...DEFAULT_NOTIFICATION_PREFS, ...parsed };
+  } catch {
+    return { ...DEFAULT_NOTIFICATION_PREFS };
+  }
+}
+
+function saveNotificationPrefs(prefs: NotificationPrefs) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefs));
+}
+
 // Embaralha uma lista de IDs (Fisher-Yates). Usado para sortear cada novo
 // "embrulho" do shuffle bag do rádio — dá uma distribuição realmente
 // uniforme, diferente de `.sort(() => Math.random() - 0.5)`, que é
@@ -148,6 +185,8 @@ interface AppState {
   // o badge do sininho via polling leve (fetchUnreadNotificationsCount)
   // sem precisar recarregar a lista inteira toda vez.
   unreadNotificationsCount: number;
+  // Preferências locais de quais tipos de notificação mostrar/contar.
+  notificationPrefs: NotificationPrefs;
 
   // Actions - Auth
   setUser: (user: User | null, token?: string | null) => void;
@@ -166,6 +205,9 @@ interface AppState {
   // Marca uma notificação como lida (otimista: atualiza local antes da resposta do servidor).
   markNotificationAsRead: (id: string) => Promise<void>;
   markAllNotificationsAsRead: () => Promise<void>;
+  // Liga/desliga um tipo de notificação e já reaplica o filtro na lista
+  // e no contador de não lidas carregados atualmente.
+  setNotificationPref: (type: NotificationPrefType, enabled: boolean) => void;
 
   // Actions - Navigation
   navigate: (screen: Screen, tab?: MainTab) => void;
@@ -276,6 +318,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   radioPadrao: null,
   notifications: [],
   unreadNotificationsCount: 0,
+  notificationPrefs: loadNotificationPrefs(),
 
   player: {
     currentTrack: null,
@@ -438,6 +481,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!ok) {
       set({ notifications: before.notifications, unreadNotificationsCount: before.unreadNotificationsCount });
     }
+  },
+
+  setNotificationPref: (type, enabled) => {
+    const next = { ...get().notificationPrefs, [type]: enabled };
+    saveNotificationPrefs(next);
+    set({ notificationPrefs: next });
   },
 
   // Navigation actions
