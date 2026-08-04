@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Send, ArrowLeft, MessageCircle, X, Plus, Music, Play, Pause } from 'lucide-react';
+import { Search, Send, ArrowLeft, MessageCircle, X, Plus, Music, Play, Pause, Flag } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { fetchConversations, fetchMessages, sendMessageApi, searchUsers, fetchPresence, fetchAllTracks } from '@/lib/api';
 import { isOnline, formatLastSeen, HEARTBEAT_INTERVAL_MS } from '@/lib/presence';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
+import ReportModal from './ReportModal';
 import type { Message, Conversation, User, Track } from '@/types';
 
 const ChatScreen: React.FC = () => {
@@ -149,6 +150,7 @@ const ChatConversation: React.FC = () => {
   const [presence, setPresence] = useState<{ online: boolean; last_seen_at: string | null } | null>(null);
   const [showShareSong, setShowShareSong] = useState(false);
   const [sendingTrackId, setSendingTrackId] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -263,6 +265,14 @@ const ChatConversation: React.FC = () => {
             </p>
           )}
         </div>
+        <button
+          onClick={() => setReportOpen(true)}
+          className="p-2 rounded-full hover:bg-black/5 transition-colors flex-shrink-0"
+          aria-label="Denunciar conversa"
+          title="Denunciar"
+        >
+          <Flag size={18} className="text-black/40" />
+        </button>
       </div>
 
       {/* Messages */}
@@ -365,6 +375,13 @@ const ChatConversation: React.FC = () => {
           sendingTrackId={sendingTrackId}
         />
       )}
+
+      <ReportModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="USUARIO"
+        targetId={selectedConversationId}
+      />
     </div>
   );
 };
