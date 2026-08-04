@@ -409,13 +409,26 @@ export async function fetchMessages(partnerId: string): Promise<Message[]> {
 }
 
 // Envia uma mensagem de verdade (persistida no banco). `trackId`, quando
-// informado, transforma a mensagem em um "link de música" tocável — nesse
-// caso `content` pode ficar vazio, que o servidor preenche um texto padrão.
-export async function sendMessageApi(receiverId: string, content: string, trackId?: string): Promise<Message | null> {
+// informado, transforma a mensagem em um "link de música" tocável; `audio`,
+// quando informado, transforma a mensagem em uma mensagem de voz tocável.
+// Em ambos os casos `content` pode ficar vazio, que o servidor preenche um
+// texto padrão.
+export async function sendMessageApi(
+  receiverId: string,
+  content: string,
+  trackId?: string,
+  audio?: { url: string; duration: number }
+): Promise<Message | null> {
   try {
     const res = await apiFetch('/api/messages', {
       method: 'POST',
-      body: JSON.stringify({ receiver_id: receiverId, content, track_id: trackId }),
+      body: JSON.stringify({
+        receiver_id: receiverId,
+        content,
+        track_id: trackId,
+        audio_url: audio?.url,
+        audio_duration: audio?.duration,
+      }),
     });
     if (!res.ok) return null;
     return await res.json();

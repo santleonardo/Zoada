@@ -171,6 +171,10 @@ export interface Message {
   // mensagem é um "link de música" tocável em vez de um texto simples.
   track_id?: string | null;
   track?: Track | null;
+  // Mensagem de voz (opcional). Quando presente, a mensagem é um player de
+  // áudio tocável em vez de um texto simples.
+  audio_url?: string | null;
+  audio_duration?: number | null;
 }
 
 export interface Conversation {

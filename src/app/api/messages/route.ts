@@ -88,6 +88,8 @@ export async function GET(request: Request) {
         },
         track_id: m.faixaId,
         track: mapFaixaToTrack(m.faixa),
+        audio_url: m.audioUrl,
+        audio_duration: m.audioDuracao,
       }));
 
       // Mark unread messages as read
@@ -145,12 +147,15 @@ export async function GET(request: Request) {
             sender_id: m.remetenteId,
             receiver_id: m.destinatarioId,
             // Prévia amigável na lista de conversas quando a última
-            // mensagem foi uma música compartilhada (sem faixa == texto normal).
-            content: m.faixa ? `🎵 ${m.faixa.titulo}` : m.conteudo,
+            // mensagem foi uma música compartilhada ou um áudio gravado
+            // (sem nenhum dos dois == texto normal).
+            content: m.faixa ? `🎵 ${m.faixa.titulo}` : m.audioUrl ? '🎤 Mensagem de voz' : m.conteudo,
             read: m.lida,
             created_at: m.createdAt.toISOString(),
             track_id: m.faixaId,
             track: mapFaixaToTrack(m.faixa),
+            audio_url: m.audioUrl,
+            audio_duration: m.audioDuracao,
           },
           unreadCount: 0,
         });
@@ -185,14 +190,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { receiver_id, content, track_id } = await request.json();
+    const { receiver_id, content, track_id, audio_url, audio_duration } = await request.json();
     // content é obrigatório normalmente, mas quando uma faixa é compartilhada
-    // (track_id presente) o texto vira opcional — nesse caso preenchemos um
-    // texto padrão pra manter compatibilidade com qualquer lugar que ainda
-    // exiba `content` como texto puro (ex: notificações).
-    if (!receiver_id || (!content && !track_id)) {
+    // (track_id presente) ou uma mensagem de voz é enviada (audio_url
+    // presente) o texto vira opcional — nesse caso preenchemos um texto
+    // padrão pra manter compatibilidade com qualquer lugar que ainda exiba
+    // `content` como texto puro (ex: notificações).
+    if (!receiver_id || (!content && !track_id && !audio_url)) {
       return NextResponse.json(
-        { error: 'receiver_id e (content ou track_id) são obrigatórios' },
+        { error: 'receiver_id e (content, track_id ou audio_url) são obrigatórios' },
         { status: 400 }
       );
     }
@@ -235,12 +241,26 @@ export async function POST(request: Request) {
       if (!fallbackContent) fallbackContent = `🎵 ${faixa.titulo}`;
     }
 
+    // Mensagem de voz: audio_url vem de um upload já feito pro R2 (ver
+    // /api/storage/presign-upload). Não validamos a URL em si (assim como
+    // não se valida coverUrl/audioUrl de faixas) — só aceitamos e guardamos.
+    const audioUrlValue: string | null = typeof audio_url === 'string' && audio_url.trim() ? audio_url.trim() : null;
+    // Trava de 60s também no servidor (defesa extra: a gravação no app já
+    // não deixa passar disso, mas nada impede uma chamada direta à API).
+    const MAX_AUDIO_SECONDS = 60;
+    const audioDuracaoValue: number | null = audioUrlValue && Number.isFinite(audio_duration)
+      ? Math.min(MAX_AUDIO_SECONDS, Math.max(0, Math.round(audio_duration)))
+      : null;
+    if (audioUrlValue && !fallbackContent) fallbackContent = '🎤 Mensagem de voz';
+
     const mensagem = await db.mensagem.create({
       data: {
         remetenteId: userId,
         destinatarioId: receiver_id,
         conteudo: fallbackContent,
         faixaId,
+        audioUrl: audioUrlValue,
+        audioDuracao: audioDuracaoValue,
       },
       include: {
         remetente: { select: { id: true, name: true, avatarUrl: true } },
@@ -264,6 +284,8 @@ export async function POST(request: Request) {
       },
       track_id: mensagem.faixaId,
       track: mapFaixaToTrack(mensagem.faixa),
+      audio_url: mensagem.audioUrl,
+      audio_duration: mensagem.audioDuracao,
     }, { status: 201 });
   } catch (error) {
     console.error('[MESSAGES POST]', error);

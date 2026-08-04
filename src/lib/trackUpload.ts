@@ -242,6 +242,15 @@ export async function uploadImageFile(file: File, folder: 'avatars' | 'covers' |
   return uploadFileViaServer(file, folder);
 }
 
+/**
+ * Sobe um áudio de mensagem de voz (gravado no navegador com MediaRecorder)
+ * direto pro R2, igual ao upload de música — sem passar pelo Vercel, já que
+ * o corpo de uma Serverless Function tem limite de ~4.5MB.
+ */
+export async function uploadVoiceMessage(file: File): Promise<string> {
+  return uploadFileDirectToR2(file, 'voice-messages');
+}
+
 /** Apaga uma faixa já enviada (remove do banco e tenta apagar os arquivos no R2). */
 export async function deleteTrackFile(trackId: string): Promise<void> {
   const res = await apiFetch(`/api/tracks?id=${encodeURIComponent(trackId)}`, {
