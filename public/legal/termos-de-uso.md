@@ -12,7 +12,7 @@ Se você não concordar com algum ponto, não utilize o Zôada.
 
 ## 1. Quem somos
 
-O Zôada é operado por **Leonardo de Sant'Anna Almeida**. Dúvidas, solicitações e notificações sobre o Zôada podem ser enviadas para **santannaleonardo@hotmail.com**.
+O Zôada é operado por **Leonardo de Sant'Anna Almeida**. Dúvidas, solicitações e notificações sobre o Zôada podem ser enviadas para **santannaleonardo@hotmail.com** ou pelo canal **"Fale com a Moderação"**, disponível no seu Perfil dentro do app.
 
 O Zôada é oferecido **gratuitamente**. Mesmo sem cobrança, o uso do app configura relação de consumo nos termos do art. 3º, §2º, do Código de Defesa do Consumidor (Lei 8.078/1990), já que envolve tratamento de dados, construção de audiência e eventual monetização futura. Por isso, você tem os direitos e garantias do CDC descritos abaixo, além dos previstos na legislação aplicável.
 
@@ -101,6 +101,6 @@ Estes Termos são regidos pelas leis da República Federativa do Brasil. Fica el
 
 ## 11. Contato
 
-Dúvidas, solicitações ou notificações sobre estes Termos: **santannaleonardo@hotmail.com**.
+Dúvidas, solicitações ou notificações sobre estes Termos: **santannaleonardo@hotmail.com** ou pelo canal **"Fale com a Moderação"**, disponível no seu Perfil dentro do app.
 
 
