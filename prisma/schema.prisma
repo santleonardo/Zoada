@@ -87,6 +87,13 @@ model Usuario {
   // Seguidores e o próprio dono continuam vendo o perfil completo.
   perfilPrivado Boolean @default(false) @map("perfil_privado")
 
+  // Oculta a lista de quem segue e de quem é seguido (/api/follow-user)
+  // do público em geral — diferente de `perfilPrivado`, que esconde o
+  // perfil inteiro de não-seguidores, aqui só a LISTA fica restrita: só
+  // o próprio dono consegue abrir "Seguidores" / "Seguindo" (os números
+  // continuam visíveis pra qualquer um, só a lista de nomes é que some).
+  ocultarListaSeguidores Boolean @default(false) @map("ocultar_lista_seguidores")
+
   curtidas     Curtida[]
   favoritos    Favorito[]
   comentarios  Comentario[]
