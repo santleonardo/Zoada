@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
 import type { Components } from 'react-markdown';
+import SupportChatPanel from '@/components/zoada/SupportChatPanel';
 
 interface LegalDocumentProps {
   title: string;
@@ -95,6 +96,10 @@ const LegalDocument: React.FC<LegalDocumentProps> = ({ title, content }) => {
         >
           {content}
         </ReactMarkdown>
+
+        {/* Mesmo canal de contato usado no Perfil — a caixa de mensagens
+            com a Moderação, direto aqui embaixo do documento. */}
+        <SupportChatPanel />
       </div>
     </div>
   );
