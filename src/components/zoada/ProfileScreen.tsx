@@ -20,6 +20,7 @@ import {
   User,
   Shield,
   Users,
+  Share2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { TopListenedTrack } from '@/types';
@@ -61,6 +62,13 @@ const ProfileScreen: React.FC = () => {
   const profileCardRef = useRef<HTMLDivElement>(null);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
   const [followListTab, setFollowListTab] = useState<'followers' | 'following' | null>(null);
+  // Só preenchido depois de montar no cliente (evita mismatch de hidratação
+  // entre o `href` renderizado no servidor e o do navegador).
+  const [inviteUrl, setInviteUrl] = useState('');
+
+  useEffect(() => {
+    setInviteUrl(window.location.origin);
+  }, []);
 
   // Busca os contadores de seguidores/seguindo do próprio usuário — não vêm
   // no objeto `user` da sessão, então precisa desse fetch à parte (mesma
@@ -251,6 +259,13 @@ const ProfileScreen: React.FC = () => {
     setExportingData(false);
   };
 
+  // Link de convite: manda pro WhatsApp com uma mensagem pronta e o
+  // endereço do próprio app (origin do navegador). É um `href` de verdade
+  // (não um onClick com Web Share API), então funciona igual a Termos/
+  // Privacidade — abre a conversa/compartilhamento numa aba nova.
+  const inviteMessage = `Vem ouvir música comigo no Zôada! 🎶 ${inviteUrl}`;
+  const inviteHref = `https://wa.me/?text=${encodeURIComponent(inviteMessage)}`;
+
   // Configurações agrupadas por seção (acordeão). "Conta" também guarda o
   // switch de Perfil privado, renderizado à parte por não ser um item de
   // navegação como os demais.
@@ -267,6 +282,7 @@ const ProfileScreen: React.FC = () => {
       items: [
         { icon: <Edit3 size={18} />, label: 'Editar perfil', onClick: handleStartEdit },
         { icon: <Settings size={18} />, label: 'Notificações', onClick: () => setNotificationSettingsOpen(true) },
+        { icon: <Share2 size={18} />, label: 'Convidar amigos', href: inviteHref },
       ],
     },
     {
