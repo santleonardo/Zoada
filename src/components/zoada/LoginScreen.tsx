@@ -48,6 +48,17 @@ const LoginScreen: React.FC = () => {
       }
 
       if (!res.ok || data.error) {
+        // Conta suspensa pela moderação: mensagem específica com o prazo
+        // (e o motivo, se a moderação registrou um).
+        if (data.suspended && data.suspended_until) {
+          const ate = new Date(data.suspended_until);
+          const fmt = ate.toLocaleDateString('pt-BR') + ' às ' + ate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          setError(
+            'Sua conta está suspensa até ' + fmt + '.' +
+            (data.suspended_reason ? ' Motivo: ' + data.suspended_reason : '')
+          );
+          return;
+        }
         // Erro de verdade (ex: senha incorreta) — mostra pro usuário,
         // NÃO loga como demo, senão ele acaba "logado" sem token real.
         setError(data.error || 'Não foi possível entrar. Tente novamente.');
