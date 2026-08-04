@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, TrendingUp, Play, Music2, Star, Flame, Users, HeartHandshake, Radio as RadioIcon } from 'lucide-react';
+import { Search, TrendingUp, Play, Music2, Star, Flame, Users, HeartHandshake, Radio as RadioIcon, Bell } from 'lucide-react';
 import { useAppStore, type MainTab } from '@/store/useAppStore';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
 import type { Track, Artist, UserSearchResult, RadioStation, Post } from '@/types';
@@ -20,7 +20,7 @@ const MainScreen: React.FC = () => {
     playTrack, player, selectArtist, selectUser, mainTab: activeTab, setMainTab: setActiveTab,
     favorites, toggleFavorite, lastCountedPlay, user,
     publishedStations, loadPublishedStations, tuneIntoStation, navigate,
-    selectStation, startRadio,
+    selectStation, startRadio, unreadNotificationsCount,
   } = useAppStore();
   const [search, setSearch] = useState('');
   const [tracks, setTracks] = useState<Track[]>(DEMO_TRACKS);
@@ -749,6 +749,25 @@ const MainScreen: React.FC = () => {
 
   return (
     <div className="px-4 pt-4 pb-4">
+      {/* Barra superior fixa: sempre visível, independente da aba ativa
+          (diferente do cabeçalho de título logo abaixo, que some na aba
+          "tracks"). Por ora só o sininho de notificações mora aqui. */}
+      <div className="flex items-center justify-end mb-2">
+        <button
+          type="button"
+          onClick={() => navigate('notifications')}
+          className="relative p-2 rounded-full bg-black/5 hover:bg-black/10 transition-colors"
+          aria-label="Notificações"
+        >
+          <Bell size={18} className="text-[#1A1B25]" />
+          {unreadNotificationsCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#E84393] text-white text-[9px] font-bold flex items-center justify-center leading-none">
+              {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+            </span>
+          )}
+        </button>
+      </div>
+
       <AnnouncementBanner />
 
       {/* Header: na aba de faixas o título "Início" some pra dar mais
