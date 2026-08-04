@@ -38,6 +38,10 @@ model Usuario {
   suspensoAte    DateTime? @map("suspenso_ate")
   suspensoMotivo String?   @map("suspenso_motivo")
 
+  // Perfil privado: não-seguidores só veem nome/foto/contadores básicos.
+  // Seguidores e o próprio dono continuam vendo o perfil completo.
+  perfilPrivado Boolean @default(false) @map("perfil_privado")
+
   curtidas     Curtida[]
   favoritos    Favorito[]
   comentarios  Comentario[]
