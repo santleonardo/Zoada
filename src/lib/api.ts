@@ -176,12 +176,14 @@ export async function uploadAvatar(file: File): Promise<string | null> {
 export async function updateMyProfile(fields: {
   name?: string;
   avatarUrl?: string | null;
+  bio?: string | null;
   private_profile?: boolean;
 }): Promise<{
   id: string;
   email: string;
   name: string;
   avatar_url: string | null;
+  bio?: string | null;
   created_at: string;
   private_profile?: boolean;
 } | null> {

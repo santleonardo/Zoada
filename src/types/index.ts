@@ -3,6 +3,8 @@ export interface User {
   email: string;
   name: string;
   avatar_url: string | null;
+  /** Bio/descrição curta do usuário, exibida no perfil. */
+  bio?: string | null;
   last_seen_at?: string | null;
   created_at: string;
   /** Perfil privado: só seguidores veem conteúdo completo. */
@@ -16,6 +18,8 @@ export interface PublicUserProfile {
   id: string;
   name: string;
   avatar_url: string | null;
+  /** Bio/descrição curta do usuário. */
+  bio?: string | null;
   last_seen_at?: string | null;
   created_at: string;
   followers_count: number;

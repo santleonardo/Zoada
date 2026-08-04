@@ -28,6 +28,7 @@ export async function GET(request: Request) {
           id: true,
           name: true,
           avatarUrl: true,
+          bio: true,
           lastSeenAt: true,
           createdAt: true,
           seguidoresCount: true,
@@ -82,6 +83,7 @@ export async function GET(request: Request) {
           id: usuario.id,
           name: usuario.name,
           avatar_url: usuario.avatarUrl,
+          bio: usuario.bio,
           last_seen_at: canViewFull
             ? (usuario.lastSeenAt?.toISOString() ?? null)
             : null,
@@ -184,7 +186,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { name, avatarUrl } = body;
+    const { name, avatarUrl, bio } = body;
     // Aceita tanto private_profile (snake do front) quanto perfilPrivado.
     const privateProfile =
       body.private_profile !== undefined
@@ -199,11 +201,19 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'private_profile deve ser boolean' }, { status: 400 });
     }
 
+    if (bio !== undefined && bio !== null && typeof bio !== 'string') {
+      return NextResponse.json({ error: 'bio deve ser texto' }, { status: 400 });
+    }
+
+    // Bio é opcional, mas se vier, limita o tamanho pra evitar textos gigantes.
+    const trimmedBio = typeof bio === 'string' ? bio.trim().slice(0, 280) : bio;
+
     const usuario = await db.usuario.update({
       where: { id: userId },
       data: {
         ...(name !== undefined ? { name: String(name).trim() } : {}),
         ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+        ...(bio !== undefined ? { bio: trimmedBio || null } : {}),
         ...(privateProfile !== undefined ? { perfilPrivado: !!privateProfile } : {}),
       },
     });
@@ -214,6 +224,7 @@ export async function PATCH(request: Request) {
         email: usuario.email,
         name: usuario.name,
         avatar_url: usuario.avatarUrl,
+        bio: usuario.bio,
         created_at: usuario.createdAt.toISOString(),
         private_profile: !!usuario.perfilPrivado,
       },
