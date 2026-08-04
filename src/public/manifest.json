@@ -1,0 +1,28 @@
+{
+  "name": "Zôada",
+  "short_name": "Zôada",
+  "description": "Zôada — Música. Sem Rótulos. Descubra, compartilhe e conecte-se através da música.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F7FB",
+  "theme_color": "#F7F7FB",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/zoada-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/zoada-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "entertainment", "social"],
+  "lang": "pt-BR",
+  "dir": "ltr"
+}
