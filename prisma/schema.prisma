@@ -12,6 +12,51 @@ datasource db {
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
+// ---------- Notificações ----------
+// Central de avisos do usuário: alguém seguiu você, seguiu um artista seu,
+// curtiu/comentou numa postagem sua, ou curtiu um comentário seu. Cada
+// linha é UM evento (não agrupamos vários "curtiu" numa notificação só,
+// por simplicidade) — a tela de notificações é quem decide como agrupar
+// na exibição, se um dia isso for necessário.
+enum TipoNotificacao {
+  SEGUIDOR            // alguém passou a seguir o SEU perfil de usuário
+  SEGUIDOR_ARTISTA    // alguém passou a seguir um ARTISTA seu
+  CURTIDA_POSTAGEM    // alguém reagiu (coração) numa postagem sua
+  COMENTARIO_POSTAGEM // alguém comentou numa postagem sua
+  CURTIDA_COMENTARIO  // alguém reagiu (coração) num comentário seu
+
+  @@map("tipo_notificacao")
+}
+
+model Notificacao {
+  id           String           @id @default(cuid())
+  // Dono da notificação — quem vê ela na tela de notificações.
+  usuarioId    String           @map("usuario_id")
+  // Quem fez a ação que gerou a notificação (nunca igual a usuarioId —
+  // não notificamos ninguém sobre a própria ação).
+  atorId       String           @map("ator_id")
+  tipo         TipoNotificacao
+  // Referências opcionais ao alvo da ação, conforme o tipo. Todas com
+  // onDelete Cascade: se o conteúdo referenciado sumir de vez (ex: purga
+  // de 30 dias de algo soft-deletado), a notificação não faz mais sentido
+  // e some junto, em vez de ficar apontando pra um id morto.
+  postagemId   String?          @map("postagem_id")
+  comentarioId String?          @map("comentario_id")
+  artistaId    String?          @map("artista_id")
+  lida         Boolean          @default(false)
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  usuario    Usuario             @relation("NotificacoesRecebidas", fields: [usuarioId], references: [id], onDelete: Cascade)
+  ator       Usuario             @relation("NotificacoesGeradas", fields: [atorId], references: [id], onDelete: Cascade)
+  postagem   Postagem?           @relation(fields: [postagemId], references: [id], onDelete: Cascade)
+  comentario ComentarioPostagem? @relation(fields: [comentarioId], references: [id], onDelete: Cascade)
+  artista    Artista?            @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, createdAt])
+  @@index([usuarioId, lida])
+  @@map("notificacoes")
+}
+
 // ---------- Usuários ----------
 model Usuario {
   id                String    @id @default(cuid())
@@ -62,6 +107,8 @@ model Usuario {
   denuncias    Denuncia[]
   bloqueiosFeitos    Bloqueio[] @relation("BloqueiosFeitos")
   bloqueiosRecebidos Bloqueio[] @relation("BloqueiosRecebidos")
+  notificacoesRecebidas Notificacao[] @relation("NotificacoesRecebidas")
+  notificacoesGeradas   Notificacao[] @relation("NotificacoesGeradas")
 
   @@map("usuarios")
 }
@@ -91,6 +138,7 @@ model Artista {
 
   faixas   Faixa[]
   seguidores Seguindo[]
+  notificacoes Notificacao[]
 
   @@index([deletedAt])
   @@map("artistas")
@@ -248,6 +296,7 @@ model Postagem {
   faixa   Faixa?  @relation(fields: [faixaId], references: [id], onDelete: SetNull)
   comentarios ComentarioPostagem[]
   curtidas    CurtidaPostagem[]
+  notificacoes Notificacao[]
 
   @@index([usuarioId])
   @@index([createdAt])
@@ -289,6 +338,7 @@ model ComentarioPostagem {
   usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   postagem Postagem @relation(fields: [postagemId], references: [id], onDelete: Cascade)
   curtidas CurtidaComentarioPostagem[]
+  notificacoes Notificacao[]
 
   @@index([postagemId])
   @@index([deletedAt])
