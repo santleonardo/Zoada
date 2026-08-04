@@ -55,6 +55,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email ou senha incorretos' }, { status: 401 });
     }
 
+    // Conta suspensa pela moderação: bloqueia o login enquanto durar,
+    // avisando até quando (senha continua certa, então dá pra diferenciar
+    // de "email ou senha incorretos").
+    if (user.suspensoAte && user.suspensoAte.getTime() > Date.now()) {
+      return NextResponse.json(
+        {
+          error: 'Conta suspensa',
+          suspended: true,
+          suspended_until: user.suspensoAte.toISOString(),
+          suspended_reason: user.suspensoMotivo || null,
+        },
+        { status: 403 }
+      );
+    }
+
     // Conta apagada dentro dos últimos 30 dias: a senha certa dentro do
     // prazo é o próprio "desfazer" a exclusão — restaura a conta e tudo
     // que foi apagado junto (artistas, faixas, estação, postagens).
