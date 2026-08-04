@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Send, ArrowLeft, MessageCircle, X, Plus, Music, Play, Pause, Flag } from 'lucide-react';
+import { Search, Send, ArrowLeft, MessageCircle, X, Plus, Music, Play, Pause, Flag, ShieldOff, Shield, MoreVertical } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchConversations, fetchMessages, sendMessageApi, searchUsers, fetchPresence, fetchAllTracks } from '@/lib/api';
+import { fetchConversations, fetchMessages, sendMessageApi, searchUsers, fetchPresence, fetchAllTracks, fetchBlockStatus, toggleBlockUser } from '@/lib/api';
 import { isOnline, formatLastSeen, HEARTBEAT_INTERVAL_MS } from '@/lib/presence';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
@@ -151,6 +152,10 @@ const ChatConversation: React.FC = () => {
   const [showShareSong, setShowShareSong] = useState(false);
   const [sendingTrackId, setSendingTrackId] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [iBlocked, setIBlocked] = useState(false);
+  const [blockedBy, setBlockedBy] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -192,9 +197,39 @@ const ChatConversation: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Status de bloqueio com essa pessoa, nos dois sentidos — usado pra
+  // travar o campo de mensagem quando algum dos dois bloqueou o outro.
+  useEffect(() => {
+    if (!selectedConversationId) return;
+    let cancelled = false;
+    setIBlocked(false);
+    setBlockedBy(false);
+    fetchBlockStatus(selectedConversationId).then((status) => {
+      if (cancelled || !status) return;
+      setIBlocked(status.i_blocked);
+      setBlockedBy(status.blocked_by);
+    });
+    return () => { cancelled = true; };
+  }, [selectedConversationId]);
+
+  const handleToggleBlock = async () => {
+    if (!selectedConversationId || blockLoading) return;
+    setMenuOpen(false);
+    setBlockLoading(true);
+    const result = await toggleBlockUser(selectedConversationId);
+    setBlockLoading(false);
+
+    if (typeof result === 'string') {
+      toast.error(result);
+      return;
+    }
+    setIBlocked(result.blocked);
+    toast.success(result.blocked ? 'Usuário bloqueado.' : 'Usuário desbloqueado.');
+  };
+
   const handleSend = async () => {
     const content = newMessage.trim();
-    if (!content || !selectedConversationId || sending) return;
+    if (!content || !selectedConversationId || sending || iBlocked || blockedBy) return;
 
     setSending(true);
     setNewMessage('');
@@ -265,15 +300,53 @@ const ChatConversation: React.FC = () => {
             </p>
           )}
         </div>
-        <button
-          onClick={() => setReportOpen(true)}
-          className="p-2 rounded-full hover:bg-black/5 transition-colors flex-shrink-0"
-          aria-label="Denunciar conversa"
-          title="Denunciar"
-        >
-          <Flag size={18} className="text-black/40" />
-        </button>
+        <div className="relative flex-shrink-0">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="p-2 rounded-full hover:bg-black/5 transition-colors"
+            aria-label="Mais opções"
+            title="Mais opções"
+          >
+            <MoreVertical size={18} className="text-black/40" />
+          </button>
+
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+              <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-white shadow-lg border border-black/5 py-1.5 z-20 overflow-hidden">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setReportOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1A1B25] hover:bg-black/5 transition-colors text-left"
+                >
+                  <Flag size={15} className="text-black/40" />
+                  Denunciar
+                </button>
+                <button
+                  onClick={handleToggleBlock}
+                  disabled={blockLoading}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors text-left disabled:opacity-50"
+                >
+                  {iBlocked ? <Shield size={15} /> : <ShieldOff size={15} />}
+                  {iBlocked ? 'Desbloquear' : 'Bloquear'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
+
+      {(iBlocked || blockedBy) && (
+        <div className="px-4 py-2.5 bg-red-50 border-b border-red-100 text-center">
+          <p className="text-xs text-red-600">
+            {iBlocked
+              ? 'Você bloqueou este usuário. Vocês não podem trocar mensagens.'
+              : 'Não é possível enviar mensagens para este usuário.'}
+          </p>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
@@ -341,7 +414,8 @@ const ChatConversation: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowShareSong(true)}
-            className="p-3 rounded-xl bg-[#F2F2F8] flex-shrink-0 active:scale-90 transition-all"
+            disabled={iBlocked || blockedBy}
+            className="p-3 rounded-xl bg-[#F2F2F8] flex-shrink-0 active:scale-90 transition-all disabled:opacity-30"
             aria-label="Compartilhar música"
             title="Compartilhar música"
           >
@@ -350,16 +424,16 @@ const ChatConversation: React.FC = () => {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Mensagem..."
+            placeholder={iBlocked || blockedBy ? 'Mensagens indisponíveis' : 'Mensagem...'}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            disabled={sending}
+            disabled={sending || iBlocked || blockedBy}
             className="flex-1 !py-3 !text-sm"
           />
           <button
             onClick={handleSend}
-            disabled={!newMessage.trim() || sending}
+            disabled={!newMessage.trim() || sending || iBlocked || blockedBy}
             className="p-3 rounded-xl gradient-bg flex-shrink-0 disabled:opacity-30 active:scale-90 transition-all"
             aria-label="Enviar"
           >

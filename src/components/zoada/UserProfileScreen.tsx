@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { ChevronLeft, Flame, MessageCircle, Music2, Users, UserPlus, UserCheck, Flag } from 'lucide-react';
+import { ChevronLeft, Flame, MessageCircle, Music2, Users, UserPlus, UserCheck, Flag, ShieldOff, Shield } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchPublicUserProfile, fetchTopListenedTracks, toggleUserFollow } from '@/lib/api';
+import { fetchPublicUserProfile, fetchTopListenedTracks, toggleUserFollow, fetchBlockStatus, toggleBlockUser } from '@/lib/api';
 import { isOnline, formatLastSeen } from '@/lib/presence';
 import { formatNumber } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -31,6 +31,9 @@ const UserProfileScreen: React.FC = () => {
   const [localIsFollowing, setLocalIsFollowing] = useState<boolean | null>(null);
   const [localFollowersCount, setLocalFollowersCount] = useState<number | null>(null);
   const [reportProfileOpen, setReportProfileOpen] = useState(false);
+  const [iBlocked, setIBlocked] = useState(false);
+  const [blockedBy, setBlockedBy] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
 
   const isFollowing = localIsFollowing ?? profile?.is_following ?? false;
   const followersCount = localFollowersCount ?? profile?.followers_count ?? 0;
@@ -44,6 +47,8 @@ const UserProfileScreen: React.FC = () => {
     setTopTracks([]);
     setLocalIsFollowing(null);
     setLocalFollowersCount(null);
+    setIBlocked(false);
+    setBlockedBy(false);
 
     fetchPublicUserProfile(selectedUserId).then((data) => {
       if (cancelled) return;
@@ -55,6 +60,17 @@ const UserProfileScreen: React.FC = () => {
       setIsLoading(false);
     });
 
+    // Status de bloqueio nos dois sentidos (só faz sentido se estiver logado
+    // e não for o próprio perfil — checado de novo aqui pra não disparar
+    // requisição à toa no perfil do próprio usuário).
+    if (user && selectedUserId !== user.id) {
+      fetchBlockStatus(selectedUserId).then((status) => {
+        if (cancelled || !status) return;
+        setIBlocked(status.i_blocked);
+        setBlockedBy(status.blocked_by);
+      });
+    }
+
     // Top 10 músicas mais ouvidas por ESSE usuário (não pelo usuário
     // logado), pra mostrar no perfil público dele.
     fetchTopListenedTracks(10, selectedUserId).then((data) => {
@@ -64,7 +80,7 @@ const UserProfileScreen: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedUserId]);
+  }, [selectedUserId, user]);
 
   const handleToggleFollow = useCallback(async () => {
     if (!selectedUserId || isFollowLoading) return;
@@ -104,6 +120,32 @@ const UserProfileScreen: React.FC = () => {
     }
   }, [selectedUserId, isFollowLoading, user, isFollowing, followersCount, profile]);
 
+  const handleToggleBlock = async () => {
+    if (!selectedUserId || blockLoading) return;
+    if (!user) {
+      toast.error('Entre na sua conta para bloquear usuários');
+      return;
+    }
+
+    setBlockLoading(true);
+    const result = await toggleBlockUser(selectedUserId);
+    setBlockLoading(false);
+
+    if (typeof result === 'string') {
+      toast.error(result);
+      return;
+    }
+
+    setIBlocked(result.blocked);
+    toast.success(result.blocked ? 'Usuário bloqueado.' : 'Usuário desbloqueado.');
+
+    // Bloquear desfaz o "seguir" nos dois sentidos no servidor — reflete
+    // isso na tela na hora, em vez de esperar um re-fetch do perfil.
+    if (result.blocked) {
+      setLocalIsFollowing(false);
+    }
+  };
+
   if (!selectedUserId) return null;
 
   const isSelf = selectedUserId === user?.id;
@@ -127,21 +169,48 @@ const UserProfileScreen: React.FC = () => {
         </button>
         <h1 className="text-xl font-bold text-[#1A1B25] truncate flex-1">Perfil</h1>
         {!isSelf && (
-          <button
-            onClick={() => {
-              if (!user) {
-                toast.error('Entre na sua conta para denunciar');
-                return;
-              }
-              setReportProfileOpen(true);
-            }}
-            className="p-2 rounded-full bg-black/5 hover:bg-[#E84393]/10 hover:text-[#E84393] text-black/40 transition-colors"
-            aria-label="Denunciar perfil"
-          >
-            <Flag size={18} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleToggleBlock}
+              disabled={blockLoading}
+              className={`p-2 rounded-full transition-colors disabled:opacity-50 ${
+                iBlocked
+                  ? 'bg-red-50 text-red-500 hover:bg-red-100'
+                  : 'bg-black/5 hover:bg-red-50 hover:text-red-500 text-black/40'
+              }`}
+              aria-label={iBlocked ? 'Desbloquear usuário' : 'Bloquear usuário'}
+              title={iBlocked ? 'Desbloquear' : 'Bloquear'}
+            >
+              {iBlocked ? <Shield size={18} /> : <ShieldOff size={18} />}
+            </button>
+            <button
+              onClick={() => {
+                if (!user) {
+                  toast.error('Entre na sua conta para denunciar');
+                  return;
+                }
+                setReportProfileOpen(true);
+              }}
+              className="p-2 rounded-full bg-black/5 hover:bg-[#E84393]/10 hover:text-[#E84393] text-black/40 transition-colors"
+              aria-label="Denunciar perfil"
+              title="Denunciar"
+            >
+              <Flag size={18} />
+            </button>
+          </div>
         )}
       </div>
+
+      {!isSelf && iBlocked && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-100 text-xs text-red-600">
+          Você bloqueou {profile?.name || 'este usuário'}. Vocês não podem trocar mensagens enquanto isso.
+        </div>
+      )}
+      {!isSelf && blockedBy && !iBlocked && (
+        <div className="mb-4 p-3 rounded-xl bg-black/5 text-xs text-black/50">
+          Não é possível interagir com este usuário no momento.
+        </div>
+      )}
 
       {isLoading && <p className="text-black/40 text-sm text-center py-16">Carregando...</p>}
 
@@ -195,8 +264,9 @@ const UserProfileScreen: React.FC = () => {
                 </div>
               </div>
 
-              {/* Ações — Seguir e Mensagem (não aparecem no próprio perfil) */}
-              {!isSelf && (
+              {/* Ações — Seguir e Mensagem (não aparecem no próprio perfil,
+                  nem enquanto houver bloqueio em qualquer sentido) */}
+              {!isSelf && !iBlocked && !blockedBy && (
                 <div className="flex items-center gap-3 w-full max-w-xs">
                   {/* Botão Seguir / Seguindo */}
                   <button

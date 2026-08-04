@@ -15,6 +15,7 @@ import {
   Trash2,
   Download,
   Loader2,
+  ShieldOff,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { TopListenedTrack } from '@/types';
@@ -32,6 +33,7 @@ import SupportChatPanel from './SupportChatPanel';
 import AudioQualityDialog from './AudioQualityDialog';
 import DeleteAccountDialog from './DeleteAccountDialog';
 import TrashDialog from './TrashDialog';
+import BlockedUsersDialog from './BlockedUsersDialog';
 
 // Feature flags: "Enviar música" e "Criar estação de rádio" viraram
 // funções premium (a serem lançadas no futuro). Por enquanto ficam
@@ -53,6 +55,7 @@ const ProfileScreen: React.FC = () => {
   const [audioQualityOpen, setAudioQualityOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [blockedUsersOpen, setBlockedUsersOpen] = useState(false);
   const [exportingData, setExportingData] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
@@ -382,6 +385,7 @@ const ProfileScreen: React.FC = () => {
           { icon: <Music2 size={18} />, label: 'Qualidade de áudio', onClick: () => setAudioQualityOpen(true) },
           { icon: <Edit3 size={18} />, label: 'Editar perfil', onClick: handleStartEdit },
           { icon: <Trash2 size={18} />, label: 'Lixeira', onClick: () => setTrashOpen(true) },
+          { icon: <ShieldOff size={18} />, label: 'Usuários bloqueados', onClick: () => setBlockedUsersOpen(true) },
           {
             icon: exportingData ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />,
             label: exportingData ? 'Preparando seus dados...' : 'Baixar meus dados',
@@ -453,6 +457,7 @@ const ProfileScreen: React.FC = () => {
           setArtistsRefreshKey((k) => k + 1);
         }}
       />
+      <BlockedUsersDialog open={blockedUsersOpen} onClose={() => setBlockedUsersOpen(false)} />
     </div>
   );
 };
