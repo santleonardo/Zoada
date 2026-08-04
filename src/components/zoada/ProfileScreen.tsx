@@ -17,6 +17,8 @@ import {
   Loader2,
   ShieldOff,
   Lock,
+  User,
+  Shield,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { TopListenedTrack } from '@/types';
@@ -73,6 +75,20 @@ const ProfileScreen: React.FC = () => {
   const [topTracks, setTopTracks] = useState<TopListenedTrack[]>([]);
   // Seção "Mais Ouvidas" fechada por padrão; usuário abre clicando no cabeçalho.
   const [isTopTracksOpen, setIsTopTracksOpen] = useState(false);
+  // Configurações agora em seções que expandem/escondem — "Conta" já vem
+  // aberta (é a mais usada: editar perfil, notificações, perfil privado),
+  // as outras começam fechadas pra lista não ficar comprida de cara.
+  const [openSettingsSections, setOpenSettingsSections] = useState<Set<string>>(
+    () => new Set(['conta'])
+  );
+  const toggleSettingsSection = (key: string) => {
+    setOpenSettingsSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   // Busca as músicas que o usuário mais repetiu (contador pessoal de
   // reproduções), já ordenadas da mais ouvida pra menos ouvida.
@@ -194,6 +210,57 @@ const ProfileScreen: React.FC = () => {
     }
     setExportingData(false);
   };
+
+  // Configurações agrupadas por seção (acordeão). "Conta" também guarda o
+  // switch de Perfil privado, renderizado à parte por não ser um item de
+  // navegação como os demais.
+  const settingsSections: {
+    key: string;
+    title: string;
+    icon: React.ReactNode;
+    items: { icon: React.ReactNode; label: string; onClick?: () => void; href?: string }[];
+  }[] = [
+    {
+      key: 'conta',
+      title: 'Conta',
+      icon: <User size={16} />,
+      items: [
+        { icon: <Edit3 size={18} />, label: 'Editar perfil', onClick: handleStartEdit },
+        { icon: <Settings size={18} />, label: 'Notificações', onClick: () => setNotificationSettingsOpen(true) },
+      ],
+    },
+    {
+      key: 'preferencias',
+      title: 'Preferências',
+      icon: <Music2 size={16} />,
+      items: [
+        { icon: <Music2 size={18} />, label: 'Qualidade de áudio', onClick: () => setAudioQualityOpen(true) },
+      ],
+    },
+    {
+      key: 'privacidade',
+      title: 'Privacidade e dados',
+      icon: <Shield size={16} />,
+      items: [
+        { icon: <ShieldOff size={18} />, label: 'Usuários bloqueados', onClick: () => setBlockedUsersOpen(true) },
+        { icon: <Trash2 size={18} />, label: 'Lixeira', onClick: () => setTrashOpen(true) },
+        {
+          icon: exportingData ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />,
+          label: exportingData ? 'Preparando seus dados...' : 'Baixar meus dados',
+          onClick: handleExportData,
+        },
+      ],
+    },
+    {
+      key: 'legal',
+      title: 'Legal',
+      icon: <FileText size={16} />,
+      items: [
+        { icon: <FileText size={18} />, label: 'Termos de Uso', href: '/termos' },
+        { icon: <ShieldCheck size={18} />, label: 'Política de Privacidade', href: '/privacidade' },
+      ],
+    },
+  ];
 
   return (
     <div className="px-4 pt-6 pb-4">
@@ -428,93 +495,118 @@ const ProfileScreen: React.FC = () => {
           painel externo em public/moderacao/index.html. */}
       <SupportChatPanel />
 
-      {/* Settings */}
+      {/* Settings — organizado em seções que expandem/escondem, cada uma
+          com seu próprio cabeçalho clicável (acordeão: várias podem ficar
+          abertas ao mesmo tempo). */}
       <div className="space-y-2 mb-6">
         <h3 className="text-lg font-semibold text-[#1A1B25] mb-3">Configurações</h3>
 
-        {/* Perfil privado — toggle visível direto na lista de configurações */}
-        <div className="flex items-center justify-between w-full p-3 rounded-xl bg-white shadow-sm mb-2 gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="text-black/50"><Lock size={18} /></span>
-            <div className="min-w-0">
-              <p className="text-sm text-[#1A1B25] font-medium">Perfil privado</p>
-              <p className="text-[11px] text-black/40 leading-snug">
-                Só seguidores veem postagens, artistas e mais ouvidas
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={!!user.private_profile}
-            aria-label="Perfil privado"
-            disabled={privateProfileSaving}
-            onClick={handleTogglePrivateProfile}
-            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${
-              user.private_profile ? 'bg-[#FF8C42]' : 'bg-black/15'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                user.private_profile ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
+        <div className="space-y-2">
+          {settingsSections.map((section) => {
+            const isOpen = openSettingsSections.has(section.key);
+            return (
+              <div key={section.key} className="rounded-xl bg-white shadow-sm overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSettingsSection(section.key)}
+                  className="flex items-center justify-between w-full p-3 hover:bg-[#F2F2F8] transition-colors"
+                  aria-expanded={isOpen}
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-[#1A1B25]">
+                    <span className="text-black/40">{section.icon}</span>
+                    {section.title}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`text-black/35 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {isOpen && (
+                  <div className="border-t border-black/5 divide-y divide-black/5">
+                    {/* Perfil privado mora dentro de "Conta" — é a única
+                        linha com um switch em vez de navegar pra outro
+                        lugar, por isso renderizada à parte dos `items`. */}
+                    {section.key === 'conta' && (
+                      <div className="flex items-center justify-between w-full p-3 gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-black/50"><Lock size={18} /></span>
+                          <div className="min-w-0">
+                            <p className="text-sm text-[#1A1B25] font-medium">Perfil privado</p>
+                            <p className="text-[11px] text-black/40 leading-snug">
+                              Só seguidores veem postagens, artistas e mais ouvidas
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={!!user.private_profile}
+                          aria-label="Perfil privado"
+                          disabled={privateProfileSaving}
+                          onClick={handleTogglePrivateProfile}
+                          className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${
+                            user.private_profile ? 'bg-[#FF8C42]' : 'bg-black/15'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                              user.private_profile ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    )}
+
+                    {section.items.map((item) => {
+                      const content = (
+                        <>
+                          <div className="flex items-center gap-3">
+                            <span className="text-black/50">{item.icon}</span>
+                            <span className="text-sm text-[#1A1B25]">{item.label}</span>
+                          </div>
+                          <ChevronRight size={16} className="text-black/25" />
+                        </>
+                      );
+
+                      // Termos e Privacidade são rotas Next reais (fora do
+                      // fluxo de telas do zustand), então abrem em nova aba
+                      // como link de verdade — o resto continua botão
+                      // disparando ação no app.
+                      if (item.href) {
+                        return (
+                          <a
+                            key={item.label}
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between w-full p-3 hover:bg-[#F2F2F8] transition-colors"
+                          >
+                            {content}
+                          </a>
+                        );
+                      }
+
+                      return (
+                        <button
+                          key={item.label}
+                          onClick={item.onClick}
+                          className="flex items-center justify-between w-full p-3 hover:bg-[#F2F2F8] transition-colors"
+                        >
+                          {content}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        {([
-          { icon: <Settings size={18} />, label: 'Notificações', onClick: () => setNotificationSettingsOpen(true) },
-          { icon: <Music2 size={18} />, label: 'Qualidade de áudio', onClick: () => setAudioQualityOpen(true) },
-          { icon: <Edit3 size={18} />, label: 'Editar perfil', onClick: handleStartEdit },
-          { icon: <Trash2 size={18} />, label: 'Lixeira', onClick: () => setTrashOpen(true) },
-          { icon: <ShieldOff size={18} />, label: 'Usuários bloqueados', onClick: () => setBlockedUsersOpen(true) },
-          {
-            icon: exportingData ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />,
-            label: exportingData ? 'Preparando seus dados...' : 'Baixar meus dados',
-            onClick: handleExportData,
-          },
-          { icon: <FileText size={18} />, label: 'Termos de Uso', href: '/termos' },
-          { icon: <ShieldCheck size={18} />, label: 'Política de Privacidade', href: '/privacidade' },
-        ] as { icon: React.ReactNode; label: string; onClick?: () => void; href?: string }[]).map((item) => {
-          const content = (
-            <>
-              <div className="flex items-center gap-3">
-                <span className="text-black/50">{item.icon}</span>
-                <span className="text-sm text-[#1A1B25]">{item.label}</span>
-              </div>
-              <ChevronRight size={16} className="text-black/25" />
-            </>
-          );
-
-          // Termos e Privacidade são rotas Next reais (fora do fluxo de
-          // telas do zustand), então abrem em nova aba como link de
-          // verdade — o resto continua botão disparando ação no app.
-          if (item.href) {
-            return (
-              <a
-                key={item.label}
-                href={item.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between w-full p-3 rounded-xl bg-white shadow-sm hover:bg-[#F2F2F8] transition-colors"
-              >
-                {content}
-              </a>
-            );
-          }
-
-          return (
-            <button
-              key={item.label}
-              onClick={item.onClick}
-              className="flex items-center justify-between w-full p-3 rounded-xl bg-white shadow-sm hover:bg-[#F2F2F8] transition-colors"
-            >
-              {content}
-            </button>
-          );
-        })}
-        {exportError && <p className="text-red-500 text-xs px-1">{exportError}</p>}
+        {exportError && <p className="text-red-500 text-xs px-1 mt-2">{exportError}</p>}
       </div>
+
 
       {/* Excluir conta — ação destrutiva, separada visualmente do resto das
           Configurações (item 8 da Política de Privacidade). */}
