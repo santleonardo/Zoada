@@ -47,6 +47,7 @@ const ProfileScreen: React.FC = () => {
   const { user, logout, navigate, selectArtist, setUser, authToken } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
+  const [bio, setBio] = useState(user?.bio || '');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar_url || null);
   const [saving, setSaving] = useState(false);
@@ -112,6 +113,7 @@ const ProfileScreen: React.FC = () => {
   // perfil" fica lá embaixo, na lista de Configurações.
   const handleStartEdit = () => {
     setName(user.name);
+    setBio(user.bio || '');
     setAvatarPreview(user.avatar_url || null);
     setAvatarFile(null);
     setSaveError(null);
@@ -121,6 +123,7 @@ const ProfileScreen: React.FC = () => {
 
   const handleCancelEdit = () => {
     setName(user.name);
+    setBio(user.bio || '');
     setAvatarPreview(user.avatar_url || null);
     setAvatarFile(null);
     setSaveError(null);
@@ -150,16 +153,20 @@ const ProfileScreen: React.FC = () => {
       // só então salva o perfil com a URL definitiva.
       const avatarUrl = avatarFile ? await uploadImageFile(avatarFile, 'avatars') : undefined;
 
+      const trimmedBio = bio.trim();
+
       const updated = await updateMyProfile({
         name: trimmedName !== user.name ? trimmedName : undefined,
         avatarUrl,
+        bio: trimmedBio !== (user.bio || '') ? trimmedBio : undefined,
       });
 
       if (updated) {
         // Persiste também no localStorage (via setUser com o token atual),
-        // senão um reload traria de volta o nome/foto antigos.
+        // senão um reload traria de volta o nome/foto/bio antigos.
         setUser(updated, authToken);
         setAvatarPreview(updated.avatar_url || null);
+        setBio(updated.bio || '');
       }
 
       setAvatarFile(null);
@@ -255,6 +262,26 @@ const ProfileScreen: React.FC = () => {
           )}
 
           <p className="text-black/40 text-sm mb-4">{user.email}</p>
+
+          {/* Bio */}
+          {isEditing ? (
+            <div className="mb-4 max-w-[280px] mx-auto">
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value.slice(0, 280))}
+                placeholder="Conte um pouco sobre você..."
+                rows={3}
+                className="w-full resize-none rounded-xl border border-black/10 bg-[#F7F7FB] px-3 py-2 text-sm text-[#1A1B25] placeholder:text-black/30 outline-none focus:border-[#FF8C42] focus:ring-2 focus:ring-[#FF8C42]/20 transition-all"
+              />
+              <p className="text-[10px] text-black/30 text-right mt-0.5">{bio.length}/280</p>
+            </div>
+          ) : (
+            user.bio && (
+              <p className="text-sm text-black/60 leading-relaxed max-w-[280px] mx-auto mb-4 whitespace-pre-wrap">
+                {user.bio}
+              </p>
+            )
+          )}
 
           {isEditing && (
             <div className="flex flex-col items-center gap-2">

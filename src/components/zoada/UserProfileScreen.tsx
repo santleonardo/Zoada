@@ -264,6 +264,12 @@ const UserProfileScreen: React.FC = () => {
                 </div>
               )}
 
+              {profile.bio && !profile.profile_locked && (
+                <p className="text-sm text-black/60 leading-relaxed max-w-[280px] mx-auto mb-2 whitespace-pre-wrap">
+                  {profile.bio}
+                </p>
+              )}
+
               <p className="text-xs text-black/40 mb-4">
                 {profile.profile_locked
                   ? 'Perfil privado'
