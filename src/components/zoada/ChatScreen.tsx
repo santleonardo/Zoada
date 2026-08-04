@@ -721,7 +721,7 @@ const TrackMessageCard: React.FC<{ track: Track; isMe: boolean }> = ({ track, is
     <div
       className={cn(
         'flex items-center gap-3 rounded-2xl p-2.5 pr-3',
-        isMe ? 'bg-white/15' : 'bg-white shadow-sm'
+        isMe ? 'gradient-bg' : 'bg-white shadow-sm'
       )}
     >
       <button
@@ -762,7 +762,7 @@ const TrackMessageCard: React.FC<{ track: Track; isMe: boolean }> = ({ track, is
         onClick={handlePlayToggle}
         className={cn(
           'p-2 rounded-full flex-shrink-0 active:scale-90 transition-all',
-          isMe ? 'bg-white/20' : 'gradient-bg'
+          isMe ? 'bg-white/25' : 'gradient-bg'
         )}
         aria-label={isPlayingThis ? 'Pausar' : 'Tocar'}
       >
@@ -831,7 +831,7 @@ const VoiceMessageBubble: React.FC<{ url: string; duration: number | null | unde
     <div
       className={cn(
         'flex items-center gap-3 rounded-2xl p-2.5 pr-3 min-w-[190px]',
-        isMe ? 'bg-white/15' : 'bg-white shadow-sm'
+        isMe ? 'gradient-bg' : 'bg-white shadow-sm'
       )}
     >
       <audio ref={audioRef} src={url} preload="metadata" className="hidden" />
@@ -839,7 +839,7 @@ const VoiceMessageBubble: React.FC<{ url: string; duration: number | null | unde
         onClick={handleToggle}
         className={cn(
           'flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-all',
-          isMe ? 'bg-white/20' : 'gradient-bg'
+          isMe ? 'bg-white/25' : 'gradient-bg'
         )}
         aria-label={isPlaying ? 'Pausar' : 'Tocar'}
       >
@@ -851,7 +851,7 @@ const VoiceMessageBubble: React.FC<{ url: string; duration: number | null | unde
       </button>
 
       <div className="flex-1 min-w-0">
-        <div className={cn('h-1 rounded-full overflow-hidden', isMe ? 'bg-white/25' : 'bg-black/10')}>
+        <div className={cn('h-1 rounded-full overflow-hidden', isMe ? 'bg-white/30' : 'bg-black/10')}>
           <div
             className={cn('h-full rounded-full', isMe ? 'bg-white' : 'gradient-bg')}
             style={{ width: `${progress * 100}%` }}
@@ -859,7 +859,7 @@ const VoiceMessageBubble: React.FC<{ url: string; duration: number | null | unde
         </div>
       </div>
 
-      <span className={cn('text-[11px] tabular-nums flex-shrink-0', isMe ? 'text-white/70' : 'text-black/40')}>
+      <span className={cn('text-[11px] tabular-nums flex-shrink-0', isMe ? 'text-white/80' : 'text-black/40')}>
         {formatRecordingTime(displaySeconds)}
       </span>
 
