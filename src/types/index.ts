@@ -5,6 +5,8 @@ export interface User {
   avatar_url: string | null;
   last_seen_at?: string | null;
   created_at: string;
+  /** Perfil privado: só seguidores veem conteúdo completo. */
+  private_profile?: boolean;
 }
 
 // Perfil público de OUTRO usuário (ex: quem comentou numa faixa, ou o
@@ -22,6 +24,12 @@ export interface PublicUserProfile {
   is_following: boolean | null;
   // Artistas (perfis/catálogos) criados por esse usuário.
   artists: Artist[];
+  /** Dono marcou o perfil como privado. */
+  is_private?: boolean;
+  /** Só o próprio dono recebe: valor atual do toggle. */
+  private_profile?: boolean;
+  /** Viewer não pode ver conteúdo (privado e não-seguidor). */
+  profile_locked?: boolean;
 }
 
 export interface Artist {

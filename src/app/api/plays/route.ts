@@ -33,6 +33,34 @@ export async function GET(request: Request) {
       return NextResponse.json({ tracks: [] });
     }
 
+    // Perfil privado: top ouvidas só pro dono e seguidores.
+    if (targetUserId) {
+      const viewerId = await authenticateRequest(request);
+      if (viewerId !== targetUserId) {
+        const dono = await db.usuario.findFirst({
+          where: { id: targetUserId, deletedAt: null },
+          select: { perfilPrivado: true },
+        });
+        if (dono?.perfilPrivado) {
+          let allowed = false;
+          if (viewerId) {
+            const rel = await db.seguirUsuario.findUnique({
+              where: {
+                seguidorId_seguidoId: {
+                  seguidorId: viewerId,
+                  seguidoId: targetUserId,
+                },
+              },
+            });
+            allowed = !!rel;
+          }
+          if (!allowed) {
+            return NextResponse.json({ tracks: [], profile_locked: true });
+          }
+        }
+      }
+    }
+
     const limitParam = Number(searchParams.get('limit'));
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
 

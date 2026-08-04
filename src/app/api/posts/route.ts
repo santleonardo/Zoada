@@ -94,6 +94,31 @@ export async function GET(request: Request) {
     // logado já reagiu com coração. Sem token, segue como visitante.
     const viewerId = await authenticateRequest(request);
 
+    // Perfil privado: não-seguidores não veem o feed do perfil.
+    if (userId && viewerId !== userId) {
+      const dono = await db.usuario.findFirst({
+        where: { id: userId, ...notDeleted },
+        select: { perfilPrivado: true },
+      });
+      if (dono?.perfilPrivado) {
+        let allowed = false;
+        if (viewerId) {
+          const rel = await db.seguirUsuario.findUnique({
+            where: {
+              seguidorId_seguidoId: {
+                seguidorId: viewerId,
+                seguidoId: userId,
+              },
+            },
+          });
+          allowed = !!rel;
+        }
+        if (!allowed) {
+          return NextResponse.json({ posts: [], profile_locked: true });
+        }
+      }
+    }
+
     const postagens = await db.postagem.findMany({
       where: userId ? { usuarioId: userId, ...notDeleted } : { ...notDeleted },
       orderBy: { createdAt: 'desc' },

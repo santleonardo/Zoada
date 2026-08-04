@@ -336,14 +336,28 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   updateProfile: async (fields) => {
     try {
-      const updated = await updateMyProfile({ name: fields.name, avatarUrl: fields.avatar_url });
+      const updated = await updateMyProfile({
+        name: fields.name,
+        avatarUrl: fields.avatar_url,
+        private_profile: fields.private_profile,
+      });
       if (!updated) return false;
 
       // Atualiza o estado local com o que o servidor confirmou (não com
       // `fields` diretamente), pra manter a store sempre em sincronia com
       // o que foi realmente persistido.
       set((state) => ({
-        user: state.user ? { ...state.user, name: updated.name, avatar_url: updated.avatar_url } : state.user,
+        user: state.user
+          ? {
+              ...state.user,
+              name: updated.name,
+              avatar_url: updated.avatar_url,
+              private_profile:
+                updated.private_profile !== undefined
+                  ? updated.private_profile
+                  : state.user.private_profile,
+            }
+          : state.user,
       }));
 
       // Mantém o localStorage sincronizado (usado pelo restoreSession).

@@ -91,13 +91,21 @@ export async function authenticateRequest(request: Request): Promise<string | nu
 }
 
 // ---------- Build user response object ----------
-export function buildUserResponse(user: { id: string; email: string; name: string | null; avatarUrl: string | null; createdAt: Date }, token: string): User & { token: string } {
+export function buildUserResponse(user: {
+  id: string;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+  createdAt: Date;
+  perfilPrivado?: boolean;
+}, token: string): User & { token: string } {
   return {
     id: user.id,
     email: user.email,
     name: user.name || '',
     avatar_url: user.avatarUrl || null,
     created_at: user.createdAt.toISOString(),
+    private_profile: !!user.perfilPrivado,
     token,
   };
 }

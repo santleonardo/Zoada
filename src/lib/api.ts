@@ -173,12 +173,17 @@ export async function uploadAvatar(file: File): Promise<string | null> {
 // Atualiza o PRÓPRIO perfil do usuário logado (nome e/ou foto). Retorna
 // o usuário atualizado (vindo do servidor) em caso de sucesso, ou null
 // se a chamada falhar.
-export async function updateMyProfile(fields: { name?: string; avatarUrl?: string | null }): Promise<{
+export async function updateMyProfile(fields: {
+  name?: string;
+  avatarUrl?: string | null;
+  private_profile?: boolean;
+}): Promise<{
   id: string;
   email: string;
   name: string;
   avatar_url: string | null;
   created_at: string;
+  private_profile?: boolean;
 } | null> {
   try {
     const res = await apiFetch('/api/users', {

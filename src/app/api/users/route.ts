@@ -32,6 +32,7 @@ export async function GET(request: Request) {
           createdAt: true,
           seguidoresCount: true,
           seguindoCount: true,
+          perfilPrivado: true,
           artistas: {
             where: { ...notDeleted },
             orderBy: { createdAt: 'desc' },
@@ -69,26 +70,42 @@ export async function GET(request: Request) {
         isFollowing = !!relation;
       }
 
+      const isOwner = viewerId === id;
+      // Perfil privado: só o dono e quem já segue veem o conteúdo completo
+      // (artistas, etc.). Nome/foto/contadores continuam públicos pra
+      // permitir que alguém peça pra seguir.
+      const canViewFull =
+        isOwner || !usuario.perfilPrivado || isFollowing === true;
+
       return NextResponse.json({
         user: {
           id: usuario.id,
           name: usuario.name,
           avatar_url: usuario.avatarUrl,
-          last_seen_at: usuario.lastSeenAt?.toISOString() ?? null,
+          last_seen_at: canViewFull
+            ? (usuario.lastSeenAt?.toISOString() ?? null)
+            : null,
           created_at: usuario.createdAt.toISOString(),
           followers_count: usuario.seguidoresCount,
           following_count: usuario.seguindoCount,
           is_following: isFollowing,
-          artists: usuario.artistas.map((a) => ({
-            id: a.id,
-            user_id: id,
-            name: a.nome,
-            avatar_url: a.avatarUrl,
-            cover_url: a.coverUrl,
-            bio: a.bio,
-            genre: a.genero,
-            followers_count: a.seguidoresCount,
-          })),
+          is_private: !!usuario.perfilPrivado,
+          // Só o dono recebe o flag editável (pra pré-preencher o toggle).
+          private_profile: isOwner ? !!usuario.perfilPrivado : undefined,
+          // Conteúdo restrito pra não-seguidores quando o perfil é privado.
+          artists: canViewFull
+            ? usuario.artistas.map((a) => ({
+                id: a.id,
+                user_id: id,
+                name: a.nome,
+                avatar_url: a.avatarUrl,
+                cover_url: a.coverUrl,
+                bio: a.bio,
+                genre: a.genero,
+                followers_count: a.seguidoresCount,
+              }))
+            : [],
+          profile_locked: !canViewFull,
         },
       });
     }
@@ -166,10 +183,20 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { name, avatarUrl } = await request.json();
+    const body = await request.json();
+    const { name, avatarUrl } = body;
+    // Aceita tanto private_profile (snake do front) quanto perfilPrivado.
+    const privateProfile =
+      body.private_profile !== undefined
+        ? body.private_profile
+        : body.perfilPrivado;
 
     if (name !== undefined && !String(name).trim()) {
       return NextResponse.json({ error: 'Nome não pode ficar vazio' }, { status: 400 });
+    }
+
+    if (privateProfile !== undefined && typeof privateProfile !== 'boolean') {
+      return NextResponse.json({ error: 'private_profile deve ser boolean' }, { status: 400 });
     }
 
     const usuario = await db.usuario.update({
@@ -177,6 +204,7 @@ export async function PATCH(request: Request) {
       data: {
         ...(name !== undefined ? { name: String(name).trim() } : {}),
         ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+        ...(privateProfile !== undefined ? { perfilPrivado: !!privateProfile } : {}),
       },
     });
 
@@ -187,6 +215,7 @@ export async function PATCH(request: Request) {
         name: usuario.name,
         avatar_url: usuario.avatarUrl,
         created_at: usuario.createdAt.toISOString(),
+        private_profile: !!usuario.perfilPrivado,
       },
     });
   } catch (error) {
