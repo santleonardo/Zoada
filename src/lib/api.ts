@@ -317,6 +317,65 @@ export async function fetchUserFollowStatus(followerId: string, followedId: stri
   }
 }
 
+// ---------- Bloqueio de usuários ----------
+// Diferente de denunciar (vai pro painel de moderação analisar), bloquear é
+// uma ação imediata e privada: trava a troca de mensagens nos dois sentidos
+// e some da busca de "nova conversa" (ver /api/block-user).
+
+export interface BlockedUser {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  blocked_at: string;
+}
+
+// Verifica o status de bloqueio entre o usuário logado e `otherUserId`,
+// nas duas direções (eu bloqueei / fui bloqueado).
+export async function fetchBlockStatus(otherUserId: string): Promise<{ i_blocked: boolean; blocked_by: boolean } | null> {
+  try {
+    const res = await apiFetch(`/api/block-user?other_id=${encodeURIComponent(otherUserId)}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[fetchBlockStatus] falha ao verificar bloqueio:', err);
+    return null;
+  }
+}
+
+// Bloqueia/desbloqueia um usuário (toggle). Retorna o novo estado (`blocked:
+// true` = acabou de bloquear, `false` = acabou de desbloquear), ou uma
+// string com a mensagem de erro do servidor em caso de falha.
+export async function toggleBlockUser(blockedId: string): Promise<{ blocked: boolean } | string> {
+  try {
+    const res = await apiFetch('/api/block-user', {
+      method: 'POST',
+      body: JSON.stringify({ blocked_id: blockedId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return data.error || 'Não foi possível processar o bloqueio.';
+    }
+    return await res.json();
+  } catch (err) {
+    console.warn('[toggleBlockUser] falha ao bloquear/desbloquear:', err);
+    return 'Não foi possível processar o bloqueio.';
+  }
+}
+
+// Lista os usuários que o usuário logado bloqueou (tela de "Usuários
+// bloqueados" nas configurações do perfil).
+export async function fetchBlockedUsers(): Promise<BlockedUser[]> {
+  try {
+    const res = await apiFetch('/api/block-user');
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.blocked) ? data.blocked : [];
+  } catch (err) {
+    console.warn('[fetchBlockedUsers] falha ao buscar bloqueados:', err);
+    return [];
+  }
+}
+
 // Busca a lista real de conversas do usuário logado.
 export async function fetchConversations(): Promise<Array<{
   id: string;

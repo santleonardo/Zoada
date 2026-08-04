@@ -201,6 +201,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Neon não configurado' }, { status: 503 });
     }
 
+    // Bloqueio impede mensagens nos dois sentidos: nem quem bloqueou nem
+    // quem foi bloqueado conseguem se falar enquanto o bloqueio existir.
+    const bloqueio = await db.bloqueio.findFirst({
+      where: {
+        OR: [
+          { bloqueadorId: userId, bloqueadoId: receiver_id },
+          { bloqueadorId: receiver_id, bloqueadoId: userId },
+        ],
+      },
+    });
+    if (bloqueio) {
+      return NextResponse.json(
+        { error: 'Não é possível enviar mensagens para este usuário.' },
+        { status: 403 }
+      );
+    }
+
     let faixaId: string | null = null;
     let fallbackContent = content?.trim() || '';
 

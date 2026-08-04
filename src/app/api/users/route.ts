@@ -114,9 +114,21 @@ export async function GET(request: Request) {
     // pessoa, e ainda testar em massa se um email específico está
     // cadastrado no app. O email de outros usuários nunca é devolvido
     // aqui — só o do próprio dono é exposto (ex: tela de conta).
+    // Usuários envolvidos em algum bloqueio com quem está buscando (em
+    // qualquer direção) somem da busca — não faz sentido oferecer iniciar
+    // conversa com alguém que bloqueou você ou que você bloqueou.
+    const bloqueios = await db.bloqueio.findMany({
+      where: { OR: [{ bloqueadorId: userId }, { bloqueadoId: userId }] },
+      select: { bloqueadorId: true, bloqueadoId: true },
+    });
+    const idsBloqueados = new Set<string>();
+    for (const b of bloqueios) {
+      idsBloqueados.add(b.bloqueadorId === userId ? b.bloqueadoId : b.bloqueadorId);
+    }
+
     const usuarios = await db.usuario.findMany({
       where: {
-        id: { not: userId }, // não retorna o próprio usuário logado
+        id: { not: userId, notIn: Array.from(idsBloqueados) }, // não retorna o próprio usuário logado nem bloqueados
         ...notDeleted,
         name: { contains: search, mode: 'insensitive' },
       },
