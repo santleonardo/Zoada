@@ -12,7 +12,7 @@ import ReportModal from './ReportModal';
 import type { Message, Conversation, User, Track } from '@/types';
 
 const ChatScreen: React.FC = () => {
-  const { selectedConversationId, selectConversation, user } = useAppStore();
+  const { selectedConversationId, selectConversation, selectUser, user } = useAppStore();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewChat, setShowNewChat] = useState(false);
@@ -96,26 +96,48 @@ const ChatScreen: React.FC = () => {
       ) : (
         <div className="space-y-2">
           {conversations.map((conv) => (
-            <button
+            <div
               key={conv.id}
               onClick={() => selectConversation(conv.id, conv.other_user.name)}
-              className="flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors w-full text-left active:scale-[0.98]"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') selectConversation(conv.id, conv.other_user.name);
+              }}
+              className="flex items-center gap-3 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors w-full text-left active:scale-[0.98] cursor-pointer"
             >
-              {/* Avatar */}
-              <div className="w-12 h-12 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0 relative">
+              {/* Avatar — clicável, abre o perfil do usuário sem abrir a conversa */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectUser(conv.other_user.id);
+                }}
+                className="w-12 h-12 rounded-full bg-[#EFF0F6] flex items-center justify-center flex-shrink-0 relative hover:opacity-80 transition-opacity"
+                aria-label={`Ver perfil de ${conv.other_user.name}`}
+              >
                 <span className="text-lg font-bold text-black/60">
                   {conv.other_user.name.charAt(0)}
                 </span>
                 {isOnline(conv.other_user.last_seen_at) && (
                   <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-white" />
                 )}
-              </div>
+              </button>
 
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold text-[#1A1B25] text-sm">{conv.other_user.name}</p>
-                  <span className="text-[10px] text-black/30">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      selectUser(conv.other_user.id);
+                    }}
+                    className="font-semibold text-[#1A1B25] text-sm truncate hover:underline text-left"
+                  >
+                    {conv.other_user.name}
+                  </button>
+                  <span className="text-[10px] text-black/30 flex-shrink-0 ml-2">
                     {formatTimeAgo(conv.last_message.created_at)}
                   </span>
                 </div>
@@ -131,7 +153,7 @@ const ChatScreen: React.FC = () => {
                   )}
                 </div>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}
@@ -143,7 +165,7 @@ const ChatScreen: React.FC = () => {
 };
 
 const ChatConversation: React.FC = () => {
-  const { selectedConversationId, selectedConversationName, selectedConversationContext, closeConversation, user } = useAppStore();
+  const { selectedConversationId, selectedConversationName, selectedConversationContext, closeConversation, selectUser, user } = useAppStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
@@ -281,25 +303,30 @@ const ChatConversation: React.FC = () => {
         >
           <ArrowLeft size={20} className="text-black/70" />
         </button>
-        <div className="w-9 h-9 rounded-full bg-[#EFF0F6] flex items-center justify-center relative">
-          <span className="text-sm font-bold text-black/60">{otherInitials}</span>
-          {presence?.online && (
-            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-white" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[#1A1B25] truncate">{selectedConversationName}</p>
-          {selectedConversationContext ? (
-            <p className="text-[11px] text-black/35 truncate">
-              Sobre: {selectedConversationContext}
-              {presence?.online ? ' · Online' : presence ? ` · ${formatLastSeen(presence.last_seen_at)}` : ''}
-            </p>
-          ) : (
-            <p className="text-[11px] text-black/35">
-              {presence == null ? '' : presence.online ? 'Online' : formatLastSeen(presence.last_seen_at)}
-            </p>
-          )}
-        </div>
+        <button
+          onClick={() => selectUser(selectedConversationId)}
+          className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+        >
+          <div className="w-9 h-9 rounded-full bg-[#EFF0F6] flex items-center justify-center relative flex-shrink-0">
+            <span className="text-sm font-bold text-black/60">{otherInitials}</span>
+            {presence?.online && (
+              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-white" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-[#1A1B25] truncate">{selectedConversationName}</p>
+            {selectedConversationContext ? (
+              <p className="text-[11px] text-black/35 truncate">
+                Sobre: {selectedConversationContext}
+                {presence?.online ? ' · Online' : presence ? ` · ${formatLastSeen(presence.last_seen_at)}` : ''}
+              </p>
+            ) : (
+              <p className="text-[11px] text-black/35">
+                {presence == null ? '' : presence.online ? 'Online' : formatLastSeen(presence.last_seen_at)}
+              </p>
+            )}
+          </div>
+        </button>
         <div className="relative flex-shrink-0">
           <button
             onClick={() => setMenuOpen((v) => !v)}
