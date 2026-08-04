@@ -56,6 +56,8 @@ model Usuario {
   estacoesRadio EstacaoRadio[]
   postagens    Postagem[]
   denuncias    Denuncia[]
+  bloqueiosFeitos    Bloqueio[] @relation("BloqueiosFeitos")
+  bloqueiosRecebidos Bloqueio[] @relation("BloqueiosRecebidos")
 
   @@map("usuarios")
 }
@@ -534,6 +536,28 @@ model Denuncia {
   @@index([tipoAlvo, alvoId])
   @@index([createdAt])
   @@map("denuncias")
+}
+
+// ---------- Bloqueios (usuário bloqueia outro usuário) ----------
+// Diferente de Denuncia (que vai pro painel de moderação analisar), bloquear
+// é uma ação PRIVADA e imediata entre dois usuários: quem bloqueia deixa de
+// receber mensagens de quem foi bloqueado (e vice-versa, ver /api/messages),
+// e some das buscas pra iniciar conversa nova (ver /api/users?search=).
+// Direcional: A bloquear B não implica B ter bloqueado A — mas a troca de
+// mensagens fica travada nos dois sentidos enquanto QUALQUER um dos dois
+// lados tiver o outro bloqueado.
+model Bloqueio {
+  id           String   @id @default(cuid())
+  bloqueadorId String   @map("bloqueador_id")
+  bloqueadoId  String   @map("bloqueado_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  bloqueador Usuario @relation("BloqueiosFeitos", fields: [bloqueadorId], references: [id], onDelete: Cascade)
+  bloqueado  Usuario @relation("BloqueiosRecebidos", fields: [bloqueadoId], references: [id], onDelete: Cascade)
+
+  @@unique([bloqueadorId, bloqueadoId])
+  @@index([bloqueadoId])
+  @@map("bloqueios")
 }
 
 // ---------- Avisos (banner global disparado pelo painel de moderação) ----------
