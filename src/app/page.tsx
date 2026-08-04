@@ -16,11 +16,12 @@ import UserProfileScreen from '@/components/zoada/UserProfileScreen';
 import ChatScreen from '@/components/zoada/ChatScreen';
 import RadioScreen from '@/components/zoada/RadioScreen';
 import ExploreScreen from '@/components/zoada/ExploreScreen';
+import NotificationsScreen from '@/components/zoada/NotificationsScreen';
 import BottomNav from '@/components/zoada/BottomNav';
 import MiniPlayer from '@/components/zoada/MiniPlayer';
 
 export default function Home() {
-  const { currentScreen, isAuthenticated, user, setComments, restoreSession, initFavorites, loadFavorites, loadLikes, loadFollows } = useAppStore();
+  const { currentScreen, isAuthenticated, user, setComments, restoreSession, initFavorites, loadFavorites, loadLikes, loadFollows, refreshUnreadNotificationsCount } = useAppStore();
 
   // Restore auth session from localStorage on mount
   useEffect(() => {
@@ -41,6 +42,18 @@ export default function Home() {
       loadFollows(user.id);
     }
   }, [isAuthenticated, user?.id, loadLikes, loadFavorites, loadFollows]);
+
+  // Notificações: busca a contagem de não lidas assim que loga e depois
+  // periodicamente enquanto o app estiver aberto, pra manter o badge do
+  // sininho atualizado mesmo sem o usuário abrir a tela de notificações
+  // (mesmo padrão do heartbeat de presença, um pouco mais espaçado já
+  // que não precisa de tanta frescor quanto "está online agora").
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    refreshUnreadNotificationsCount();
+    const interval = setInterval(refreshUnreadNotificationsCount, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, refreshUnreadNotificationsCount]);
 
   // Load demo comments on mount
   useEffect(() => {
@@ -149,6 +162,8 @@ export default function Home() {
         return <RadioScreen />;
       case 'explore':
         return <ExploreScreen />;
+      case 'notifications':
+        return <NotificationsScreen />;
       default:
         return <MainScreen />;
     }

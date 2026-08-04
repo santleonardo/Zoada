@@ -16,7 +16,7 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
-import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, RadioPadrao, Post, PostComment } from '@/types';
+import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, RadioPadrao, Post, PostComment, Notification } from '@/types';
 
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
@@ -925,6 +925,70 @@ export async function togglePostCommentLike(commentId: string): Promise<{
   } catch (err) {
     console.warn('[togglePostCommentLike] falha ao reagir ao comentário:', err);
     return null;
+  }
+}
+
+// ---------- Notificações ----------
+
+// Busca as notificações do usuário logado (mais recentes primeiro) e a
+// contagem de não lidas.
+export async function fetchNotifications(limit = 30): Promise<{
+  notifications: Notification[];
+  unread_count: number;
+}> {
+  try {
+    const res = await apiFetch(`/api/notifications?limit=${limit}`);
+    if (!res.ok) return { notifications: [], unread_count: 0 };
+    const data = await res.json();
+    return {
+      notifications: Array.isArray(data.notifications) ? data.notifications : [],
+      unread_count: typeof data.unread_count === 'number' ? data.unread_count : 0,
+    };
+  } catch (err) {
+    console.warn('[fetchNotifications] falha ao buscar notificações:', err);
+    return { notifications: [], unread_count: 0 };
+  }
+}
+
+// Só a contagem de não lidas — usado pra atualizar o badge do sininho
+// periodicamente sem baixar a lista inteira toda vez.
+export async function fetchUnreadNotificationsCount(): Promise<number> {
+  try {
+    const res = await apiFetch('/api/notifications?count_only=1');
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return typeof data.unread_count === 'number' ? data.unread_count : 0;
+  } catch (err) {
+    console.warn('[fetchUnreadNotificationsCount] falha ao buscar contagem:', err);
+    return 0;
+  }
+}
+
+// Marca UMA notificação como lida.
+export async function markNotificationRead(id: string): Promise<boolean> {
+  try {
+    const res = await apiFetch('/api/notifications', {
+      method: 'PATCH',
+      body: JSON.stringify({ id }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[markNotificationRead] falha ao marcar notificação como lida:', err);
+    return false;
+  }
+}
+
+// Marca TODAS as notificações do usuário logado como lidas.
+export async function markAllNotificationsRead(): Promise<boolean> {
+  try {
+    const res = await apiFetch('/api/notifications', {
+      method: 'PATCH',
+      body: JSON.stringify({ all: true }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[markAllNotificationsRead] falha ao marcar notificações como lidas:', err);
+    return false;
   }
 }
 

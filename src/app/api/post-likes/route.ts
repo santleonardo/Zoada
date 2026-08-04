@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
+import { criarNotificacao } from '@/lib/notifications';
 
 // POST /api/post-likes — Reage (ou remove a reação) de coração na
 // postagem em si (o OP que inicia a thread, aba "Fãs"). Toggle: se já
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Neon não configurado' }, { status: 503 });
     }
 
-    const postagem = await db.postagem.findUnique({ where: { id: post_id }, select: { id: true } });
+    const postagem = await db.postagem.findUnique({ where: { id: post_id }, select: { id: true, usuarioId: true } });
     if (!postagem) {
       return NextResponse.json({ error: 'Postagem não encontrada' }, { status: 404 });
     }
@@ -41,6 +42,13 @@ export async function POST(request: Request) {
     } else {
       await db.curtidaPostagem.create({
         data: { usuarioId: userId, postagemId: post_id },
+      });
+      // Avisa o dono da postagem (só quando é uma curtida nova, não no unlike).
+      await criarNotificacao({
+        usuarioId: postagem.usuarioId,
+        atorId: userId,
+        tipo: 'CURTIDA_POSTAGEM',
+        postagemId: post_id,
       });
     }
 

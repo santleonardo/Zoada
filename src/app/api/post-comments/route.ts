@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
 import { notDeleted } from '@/lib/soft-delete';
+import { criarNotificacao } from '@/lib/notifications';
 import type { PostComment } from '@/types';
 
 // GET /api/post-comments?post_id=xxx — thread de comentários de uma
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
     }
 
-    const postagem = await db.postagem.findUnique({ where: { id: post_id }, select: { id: true } });
+    const postagem = await db.postagem.findUnique({ where: { id: post_id }, select: { id: true, usuarioId: true } });
     if (!postagem) {
       return NextResponse.json({ error: 'Postagem não encontrada' }, { status: 404 });
     }
@@ -94,6 +95,15 @@ export async function POST(request: Request) {
       include: {
         usuario: { select: { id: true, name: true, avatarUrl: true } },
       },
+    });
+
+    // Avisa o dono da postagem que alguém comentou.
+    await criarNotificacao({
+      usuarioId: postagem.usuarioId,
+      atorId: userId,
+      tipo: 'COMENTARIO_POSTAGEM',
+      postagemId: post_id,
+      comentarioId: comentario.id,
     });
 
     const comment: PostComment = {

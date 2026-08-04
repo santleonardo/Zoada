@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
+import { criarNotificacao } from '@/lib/notifications';
 import type { Follow } from '@/types';
 
 // GET /api/follow?user_id=xxx&artist_id=xxx
@@ -110,6 +111,16 @@ export async function POST(request: Request) {
         data: { seguidoresCount: { increment: 1 } },
       }),
     ]);
+
+    // Avisa o dono do artista (artistas sem dono, ex: seed/demo, não notificam ninguém).
+    if (artista.usuarioId) {
+      await criarNotificacao({
+        usuarioId: artista.usuarioId,
+        atorId: userId,
+        tipo: 'SEGUIDOR_ARTISTA',
+        artistaId: artist_id,
+      });
+    }
 
     return NextResponse.json({
       following: true,

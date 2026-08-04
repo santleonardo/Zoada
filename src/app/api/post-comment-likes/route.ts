@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
+import { criarNotificacao } from '@/lib/notifications';
 
 // POST /api/post-comment-likes — Reage (ou remove a reação) de coração num
 // comentário da thread de uma postagem do feed (aba "Fãs"). Toggle: se já
@@ -22,7 +23,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Neon não configurado' }, { status: 503 });
     }
 
-    const comentario = await db.comentarioPostagem.findUnique({ where: { id: comment_id }, select: { id: true } });
+    const comentario = await db.comentarioPostagem.findUnique({
+      where: { id: comment_id },
+      select: { id: true, usuarioId: true, postagemId: true },
+    });
     if (!comentario) {
       return NextResponse.json({ error: 'Comentário não encontrado' }, { status: 404 });
     }
@@ -41,6 +45,14 @@ export async function POST(request: Request) {
     } else {
       await db.curtidaComentarioPostagem.create({
         data: { usuarioId: userId, comentarioId: comment_id },
+      });
+      // Avisa o dono do comentário (só quando é uma curtida nova).
+      await criarNotificacao({
+        usuarioId: comentario.usuarioId,
+        atorId: userId,
+        tipo: 'CURTIDA_COMENTARIO',
+        postagemId: comentario.postagemId,
+        comentarioId: comment_id,
       });
     }
 

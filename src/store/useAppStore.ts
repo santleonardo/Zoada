@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioStation, RadioPadrao } from '@/types';
-import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchUserFavorites, toggleTrackFavorite, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchPublishedRadioStations, fetchRadioStationById, advanceRadioStation, fetchRadioPadrao } from '@/lib/api';
+import type { User, Track, Screen, Message, Comment, RadioComment, Like, Follow, RadioStation, RadioPadrao, Notification } from '@/types';
+import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fetchUserLikes, toggleTrackLike, fetchUserFavorites, toggleTrackFavorite, fetchTrackComments, postTrackComment, fetchRadioComments, postRadioComment, fetchUserFollows, toggleArtistFollow, updateMyProfile, fetchPublishedRadioStations, fetchRadioStationById, advanceRadioStation, fetchRadioPadrao, fetchNotifications, fetchUnreadNotificationsCount, markNotificationRead, markAllNotificationsRead } from '@/lib/api';
 
 // Abas da tela inicial ("Início"). 'fans' é a busca de outros usuários
 // por nome — sem conteúdo próprio na store, é só mais uma aba client-side
@@ -142,6 +142,13 @@ interface AppState {
   // null = moderação ainda não configurou nada (cai no shuffle padrão).
   radioPadrao: RadioPadrao | null;
 
+  // Notificações
+  notifications: Notification[];
+  // Contagem de não lidas — mantida separada da lista pra poder atualizar
+  // o badge do sininho via polling leve (fetchUnreadNotificationsCount)
+  // sem precisar recarregar a lista inteira toda vez.
+  unreadNotificationsCount: number;
+
   // Actions - Auth
   setUser: (user: User | null, token?: string | null) => void;
   logout: () => void;
@@ -150,6 +157,15 @@ interface AppState {
   // local (sem navegar de tela, diferente de setUser). Retorna true em
   // caso de sucesso.
   updateProfile: (fields: { name: string; avatar_url: string | null }) => Promise<boolean>;
+
+  // Actions - Notificações
+  // Busca a lista + contagem de não lidas do servidor e substitui o estado local.
+  loadNotifications: (limit?: number) => Promise<void>;
+  // Só atualiza a contagem (polling leve, ver HEARTBEAT_INTERVAL_MS-like uso em ChatScreen).
+  refreshUnreadNotificationsCount: () => Promise<void>;
+  // Marca uma notificação como lida (otimista: atualiza local antes da resposta do servidor).
+  markNotificationAsRead: (id: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
 
   // Actions - Navigation
   navigate: (screen: Screen, tab?: MainTab) => void;
@@ -258,6 +274,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedStationId: null,
   selectedStation: null,
   radioPadrao: null,
+  notifications: [],
+  unreadNotificationsCount: 0,
 
   player: {
     currentTrack: null,
@@ -374,6 +392,51 @@ export const useAppStore = create<AppState>((set, get) => ({
       return true;
     } catch {
       return false;
+    }
+  },
+
+  // Notification actions
+  loadNotifications: async (limit) => {
+    const { notifications, unread_count } = await fetchNotifications(limit);
+    set({ notifications, unreadNotificationsCount: unread_count });
+  },
+
+  refreshUnreadNotificationsCount: async () => {
+    const count = await fetchUnreadNotificationsCount();
+    set({ unreadNotificationsCount: count });
+  },
+
+  markNotificationAsRead: async (id) => {
+    const before = get().notifications;
+    const target = before.find((n) => n.id === id);
+    if (!target || target.read) return;
+
+    // Otimista: marca local e decrementa o contador na hora.
+    set((state) => ({
+      notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      unreadNotificationsCount: Math.max(0, state.unreadNotificationsCount - 1),
+    }));
+
+    const ok = await markNotificationRead(id);
+    if (!ok) {
+      // Desfaz se a chamada falhou, pra não deixar o estado local mentindo.
+      set((state) => ({
+        notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: false } : n)),
+        unreadNotificationsCount: state.unreadNotificationsCount + 1,
+      }));
+    }
+  },
+
+  markAllNotificationsAsRead: async () => {
+    const before = get();
+    set((state) => ({
+      notifications: state.notifications.map((n) => ({ ...n, read: true })),
+      unreadNotificationsCount: 0,
+    }));
+
+    const ok = await markAllNotificationsRead();
+    if (!ok) {
+      set({ notifications: before.notifications, unreadNotificationsCount: before.unreadNotificationsCount });
     }
   },
 

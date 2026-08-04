@@ -152,6 +152,36 @@ export interface UserFollow {
   created_at: string;
 }
 
+// ---------- Notificações ----------
+// Um evento gerado por outra pessoa (o "ator") que diz respeito ao
+// usuário logado — alguém seguiu ele, curtiu/comentou numa postagem dele,
+// etc. `post_id`/`comment_id`/`artist_id` só vêm preenchidos conforme o
+// `type` (ex: comment_id só existe em 'comment_like').
+export type NotificationType =
+  | 'follow'         // alguém seguiu o seu perfil de usuário
+  | 'artist_follow'  // alguém seguiu um artista seu
+  | 'post_like'      // alguém reagiu (coração) numa postagem sua
+  | 'post_comment'   // alguém comentou numa postagem sua
+  | 'comment_like';  // alguém reagiu (coração) num comentário seu
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  read: boolean;
+  created_at: string;
+  actor: {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+  };
+  post_id?: string | null;
+  comment_id?: string | null;
+  /** Prévia curta do comentário (só em 'post_comment'). */
+  comment_preview?: string | null;
+  artist_id?: string | null;
+  artist_name?: string | null;
+}
+
 export interface Comment {
   id: string;
   user_id: string;
@@ -197,7 +227,7 @@ export interface Conversation {
   unread_count: number;
 }
 
-export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-profile' | 'chat' | 'chat-conversation' | 'radio' | 'explore';
+export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-profile' | 'chat' | 'chat-conversation' | 'radio' | 'explore' | 'notifications';
 
 // Estação de rádio de um usuário. Cada usuário pode ter uma estação própria
 // com nome, capa opcional e uma lista ordenada de faixas. Quando publicada,

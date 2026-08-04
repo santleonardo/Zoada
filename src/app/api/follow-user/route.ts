@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
+import { criarNotificacao } from '@/lib/notifications';
 
 // GET /api/follow-user?follower_id=xxx&followed_id=xxx
 // - Os dois juntos: verifica se esse usuário segue esse outro.
@@ -148,6 +149,13 @@ export async function POST(request: Request) {
         data: { seguindoCount: { increment: 1 } },
       }),
     ]);
+
+    // Avisa quem foi seguido (não bloqueia a resposta por causa disso).
+    await criarNotificacao({
+      usuarioId: followed_id,
+      atorId: userId,
+      tipo: 'SEGUIDOR',
+    });
 
     return NextResponse.json({
       following: true,
