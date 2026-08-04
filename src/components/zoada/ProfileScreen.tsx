@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { TopListenedTrack } from '@/types';
-import { fetchTopListenedTracks, updateMyProfile, exportMyData } from '@/lib/api';
+import { fetchTopListenedTracks, updateMyProfile, exportMyData, fetchPublicUserProfile } from '@/lib/api';
 import { uploadImageFile } from '@/lib/trackUpload';
 import GradientButton from './GradientButton';
 import CoverArt from './CoverArt';
@@ -38,6 +38,7 @@ import NotificationSettingsDialog from './NotificationSettingsDialog';
 import DeleteAccountDialog from './DeleteAccountDialog';
 import TrashDialog from './TrashDialog';
 import BlockedUsersDialog from './BlockedUsersDialog';
+import FollowListDialog from './FollowListDialog';
 
 // Feature flags: "Enviar música" e "Criar estação de rádio" viraram
 // funções premium (a serem lançadas no futuro). Por enquanto ficam
@@ -47,7 +48,7 @@ const PREMIUM_UPLOAD_MUSIC_ENABLED = false;
 const PREMIUM_RADIO_STATION_ENABLED = false;
 
 const ProfileScreen: React.FC = () => {
-  const { user, logout, navigate, selectArtist, setUser, authToken } = useAppStore();
+  const { user, logout, navigate, selectArtist, setUser, authToken, selectUser } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
@@ -57,6 +58,23 @@ const ProfileScreen: React.FC = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const profileCardRef = useRef<HTMLDivElement>(null);
+  const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+  const [followListTab, setFollowListTab] = useState<'followers' | 'following' | null>(null);
+
+  // Busca os contadores de seguidores/seguindo do próprio usuário — não vêm
+  // no objeto `user` da sessão, então precisa desse fetch à parte (mesma
+  // rota pública usada pra ver o perfil de outra pessoa).
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    fetchPublicUserProfile(user.id).then((profile) => {
+      if (cancelled || !profile) return;
+      setFollowCounts({ followers: profile.followers_count, following: profile.following_count });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
   const [audioQualityOpen, setAudioQualityOpen] = useState(false);
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
@@ -352,6 +370,29 @@ const ProfileScreen: React.FC = () => {
             )
           )}
 
+          {/* Seguidores / Seguindo — clicáveis, abrem a lista de verdade */}
+          {!isEditing && (
+            <div className="flex items-center justify-center gap-6 mb-4">
+              <button
+                type="button"
+                onClick={() => setFollowListTab('followers')}
+                className="text-center active:opacity-60 transition-opacity"
+              >
+                <p className="text-lg font-bold text-[#1A1B25]">{followCounts.followers}</p>
+                <p className="text-xs text-black/40">Seguidores</p>
+              </button>
+              <div className="w-px h-8 bg-black/10" />
+              <button
+                type="button"
+                onClick={() => setFollowListTab('following')}
+                className="text-center active:opacity-60 transition-opacity"
+              >
+                <p className="text-lg font-bold text-[#1A1B25]">{followCounts.following}</p>
+                <p className="text-xs text-black/40">Seguindo</p>
+              </button>
+            </div>
+          )}
+
           {isEditing && (
             <div className="flex flex-col items-center gap-2">
               {saveError && <p className="text-xs text-red-500">{saveError}</p>}
@@ -636,6 +677,16 @@ const ProfileScreen: React.FC = () => {
         }}
       />
       <BlockedUsersDialog open={blockedUsersOpen} onClose={() => setBlockedUsersOpen(false)} />
+
+      {user?.id && (
+        <FollowListDialog
+          open={followListTab !== null}
+          onClose={() => setFollowListTab(null)}
+          userId={user.id}
+          initialTab={followListTab ?? 'followers'}
+          onSelectUser={selectUser}
+        />
+      )}
     </div>
   );
 };

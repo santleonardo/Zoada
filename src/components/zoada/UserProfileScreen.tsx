@@ -11,6 +11,7 @@ import type { PublicUserProfile, TopListenedTrack } from '@/types';
 import CoverArt from './CoverArt';
 import UserFeedPanel from './UserFeedPanel';
 import ReportModal from './ReportModal';
+import FollowListDialog from './FollowListDialog';
 
 /**
  * Perfil público de OUTRO usuário — aberto quando alguém clica no nome de
@@ -19,7 +20,7 @@ import ReportModal from './ReportModal';
  * como um botão explícito "Mensagem" dentro dessa tela.
  */
 const UserProfileScreen: React.FC = () => {
-  const { selectedUserId, goBack, user, selectConversation, navigate, selectArtist, playTrack } = useAppStore();
+  const { selectedUserId, goBack, user, selectConversation, navigate, selectArtist, playTrack, selectUser } = useAppStore();
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -34,6 +35,7 @@ const UserProfileScreen: React.FC = () => {
   const [iBlocked, setIBlocked] = useState(false);
   const [blockedBy, setBlockedBy] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
+  const [followListTab, setFollowListTab] = useState<'followers' | 'following' | null>(null);
 
   const isFollowing = localIsFollowing ?? profile?.is_following ?? false;
   const followersCount = localFollowersCount ?? profile?.followers_count ?? 0;
@@ -276,17 +278,25 @@ const UserProfileScreen: React.FC = () => {
                   : (isOnline(profile.last_seen_at) ? 'Online agora' : formatLastSeen(profile.last_seen_at))}
               </p>
 
-              {/* Seguidores / Seguindo */}
+              {/* Seguidores / Seguindo — clicáveis, abrem a lista de verdade */}
               <div className="flex items-center gap-6 mb-5">
-                <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setFollowListTab('followers')}
+                  className="text-center active:opacity-60 transition-opacity"
+                >
                   <p className="text-lg font-bold text-[#1A1B25]">{formatNumber(followersCount)}</p>
                   <p className="text-xs text-black/40">Seguidores</p>
-                </div>
+                </button>
                 <div className="w-px h-8 bg-black/10" />
-                <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setFollowListTab('following')}
+                  className="text-center active:opacity-60 transition-opacity"
+                >
                   <p className="text-lg font-bold text-[#1A1B25]">{formatNumber(followingCount)}</p>
                   <p className="text-xs text-black/40">Seguindo</p>
-                </div>
+                </button>
               </div>
 
               {/* Ações — Seguir e Mensagem (não aparecem no próprio perfil,
@@ -461,6 +471,16 @@ const UserProfileScreen: React.FC = () => {
         targetType="USUARIO"
         targetId={selectedUserId}
       />
+
+      {selectedUserId && (
+        <FollowListDialog
+          open={followListTab !== null}
+          onClose={() => setFollowListTab(null)}
+          userId={selectedUserId}
+          initialTab={followListTab ?? 'followers'}
+          onSelectUser={selectUser}
+        />
+      )}
     </div>
   );
 };
