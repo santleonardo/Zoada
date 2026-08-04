@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { isNeonConfigured, MODERATION_SECRET } from '@/lib/config';
+import { isValidBearerSecret } from '@/lib/rateLimit';
 
 // ============================================================
 // /api/aviso — Aviso global disparado pelo painel de moderação
@@ -14,8 +15,7 @@ import { isNeonConfigured, MODERATION_SECRET } from '@/lib/config';
 // ============================================================
 
 function isModerator(request: Request): boolean {
-  const auth = request.headers.get('authorization');
-  return auth === `Bearer ${MODERATION_SECRET}`;
+  return isValidBearerSecret(request, MODERATION_SECRET);
 }
 
 // GET /api/aviso — retorna o aviso ativo mais recente (ou null se não

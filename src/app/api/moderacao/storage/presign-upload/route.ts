@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MODERATION_SECRET, isR2Configured } from '@/lib/config';
 import { getPresignedUploadUrl, getPublicUrl } from '@/lib/r2';
+import { isValidBearerSecret } from '@/lib/rateLimit';
 
 // POST /api/moderacao/storage/presign-upload
 // Igual a /api/storage/presign-upload, mas autenticado via
@@ -8,8 +9,7 @@ import { getPresignedUploadUrl, getPublicUrl } from '@/lib/r2';
 // moderação pra gerar URLs de upload direto pro R2.
 export async function POST(request: Request) {
   try {
-    const auth = request.headers.get('authorization');
-    if (auth !== `Bearer ${MODERATION_SECRET}`) {
+    if (!isValidBearerSecret(request, MODERATION_SECRET)) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 

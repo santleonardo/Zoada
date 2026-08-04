@@ -30,6 +30,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Arquivo muito grande (máx 50MB)' }, { status: 400 });
     }
 
+    // Só imagens passam por aqui hoje em dia (avatares e capas — áudio de
+    // faixa vai direto pro R2 via presigned URL, ver trackUpload.ts). Trava
+    // o tipo no servidor mesmo assim: o `accept` do <input> no navegador é
+    // só uma sugestão de UI, não impede alguém de mandar outro tipo de
+    // arquivo direto pela API. SVG fica de fora de propósito (pode conter
+    // <script> embutido — mesmo risco do upload de avatar).
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedImageTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'Tipo de arquivo não permitido. Use JPG, PNG, GIF ou WebP.' },
+        { status: 400 }
+      );
+    }
+
     // Generate key with user folder and timestamp
     const ext = file.name.split('.').pop() || 'bin';
     const key = `${folder}/${userId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}.${ext}`;

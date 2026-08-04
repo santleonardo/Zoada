@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { createToken, buildUserResponse } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
 import { isExpired } from '@/lib/soft-delete';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // POST /api/auth/register
 // Register new user — Neon Postgres + JWT
@@ -13,6 +14,16 @@ export async function POST(request: Request) {
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email e senha são obrigatórios' }, { status: 400 });
+    }
+
+    // No máximo 10 contas novas por IP a cada 15 minutos — dificulta
+    // criação em massa de contas (spam, abuso do painel de moderação, etc).
+    const rl = checkRateLimit(`register:${getClientIp(request)}`, 10, 15 * 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas. Tente novamente em alguns minutos.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } }
+      );
     }
 
     if (password.length < 6) {

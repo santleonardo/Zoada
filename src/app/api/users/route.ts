@@ -109,23 +109,25 @@ export async function GET(request: Request) {
       return NextResponse.json({ users: [] });
     }
 
+    // Busca só por nome (não por email): permitir buscar por email deixava
+    // qualquer usuário logado descobrir o endereço completo de outra
+    // pessoa, e ainda testar em massa se um email específico está
+    // cadastrado no app. O email de outros usuários nunca é devolvido
+    // aqui — só o do próprio dono é exposto (ex: tela de conta).
     const usuarios = await db.usuario.findMany({
       where: {
         id: { not: userId }, // não retorna o próprio usuário logado
         ...notDeleted,
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ],
+        name: { contains: search, mode: 'insensitive' },
       },
-      select: { id: true, name: true, email: true, avatarUrl: true },
+      select: { id: true, name: true, avatarUrl: true },
       orderBy: { name: 'asc' },
       take: 20,
     });
 
     const users = usuarios.map((u) => ({
       id: u.id,
-      email: u.email,
+      email: '',
       name: u.name,
       avatar_url: u.avatarUrl,
       created_at: '',

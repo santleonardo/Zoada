@@ -27,9 +27,43 @@ export const R2_CONFIG = {
   PUBLIC_URL: process.env.R2_PUBLIC_URL || '', // r2.dev public URL ou custom domain
 };
 
+// ---------- Segredos críticos (JWT / moderação) ----------
+// IMPORTANTE: nunca usamos um valor padrão fixo pra esses segredos em
+// produção. Um default hardcoded (visível em qualquer clone do repo)
+// significaria que qualquer pessoa poderia forjar um login válido ou
+// entrar no painel de moderação só de saber esse valor de cor. Se a env
+// var não estiver definida:
+//  - em produção: derrubamos o processo com um erro claro, forçando quem
+//    fez o deploy a configurar a env var antes do app ficar no ar;
+//  - fora de produção (dev local, build, etc.): geramos um valor aleatório
+//    só pra essa execução, então o app funciona, mas nenhum token gerado
+//    numa reinicialização vale na próxima — o que é aceitável em dev e
+//    ainda assim muito mais seguro que um segredo fixo e público.
+function requireSecret(envVar: string, envValue: string | undefined): string {
+  if (envValue) return envValue;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      `[ZÔADA] A variável de ambiente ${envVar} não está definida. ` +
+      `Por segurança, o app não inicia em produção sem esse segredo configurado. ` +
+      `Gere um valor com: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" ` +
+      `e defina ${envVar} nas configurações do seu ambiente de deploy.`
+    );
+  }
+
+  console.warn(
+    `[ZÔADA] ${envVar} não definida — usando um valor aleatório temporário só para esta execução local. ` +
+    `Isso derruba sessões a cada reinício. Defina ${envVar} no seu .env para evitar isso.`
+  );
+  // Node's crypto is available in every runtime this app targets (Node.js
+  // API routes / Edge with the crypto global) — dynamic import keeps this
+  // out of the client bundle since config.ts is only ever imported server-side.
+  return require('crypto').randomBytes(32).toString('hex');
+}
+
 // ---------- JWT AUTH ----------
 export const AUTH_CONFIG = {
-  JWT_SECRET: process.env.JWT_SECRET || 'zoada-dev-secret-change-in-production',
+  JWT_SECRET: requireSecret('JWT_SECRET', process.env.JWT_SECRET),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
   COOKIE_NAME: 'zoada-token',
 };
@@ -39,6 +73,11 @@ export const AUTH_CONFIG = {
 // Authorization vier com esse valor. O Vercel Cron já manda
 // `Authorization: Bearer ${CRON_SECRET}` automaticamente quando essa env
 // var está configurada no projeto — não precisa fazer nada extra lá.
+// Fica vazio (em vez de exigir/gerar) se não configurado: nesse caso a
+// rota de cron simplesmente recusa qualquer chamada (string vazia nunca
+// bate com um header Bearer real), então ficar sem configurar só
+// desativa a limpeza automática — não é um segredo que, se ausente,
+// libera acesso a mais coisa.
 export const CRON_SECRET = process.env.CRON_SECRET || '';
 
 // ---------- MODERAÇÃO (painel de denúncias, separado do app) ----------
@@ -46,9 +85,7 @@ export const CRON_SECRET = process.env.CRON_SECRET || '';
 // chamada se o header Authorization vier com `Bearer ${MODERATION_SECRET}`.
 // O painel HTML em public/moderacao/index.html pede esse valor e guarda no
 // localStorage do navegador de quem modera — nunca é exposto no app normal.
-// IMPORTANTE: troque o valor padrão abaixo antes de ir para produção,
-// definindo a env var MODERATION_SECRET.
-export const MODERATION_SECRET = process.env.MODERATION_SECRET || 'zoada-dev-moderation-secret-change-in-production';
+export const MODERATION_SECRET = requireSecret('MODERATION_SECRET', process.env.MODERATION_SECRET);
 
 // Emails autorizados a entrar no painel de moderação pela tela de login
 // (/api/moderacao/login). Precisa ser uma conta já existente no app (com

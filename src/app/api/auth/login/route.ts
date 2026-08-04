@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { createToken, buildUserResponse } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
 import { isExpired } from '@/lib/soft-delete';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // POST /api/auth/login
 // Login with email/password — Neon Postgres + JWT
@@ -13,6 +14,18 @@ export async function POST(request: Request) {
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email e senha são obrigatórios' }, { status: 400 });
+    }
+
+    // No máximo 10 tentativas de login por IP a cada 5 minutos — trava
+    // força bruta de senha sem atrapalhar alguém que só errou a senha
+    // algumas vezes. Chave combina IP + email pra não deixar um único IP
+    // "gastar" o limite de todo mundo tentando um monte de emails.
+    const rl = checkRateLimit(`login:${getClientIp(request)}:${String(email).toLowerCase()}`, 10, 5 * 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas. Tente novamente em alguns minutos.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } }
+      );
     }
 
     // If Neon is not configured, return demo mode

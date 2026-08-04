@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { isNeonConfigured, MODERATION_SECRET, RADIO_PADRAO_ID } from '@/lib/config';
 import type { RadioPadrao, Track } from '@/types';
+import { isValidBearerSecret } from '@/lib/rateLimit';
 
 // ============================================================
 // /api/moderacao/radio — Controle total da "Rádio Zôada" (a estação
@@ -19,8 +20,7 @@ import type { RadioPadrao, Track } from '@/types';
 // ============================================================
 
 function isModerator(request: Request): boolean {
-  const auth = request.headers.get('authorization');
-  return auth === `Bearer ${MODERATION_SECRET}`;
+  return isValidBearerSecret(request, MODERATION_SECRET);
 }
 
 // Garante que a linha singleton existe, criando com valores padrão na

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured, MODERATION_SECRET } from '@/lib/config';
+import { isValidBearerSecret } from '@/lib/rateLimit';
 
 // ============================================================
 // /api/reports — Canal de denúncia (Marco Civil, pós-decisão do STF de
@@ -21,8 +22,7 @@ type Status = (typeof STATUS_VALIDOS)[number];
 // ferramenta interna) — via header `Authorization: Bearer <MODERATION_SECRET>`.
 // Mesmo padrão já usado em /api/cron/purge-deleted com CRON_SECRET.
 function isModerator(request: Request): boolean {
-  const auth = request.headers.get('authorization');
-  return auth === `Bearer ${MODERATION_SECRET}`;
+  return isValidBearerSecret(request, MODERATION_SECRET);
 }
 
 function formatReport(d: {

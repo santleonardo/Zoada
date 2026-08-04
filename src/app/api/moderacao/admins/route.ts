@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { MODERATION_SECRET, MODERATION_ADMIN_EMAILS, isNeonConfigured } from '@/lib/config';
+import { isValidBearerSecret } from '@/lib/rateLimit';
 
 // ============================================================
 // /api/moderacao/admins — Gerencia quem pode entrar no painel de
@@ -19,8 +20,7 @@ import { MODERATION_SECRET, MODERATION_ADMIN_EMAILS, isNeonConfigured } from '@/
 // ============================================================
 
 function isModerator(request: Request): boolean {
-  const auth = request.headers.get('authorization');
-  return auth === `Bearer ${MODERATION_SECRET}`;
+  return isValidBearerSecret(request, MODERATION_SECRET);
 }
 
 // GET /api/moderacao/admins

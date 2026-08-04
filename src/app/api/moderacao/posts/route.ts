@@ -8,6 +8,7 @@ import {
   ZOADA_OFICIAL_AVATAR,
 } from '@/lib/config';
 import { notDeleted } from '@/lib/soft-delete';
+import { isValidBearerSecret } from '@/lib/rateLimit';
 
 // ============================================================
 // /api/moderacao/posts — Canal do painel de moderação para publicar posts
@@ -27,8 +28,7 @@ import { notDeleted } from '@/lib/soft-delete';
 // ============================================================
 
 function isModerator(request: Request): boolean {
-  const auth = request.headers.get('authorization');
-  return auth === `Bearer ${MODERATION_SECRET}`;
+  return isValidBearerSecret(request, MODERATION_SECRET);
 }
 
 // Garante que a conta oficial "Zôada" existe, sempre com o nome e a logo

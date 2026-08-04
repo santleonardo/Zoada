@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { isNeonConfigured, isR2Configured, CRON_SECRET } from '@/lib/config';
 import { deleteFromR2, keyFromPublicUrl } from '@/lib/r2';
 import { purgeCutoff } from '@/lib/soft-delete';
+import { isValidBearerSecret } from '@/lib/rateLimit';
 
 // GET /api/cron/purge-deleted
 // Varre tudo que foi soft-deletado (conta, artista, faixa, postagem,
@@ -23,8 +24,7 @@ export async function GET(request: Request) {
     }
 
     if (CRON_SECRET) {
-      const auth = request.headers.get('authorization');
-      if (auth !== `Bearer ${CRON_SECRET}`) {
+      if (!isValidBearerSecret(request, CRON_SECRET)) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
       }
     }

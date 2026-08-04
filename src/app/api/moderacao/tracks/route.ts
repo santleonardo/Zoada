@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { MODERATION_SECRET, isNeonConfigured } from '@/lib/config';
 import { notDeleted } from '@/lib/soft-delete';
+import { isValidBearerSecret } from '@/lib/rateLimit';
 
 function isModerator(request: Request): boolean {
-  const auth = request.headers.get('authorization');
-  return auth === `Bearer ${MODERATION_SECRET}`;
+  return isValidBearerSecret(request, MODERATION_SECRET);
 }
 
 function serializeTrack(faixa: {

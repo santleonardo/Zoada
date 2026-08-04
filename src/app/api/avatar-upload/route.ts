@@ -24,8 +24,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 });
     }
 
-    // Validar tipo de arquivo
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    // Validar tipo de arquivo.
+    // IMPORTANTE: SVG fica de fora de propósito — é um formato de texto/XML
+    // que pode conter <script> embutido. Se alguém abrisse o arquivo
+    // diretamente (mesma origem do app quando o R2 não está configurado,
+    // já que o fallback salva em public/avatars/), esse script rodaria
+    // com acesso ao localStorage do app, inclusive o token de login.
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
         { error: 'Tipo de arquivo não permitido. Use JPG, PNG, GIF ou WebP.' },

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { isNeonConfigured, MODERATION_SECRET } from '@/lib/config';
 import { isModerationAdminEmail } from '@/lib/moderation-admins';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // ============================================================
 // /api/moderacao/login — Tela de login do painel de moderação
@@ -24,6 +25,16 @@ export async function POST(request: Request) {
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email e senha são obrigatórios' }, { status: 400 });
+    }
+
+    // Painel de moderação: limite mais rígido (é a porta pra dados
+    // sensíveis de denúncias). 5 tentativas a cada 5 minutos por IP+email.
+    const rl = checkRateLimit(`mod-login:${getClientIp(request)}:${String(email).toLowerCase()}`, 5, 5 * 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas. Tente novamente em alguns minutos.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } }
+      );
     }
 
     if (!isNeonConfigured) {
