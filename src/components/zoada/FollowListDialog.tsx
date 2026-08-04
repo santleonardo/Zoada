@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, Loader2, Users } from 'lucide-react';
+import { X, Loader2, Users, Lock } from 'lucide-react';
 import { fetchUserFollowers, fetchUserFollowing, type FollowListItem } from '@/lib/api';
 
 interface FollowListDialogProps {
@@ -28,6 +28,8 @@ const FollowListDialog: React.FC<FollowListDialogProps> = ({
   const [tab, setTab] = useState<'followers' | 'following'>(initialTab);
   const [followers, setFollowers] = useState<FollowListItem[] | null>(null);
   const [following, setFollowing] = useState<FollowListItem[] | null>(null);
+  const [followersHidden, setFollowersHidden] = useState(false);
+  const [followingHidden, setFollowingHidden] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Reabre sempre na aba pedida (ex: clicou em "Seguidores" de novo depois
@@ -46,9 +48,14 @@ const FollowListDialog: React.FC<FollowListDialogProps> = ({
     setLoading(true);
     const request = tab === 'followers' ? fetchUserFollowers(userId) : fetchUserFollowing(userId);
     request
-      .then((list) => {
-        if (tab === 'followers') setFollowers(list);
-        else setFollowing(list);
+      .then((result) => {
+        if (tab === 'followers') {
+          setFollowers(result.items);
+          setFollowersHidden(result.hidden);
+        } else {
+          setFollowing(result.items);
+          setFollowingHidden(result.hidden);
+        }
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,11 +66,14 @@ const FollowListDialog: React.FC<FollowListDialogProps> = ({
   useEffect(() => {
     setFollowers(null);
     setFollowing(null);
+    setFollowersHidden(false);
+    setFollowingHidden(false);
   }, [userId]);
 
   if (!open) return null;
 
   const list = tab === 'followers' ? followers : following;
+  const hidden = tab === 'followers' ? followersHidden : followingHidden;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -107,7 +117,18 @@ const FollowListDialog: React.FC<FollowListDialogProps> = ({
             </div>
           )}
 
-          {!loading && list?.length === 0 && (
+          {!loading && hidden && (
+            <div className="text-center py-10">
+              <Lock size={32} className="text-black/15 mx-auto mb-2" />
+              <p className="text-sm text-black/40 max-w-[220px] mx-auto">
+                {tab === 'followers'
+                  ? 'Essa pessoa optou por ocultar quem a segue.'
+                  : 'Essa pessoa optou por ocultar quem ela segue.'}
+              </p>
+            </div>
+          )}
+
+          {!loading && !hidden && list?.length === 0 && (
             <div className="text-center py-10">
               <Users size={32} className="text-black/15 mx-auto mb-2" />
               <p className="text-sm text-black/40">
@@ -117,6 +138,7 @@ const FollowListDialog: React.FC<FollowListDialogProps> = ({
           )}
 
           {!loading &&
+            !hidden &&
             list?.map((u) => (
               <button
                 key={u.id}

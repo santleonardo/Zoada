@@ -19,6 +19,7 @@ import {
   Lock,
   User,
   Shield,
+  Users,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { TopListenedTrack } from '@/types';
@@ -81,6 +82,7 @@ const ProfileScreen: React.FC = () => {
   const [trashOpen, setTrashOpen] = useState(false);
   const [blockedUsersOpen, setBlockedUsersOpen] = useState(false);
   const [privateProfileSaving, setPrivateProfileSaving] = useState(false);
+  const [hideFollowListsSaving, setHideFollowListsSaving] = useState(false);
   const [exportingData, setExportingData] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [tracksRefreshKey, setTracksRefreshKey] = useState(0);
@@ -131,6 +133,26 @@ const ProfileScreen: React.FC = () => {
       // Mantém o valor anterior se falhar
     } finally {
       setPrivateProfileSaving(false);
+    }
+  };
+
+  const handleToggleHideFollowLists = async () => {
+    if (!user || hideFollowListsSaving) return;
+    const next = !user.hide_follow_lists;
+    setHideFollowListsSaving(true);
+    try {
+      const updated = await updateMyProfile({ hide_follow_lists: next });
+      if (updated) {
+        setUser({
+          ...user,
+          hide_follow_lists:
+            updated.hide_follow_lists !== undefined ? updated.hide_follow_lists : next,
+        });
+      }
+    } catch {
+      // Mantém o valor anterior se falhar
+    } finally {
+      setHideFollowListsSaving(false);
     }
   };
 
@@ -593,6 +615,39 @@ const ProfileScreen: React.FC = () => {
                           <span
                             className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
                               user.private_profile ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Ocultar lista de Seguidores/Seguindo — mora na mesma
+                        seção "Conta", também como switch em vez de link. */}
+                    {section.key === 'conta' && (
+                      <div className="flex items-center justify-between w-full p-3 gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-black/50"><Users size={18} /></span>
+                          <div className="min-w-0">
+                            <p className="text-sm text-[#1A1B25] font-medium">Ocultar seguidores e seguindo</p>
+                            <p className="text-[11px] text-black/40 leading-snug">
+                              Só você vê as listas — o público continua vendo os números
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={!!user.hide_follow_lists}
+                          aria-label="Ocultar seguidores e seguindo"
+                          disabled={hideFollowListsSaving}
+                          onClick={handleToggleHideFollowLists}
+                          className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${
+                            user.hide_follow_lists ? 'bg-[#FF8C42]' : 'bg-black/15'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                              user.hide_follow_lists ? 'translate-x-5' : 'translate-x-0'
                             }`}
                           />
                         </button>
