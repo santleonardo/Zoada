@@ -109,6 +109,11 @@ CREATE TABLE IF NOT EXISTS mensagens (
   -- Faixa compartilhada nessa mensagem (opcional): permite enviar um "link"
   -- de música clicável dentro da conversa.
   "faixaId" TEXT REFERENCES faixas(id) ON DELETE SET NULL,
+  -- Mensagem de voz (opcional): URL do áudio gravado no navegador e sua
+  -- duração em segundos. Quando preenchida, o chat mostra um player de
+  -- áudio em vez de um balão de texto comum.
+  "audioUrl" TEXT,
+  "audioDuracao" INTEGER,
   lida BOOLEAN NOT NULL DEFAULT false,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -132,6 +137,13 @@ CREATE INDEX IF NOT EXISTS idx_mensagens_faixaId ON mensagens("faixaId");
 
 -- Caso a tabela já exista de uma versão anterior sem essa coluna, rode:
 -- ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS "faixaId" TEXT REFERENCES faixas(id) ON DELETE SET NULL;
+
+-- ============================================================
+-- Migração: mensagens de voz (adicionado depois do lançamento inicial)
+-- ============================================================
+-- Se o banco já existir, rode:
+-- ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS "audioUrl" TEXT;
+-- ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS "audioDuracao" INTEGER;
 
 -- ============================================================
 -- Migração: seguir usuários (adicionado depois do lançamento inicial)

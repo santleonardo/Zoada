@@ -333,6 +333,14 @@ model Mensagem {
   // texto comum. onDelete SetNull: se a faixa original for apagada, a
   // mensagem continua existindo (só perde o link tocável).
   faixaId       String?  @map("faixa_id")
+  // Mensagem de voz (opcional). Quando preenchida, o chat renderiza um
+  // player de áudio em vez de um balão de texto comum — igual ao cartão de
+  // música, mas pra gravações curtas feitas na hora, direto no navegador.
+  // conteudo continua obrigatório (fica com um texto padrão tipo "🎤
+  // Mensagem de voz") pra qualquer lugar que ainda exiba `content` puro
+  // (ex: prévia da lista de conversas, notificações).
+  audioUrl      String?  @map("audio_url")
+  audioDuracao  Int?     @map("audio_duracao") // segundos
   lida          Boolean  @default(false)
   createdAt     DateTime @default(now()) @map("created_at")
 
