@@ -32,6 +32,7 @@ import MyRadioStationPanel from './MyRadioStationPanel';
 import UserFeedPanel from './UserFeedPanel';
 import SupportChatPanel from './SupportChatPanel';
 import AudioQualityDialog from './AudioQualityDialog';
+import NotificationSettingsDialog from './NotificationSettingsDialog';
 import DeleteAccountDialog from './DeleteAccountDialog';
 import TrashDialog from './TrashDialog';
 import BlockedUsersDialog from './BlockedUsersDialog';
@@ -55,6 +56,7 @@ const ProfileScreen: React.FC = () => {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const profileCardRef = useRef<HTMLDivElement>(null);
   const [audioQualityOpen, setAudioQualityOpen] = useState(false);
+  const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [blockedUsersOpen, setBlockedUsersOpen] = useState(false);
@@ -461,7 +463,7 @@ const ProfileScreen: React.FC = () => {
         </div>
 
         {([
-          { icon: <Settings size={18} />, label: 'Notificações' },
+          { icon: <Settings size={18} />, label: 'Notificações', onClick: () => setNotificationSettingsOpen(true) },
           { icon: <Music2 size={18} />, label: 'Qualidade de áudio', onClick: () => setAudioQualityOpen(true) },
           { icon: <Edit3 size={18} />, label: 'Editar perfil', onClick: handleStartEdit },
           { icon: <Trash2 size={18} />, label: 'Lixeira', onClick: () => setTrashOpen(true) },
@@ -528,6 +530,10 @@ const ProfileScreen: React.FC = () => {
       <div className="h-32" />
 
       <AudioQualityDialog open={audioQualityOpen} onClose={() => setAudioQualityOpen(false)} />
+      <NotificationSettingsDialog
+        open={notificationSettingsOpen}
+        onClose={() => setNotificationSettingsOpen(false)}
+      />
       <DeleteAccountDialog open={deleteAccountOpen} onClose={() => setDeleteAccountOpen(false)} />
       <TrashDialog
         open={trashOpen}

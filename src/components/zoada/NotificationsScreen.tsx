@@ -51,6 +51,7 @@ const NotificationsScreen: React.FC = () => {
     goBack,
     notifications,
     unreadNotificationsCount,
+    notificationPrefs,
     loadNotifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
@@ -64,6 +65,10 @@ const NotificationsScreen: React.FC = () => {
     setIsLoading(true);
     loadNotifications().finally(() => setIsLoading(false));
   }, [loadNotifications]);
+
+  // Respeita as preferências definidas em Perfil > Configurações >
+  // Notificações — tipo desligado não aparece na lista.
+  const visibleNotifications = notifications.filter((n) => notificationPrefs[n.type]);
 
   const handleOpen = (n: Notification) => {
     if (!n.read) markNotificationAsRead(n.id);
@@ -121,21 +126,25 @@ const NotificationsScreen: React.FC = () => {
         <p className="text-black/40 text-sm text-center py-16">Carregando...</p>
       )}
 
-      {!isLoading && notifications.length === 0 && (
+      {!isLoading && visibleNotifications.length === 0 && (
         <div className="text-center py-16">
           <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mx-auto mb-3">
             <Bell size={24} className="text-black/25" />
           </div>
-          <p className="text-black/50 text-sm">Nenhuma notificação ainda.</p>
+          <p className="text-black/50 text-sm">
+            {notifications.length > 0 ? 'Nenhuma notificação com os tipos ativados.' : 'Nenhuma notificação ainda.'}
+          </p>
           <p className="text-black/30 text-xs mt-1">
-            Quando alguém interagir com você, aparece aqui.
+            {notifications.length > 0
+              ? 'Você desligou alguns tipos em Perfil > Configurações > Notificações.'
+              : 'Quando alguém interagir com você, aparece aqui.'}
           </p>
         </div>
       )}
 
-      {!isLoading && notifications.length > 0 && (
+      {!isLoading && visibleNotifications.length > 0 && (
         <div className="space-y-1">
-          {notifications.map((n) => {
+          {visibleNotifications.map((n) => {
             const { Icon, bg, color } = iconFor(n.type);
             return (
               <button
