@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
 import { criarNotificacao } from '@/lib/notifications';
+import { notDeleted } from '@/lib/soft-delete';
 
 // GET /api/follow-user?follower_id=xxx&followed_id=xxx
 // - Os dois juntos: verifica se esse usuário segue esse outro.
@@ -34,11 +35,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ is_following: !!exists });
     }
 
-    // Listar quem o usuário segue (following)
+    // Listar quem o usuário segue (following) — já traz nome/foto de cada
+    // pessoa junto (join com Usuario), pra alimentar direto a lista da tela
+    // "Seguindo" sem precisar de uma chamada por usuário.
     if (followerId) {
       const registros = await db.seguirUsuario.findMany({
-        where: { seguidorId: followerId },
+        where: { seguidorId: followerId, seguido: { ...notDeleted } },
         orderBy: { createdAt: 'desc' },
+        include: {
+          seguido: { select: { id: true, name: true, avatarUrl: true, bio: true } },
+        },
       });
       return NextResponse.json({
         follows: registros.map((f) => ({
@@ -46,15 +52,25 @@ export async function GET(request: Request) {
           follower_id: f.seguidorId,
           followed_id: f.seguidoId,
           created_at: f.createdAt.toISOString(),
+          user: {
+            id: f.seguido.id,
+            name: f.seguido.name,
+            avatar_url: f.seguido.avatarUrl,
+            bio: f.seguido.bio,
+          },
         })),
       });
     }
 
-    // Listar seguidores de um usuário
+    // Listar seguidores de um usuário — mesmo formato, só que trazendo quem
+    // segue (seguidor) em vez de quem é seguido.
     if (followedId) {
       const registros = await db.seguirUsuario.findMany({
-        where: { seguidoId: followedId },
+        where: { seguidoId: followedId, seguidor: { ...notDeleted } },
         orderBy: { createdAt: 'desc' },
+        include: {
+          seguidor: { select: { id: true, name: true, avatarUrl: true, bio: true } },
+        },
       });
       return NextResponse.json({
         follows: registros.map((f) => ({
@@ -62,6 +78,12 @@ export async function GET(request: Request) {
           follower_id: f.seguidorId,
           followed_id: f.seguidoId,
           created_at: f.createdAt.toISOString(),
+          user: {
+            id: f.seguidor.id,
+            name: f.seguidor.name,
+            avatar_url: f.seguidor.avatarUrl,
+            bio: f.seguidor.bio,
+          },
         })),
       });
     }

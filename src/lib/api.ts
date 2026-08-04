@@ -296,17 +296,39 @@ export async function toggleUserFollow(followedId: string): Promise<{
   }
 }
 
-// Busca a lista de usuários que um usuário segue.
-export async function fetchUserFollowing(userId: string): Promise<Array<{
-  id: string; follower_id: string; followed_id: string; created_at: string;
-}>> {
+// Uma pessoa dentro de uma lista de seguidores/seguindo — já com nome, foto
+// e bio, prontos pra exibir (o back já faz o join, ver /api/follow-user).
+export interface FollowListItem {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  bio: string | null;
+}
+
+// Busca a lista de usuários que um usuário segue ("Seguindo").
+export async function fetchUserFollowing(userId: string): Promise<FollowListItem[]> {
   try {
     const res = await apiFetch(`/api/follow-user?follower_id=${encodeURIComponent(userId)}`);
     if (!res.ok) return [];
     const data = await res.json();
-    return Array.isArray(data.follows) ? data.follows : [];
+    const follows = Array.isArray(data.follows) ? data.follows : [];
+    return follows.map((f: { user: FollowListItem }) => f.user).filter(Boolean);
   } catch (err) {
     console.warn('[fetchUserFollowing] falha ao buscar seguindo:', err);
+    return [];
+  }
+}
+
+// Busca a lista de quem segue um usuário ("Seguidores").
+export async function fetchUserFollowers(userId: string): Promise<FollowListItem[]> {
+  try {
+    const res = await apiFetch(`/api/follow-user?followed_id=${encodeURIComponent(userId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const follows = Array.isArray(data.follows) ? data.follows : [];
+    return follows.map((f: { user: FollowListItem }) => f.user).filter(Boolean);
+  } catch (err) {
+    console.warn('[fetchUserFollowers] falha ao buscar seguidores:', err);
     return [];
   }
 }
