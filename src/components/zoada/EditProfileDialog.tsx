@@ -7,6 +7,7 @@ import {
   Loader2,
   User as UserIcon,
   Trash2,
+  Lock,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { uploadAvatar } from '@/lib/api';
@@ -26,6 +27,7 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onClose }) 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [privateProfile, setPrivateProfile] = useState(!!user?.private_profile);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reseta o estado ao abrir o dialog
@@ -35,11 +37,12 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onClose }) 
       setAvatarPreview(user?.avatar_url || null);
       setAvatarFile(null);
       setRemoveAvatar(false);
+      setPrivateProfile(!!user?.private_profile);
       setError(null);
       setIsUploading(false);
       setIsSaving(false);
     }
-  }, [open, user?.name, user?.avatar_url]);
+  }, [open, user?.name, user?.avatar_url, user?.private_profile]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -119,6 +122,7 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onClose }) 
       const success = await updateProfile({
         name: trimmedName,
         avatar_url: finalAvatarUrl,
+        private_profile: privateProfile,
       });
 
       if (!success) {
@@ -251,6 +255,39 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onClose }) 
             <p className="text-xs text-black/25">O email não pode ser alterado.</p>
           </div>
 
+          {/* Perfil privado */}
+          <div className="rounded-xl border border-black/10 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-black/5 flex items-center justify-center flex-shrink-0">
+                  <Lock size={16} className="text-[#1A1B25]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#1A1B25]">Perfil privado</p>
+                  <p className="text-xs text-black/45 mt-0.5 leading-relaxed">
+                    Só quem te segue vê suas postagens, artistas e músicas mais ouvidas.
+                    Nome, foto e contadores continuam visíveis para qualquer pessoa.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={privateProfile}
+                onClick={() => setPrivateProfile((v) => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+                  privateProfile ? 'bg-[#FF8C42]' : 'bg-black/15'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    privateProfile ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
           {/* Error message */}
           {error && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-100">
@@ -270,7 +307,7 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onClose }) 
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving || (!avatarFile && !removeAvatar && name.trim() === user?.name)}
+            disabled={isSaving || (!avatarFile && !removeAvatar && name.trim() === user?.name && privateProfile === !!user?.private_profile)}
             className="flex-1 py-3 rounded-xl gradient-bg text-sm font-medium text-white hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isSaving && <Loader2 size={14} className="animate-spin" />}

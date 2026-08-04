@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { ChevronLeft, Flame, MessageCircle, Music2, Users, UserPlus, UserCheck, Flag, ShieldOff, Shield } from 'lucide-react';
+import { ChevronLeft, Flame, MessageCircle, Music2, Users, UserPlus, UserCheck, Flag, ShieldOff, Shield, Lock } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { fetchPublicUserProfile, fetchTopListenedTracks, toggleUserFollow, fetchBlockStatus, toggleBlockUser } from '@/lib/api';
 import { isOnline, formatLastSeen } from '@/lib/presence';
@@ -117,6 +117,16 @@ const UserProfileScreen: React.FC = () => {
         is_following: result.following,
         followers_count: result.followers_count,
       });
+    }
+
+    // Ao passar a seguir um perfil privado, recarrega pra liberar o conteúdo.
+    if (result.following && selectedUserId) {
+      const data = await fetchPublicUserProfile(selectedUserId);
+      if (data) {
+        setProfile(data);
+        const tracks = await fetchTopListenedTracks(10, selectedUserId);
+        setTopTracks(tracks);
+      }
     }
   }, [selectedUserId, isFollowLoading, user, isFollowing, followersCount, profile]);
 
@@ -247,8 +257,17 @@ const UserProfileScreen: React.FC = () => {
 
               <h2 className="text-xl font-bold text-[#1A1B25] mb-1">{profile.name}</h2>
 
+              {profile.is_private && (
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/5 text-[11px] font-semibold text-black/50 mb-2">
+                  <Lock size={11} />
+                  Perfil privado
+                </div>
+              )}
+
               <p className="text-xs text-black/40 mb-4">
-                {isOnline(profile.last_seen_at) ? 'Online agora' : formatLastSeen(profile.last_seen_at)}
+                {profile.profile_locked
+                  ? 'Perfil privado'
+                  : (isOnline(profile.last_seen_at) ? 'Online agora' : formatLastSeen(profile.last_seen_at))}
               </p>
 
               {/* Seguidores / Seguindo */}
@@ -306,6 +325,18 @@ const UserProfileScreen: React.FC = () => {
             </div>
           </div>
 
+          {profile.profile_locked ? (
+            <div className="rounded-2xl bg-white shadow-sm p-6 text-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-black/5 flex items-center justify-center mx-auto mb-3">
+                <Lock size={22} className="text-black/40" />
+              </div>
+              <p className="text-sm font-semibold text-[#1A1B25] mb-1">Este perfil é privado</p>
+              <p className="text-xs text-black/45 leading-relaxed">
+                Siga {profile.name} para ver postagens, artistas e músicas mais ouvidas.
+              </p>
+            </div>
+          ) : (
+            <>
           {/* Mais ouvidas: top 10 músicas que esse usuário mais repetiu,
               da mais pra menos ouvida (ex: 15x aparece antes de 10x). */}
           {topTracks.length > 0 && (
@@ -408,6 +439,9 @@ const UserProfileScreen: React.FC = () => {
                 </button>
               ))}
             </div>
+          )}
+
+            </>
           )}
         </>
       )}
