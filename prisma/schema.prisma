@@ -31,6 +31,13 @@ model Usuario {
   // job (ver /api/cron/purge-deleted) apaga de vez o que passou dos 30 dias.
   deletedAt         DateTime? @map("deleted_at")
 
+  // Suspensão aplicada pelo painel de moderação (ver /api/moderacao/suspensoes).
+  // Enquanto `suspensoAte` estiver no futuro, o usuário não consegue logar
+  // nem usar tokens já emitidos (checado em authenticateRequest). Passado
+  // esse prazo, a suspensão expira sozinha — não precisa de job de limpeza.
+  suspensoAte    DateTime? @map("suspenso_ate")
+  suspensoMotivo String?   @map("suspenso_motivo")
+
   curtidas     Curtida[]
   favoritos    Favorito[]
   comentarios  Comentario[]

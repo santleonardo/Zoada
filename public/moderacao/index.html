@@ -981,6 +981,7 @@
 
   <div class="section-switch" id="sectionSwitch">
     <button class="tab active" id="tabSectionDenuncias" onclick="switchSection('denuncias')">🚩 Denúncias</button>
+    <button class="tab" id="tabSectionUsuarios" onclick="switchSection('usuarios')">🚫 Usuários</button>
     <button class="tab" id="tabSectionAvisos" onclick="switchSection('avisos')">📣 Avisos</button>
     <button class="tab" id="tabSectionFeed" onclick="switchSection('feed')">📝 Feed (Fãs)</button>
     <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
@@ -998,6 +999,31 @@
     <div class="tabs" id="tabs"></div>
 
     <div id="list"></div>
+  </div>
+
+  <div id="section-usuarios" style="display:none;">
+    <div class="section-head">
+      <h2>🚫 Usuários</h2>
+      <p>Suspenda o acesso de um usuário à plataforma por 24 horas ou 7 dias. Suspenso não consegue logar nem continuar usando um login já feito enquanto durar.</p>
+    </div>
+
+    <div class="aviso-box">
+      <h2>🔍 Buscar usuário</h2>
+      <p class="sub">Digite nome ou email para localizar a conta.</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <div class="field" style="flex:1; min-width:220px; margin-bottom:0;">
+          <label for="userSearchInput">Nome ou email</label>
+          <input type="text" id="userSearchInput" placeholder="ex: maria@email.com" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchUsersMod();}">
+        </div>
+        <button class="btn-secondary" onclick="searchUsersMod()" id="userSearchBtn">Buscar</button>
+      </div>
+      <div id="userSearchResults" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="radio-panel" style="margin-top:16px;">
+      <h3>⏳ Suspensos no momento</h3>
+      <div id="suspendedUsersList"><div class="status-msg">Carregando…</div></div>
+    </div>
   </div>
 
   <div id="section-avisos" style="display:none;">
@@ -1533,6 +1559,7 @@
           (r.status !== 'RESOLVIDA' ? '<button class="btn-ok" onclick="updateStatus(\'' + r.id + '\', \'RESOLVIDA\', this)">Resolver (conteúdo removido)</button>' : '') +
           (r.status !== 'REJEITADA' ? '<button class="btn-danger" onclick="updateStatus(\'' + r.id + '\', \'REJEITADA\', this)">Rejeitar (improcedente)</button>' : '') +
           (r.status !== 'PENDENTE' ? '<button class="btn-secondary" onclick="updateStatus(\'' + r.id + '\', \'PENDENTE\', this)">Voltar para pendente</button>' : '') +
+          (r.autor_id ? '<button class="btn-danger" onclick="goSuspendFromReport(\'' + escapeHtml(r.autor_id).replace(/'/g, '&#39;') + '\')">🚫 Suspender autor(a)</button>' : '') +
         '</div>' +
       '</div>';
   }
@@ -1576,6 +1603,7 @@
 
   function switchSection(section) {
     document.getElementById('section-denuncias').style.display = section === 'denuncias' ? '' : 'none';
+    document.getElementById('section-usuarios').style.display = section === 'usuarios' ? '' : 'none';
     document.getElementById('section-avisos').style.display = section === 'avisos' ? '' : 'none';
     document.getElementById('section-feed').style.display = section === 'feed' ? '' : 'none';
     document.getElementById('section-mensagens').style.display = section === 'mensagens' ? '' : 'none';
@@ -1583,12 +1611,16 @@
     document.getElementById('section-musicas').style.display = section === 'musicas' ? '' : 'none';
     document.getElementById('section-admins').style.display = section === 'admins' ? '' : 'none';
     document.getElementById('tabSectionDenuncias').classList.toggle('active', section === 'denuncias');
+    document.getElementById('tabSectionUsuarios').classList.toggle('active', section === 'usuarios');
     document.getElementById('tabSectionAvisos').classList.toggle('active', section === 'avisos');
     document.getElementById('tabSectionFeed').classList.toggle('active', section === 'feed');
     document.getElementById('tabSectionMensagens').classList.toggle('active', section === 'mensagens');
     document.getElementById('tabSectionRadio').classList.toggle('active', section === 'radio');
     document.getElementById('tabSectionMusicas').classList.toggle('active', section === 'musicas');
     document.getElementById('tabSectionAdmins').classList.toggle('active', section === 'admins');
+    if (section === 'usuarios') {
+      loadSuspendedUsers();
+    }
     if (section === 'avisos') {
       loadAviso();
     }
@@ -1948,6 +1980,142 @@
       const u = JSON.parse(localStorage.getItem(LS_USER) || 'null');
       return u ? (u.email || '') : '';
     } catch { return ''; }
+  }
+
+  // Atalho vindo de um card de denúncia com tipo USUARIO: pula direto pra
+  // aba Usuários já com a busca preenchida pelo autor_id da denúncia.
+  function goSuspendFromReport(autorId) {
+    switchSection('usuarios');
+    const input = document.getElementById('userSearchInput');
+    input.value = autorId;
+    searchUsersMod();
+  }
+
+  // ---------- Usuários (suspender/reativar acesso à plataforma) ----------
+
+  function userSuspendCardHtml(u) {
+    const nameEsc = escapeHtml(u.name || u.email);
+    const idEsc = escapeHtml(u.id).replace(/'/g, '&#39;');
+    if (u.suspenso) {
+      return (
+        '<div class="track-row" data-user-id="' + escapeHtml(u.id) + '">' +
+          '<span class="track-file-icon">🚫</span>' +
+          '<div class="track-info">' +
+            '<p class="thread-name" style="margin:0 0 2px;">' + nameEsc + '</p>' +
+            '<p class="thread-preview">' + escapeHtml(u.email) + '</p>' +
+            '<p class="thread-preview">Suspenso até <b>' + fmtDate(u.suspenso_ate) + '</b>' + (u.suspenso_motivo ? ' — ' + escapeHtml(u.suspenso_motivo) : '') + '</p>' +
+          '</div>' +
+          '<div class="track-actions">' +
+            '<button class="btn-ok" onclick="reactivateUserMod(\'' + idEsc + '\')">Reativar agora</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+    return (
+      '<div class="track-row" data-user-id="' + escapeHtml(u.id) + '">' +
+        '<span class="track-file-icon">👤</span>' +
+        '<div class="track-info">' +
+          '<p class="thread-name" style="margin:0 0 2px;">' + nameEsc + '</p>' +
+          '<p class="thread-preview">' + escapeHtml(u.email) + '</p>' +
+        '</div>' +
+        '<div class="track-actions" style="gap:6px; flex-wrap:wrap;">' +
+          '<button class="btn-secondary" onclick="suspendUserMod(\'' + idEsc + '\', \'24h\', this)">Suspender 24h</button>' +
+          '<button class="btn-danger" onclick="suspendUserMod(\'' + idEsc + '\', \'7d\', this)">Suspender 7 dias</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  async function searchUsersMod() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    const q = document.getElementById('userSearchInput').value.trim();
+    const resultsEl = document.getElementById('userSearchResults');
+    if (!q) { resultsEl.innerHTML = ''; return; }
+    resultsEl.innerHTML = '<div class="status-msg">Buscando…</div>';
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/suspensoes?q=' + encodeURIComponent(q), {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (res.status === 401) {
+        resultsEl.innerHTML = '<div class="status-msg">Chave de moderação inválida.</div>';
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const users = data.users || [];
+      resultsEl.innerHTML = users.length
+        ? users.map(userSuspendCardHtml).join('')
+        : '<div class="status-msg">Nenhum usuário encontrado.</div>';
+    } catch (err) {
+      resultsEl.innerHTML = '<div class="status-msg">Erro ao buscar: ' + escapeHtml(String(err.message || err)) + '</div>';
+    }
+  }
+
+  async function suspendUserMod(usuarioId, duracao, btnEl) {
+    const label = duracao === '7d' ? '7 dias' : '24 horas';
+    if (!confirm('Suspender este usuário por ' + label + '? Ele não vai conseguir acessar a plataforma até o prazo terminar.')) return;
+    const motivo = (prompt('Motivo da suspensão (opcional, aparece pro usuário):') || '').trim();
+
+    const row = btnEl.closest('.track-row');
+    row.querySelectorAll('button').forEach((b) => (b.disabled = true));
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/suspensoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ usuario_id: usuarioId, duracao, motivo: motivo || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      row.outerHTML = userSuspendCardHtml(data.user);
+      loadSuspendedUsers();
+    } catch (err) {
+      alert('Erro ao suspender: ' + (err.message || err));
+      row.querySelectorAll('button').forEach((b) => (b.disabled = false));
+    }
+  }
+
+  async function reactivateUserMod(usuarioId) {
+    if (!confirm('Reativar o acesso deste usuário agora?')) return;
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/suspensoes?usuario_id=' + encodeURIComponent(usuarioId), {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      // Atualiza tanto a lista de suspensos quanto um eventual resultado de busca aberto.
+      loadSuspendedUsers();
+      const q = document.getElementById('userSearchInput').value.trim();
+      if (q) searchUsersMod();
+    } catch (err) {
+      alert('Erro ao reativar: ' + (err.message || err));
+    }
+  }
+
+  async function loadSuspendedUsers() {
+    const listEl = document.getElementById('suspendedUsersList');
+    if (!secret()) {
+      listEl.innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+      return;
+    }
+    listEl.innerHTML = '<div class="status-msg">Carregando…</div>';
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/suspensoes', {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (res.status === 401) {
+        listEl.innerHTML = '<div class="status-msg">Chave de moderação inválida.</div>';
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const users = data.users || [];
+      listEl.innerHTML = users.length
+        ? users.map(userSuspendCardHtml).join('')
+        : '<div class="status-msg">Ninguém suspenso agora. 🎉</div>';
+    } catch (err) {
+      listEl.innerHTML = '<div class="status-msg">Erro ao carregar: ' + escapeHtml(String(err.message || err)) + '</div>';
+    }
   }
 
   async function loadAdmins() {

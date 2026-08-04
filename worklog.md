@@ -85,3 +85,33 @@ Work Log:
 
 Stage Summary:
 - Moderation panel fully extended with music upload and official radio management
+
+---
+Task ID: 12
+Agent: Main
+Task: Suspender usuários por 24h/7 dias no painel de moderação
+
+Work Log:
+- Added suspensoAte/suspensoMotivo fields to Usuario model (prisma/schema.prisma)
+- authenticateRequest (src/lib/auth.ts) now denies already-issued tokens for
+  suspended users, with a short in-memory cache (15s TTL) + explicit
+  invalidation hook so it doesn't hit the DB on every request
+- POST /api/auth/login now blocks suspended accounts with a 403 + suspended
+  until/reason payload; LoginScreen.tsx shows that message to the user
+- Created /api/moderacao/suspensoes (GET search/list, POST suspend
+  24h|7d, DELETE reactivate) following the existing MODERATION_SECRET
+  bearer-auth pattern used by /api/reports and /api/moderacao/posts
+- Extended public/moderacao/index.html: new "🚫 Usuários" tab (search,
+  suspend 24h/7d buttons, list of currently suspended users, reactivate
+  button), plus a quick "Suspender autor(a)" button on USUARIO-type
+  report cards that jumps to the tab pre-filled with that user's id
+
+Stage Summary:
+- Suspension is stored directly on Usuario (no separate table) — reactivating
+  is just clearing the two fields, and it self-expires once suspensoAte
+  passes (no cleanup job needed)
+- Blocks both new logins and already-issued JWTs for the suspension window
+- No new migration file needed — `npm run build` already runs
+  `prisma db push --accept-data-loss`, which will apply the new columns
+- Could not run tsc/next build in this environment (no node_modules,
+  network disabled) — reviewed the diffs manually for syntax/import errors
