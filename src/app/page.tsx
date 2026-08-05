@@ -17,6 +17,7 @@ import ChatScreen from '@/components/zoada/ChatScreen';
 import RadioScreen from '@/components/zoada/RadioScreen';
 import ExploreScreen from '@/components/zoada/ExploreScreen';
 import NotificationsScreen from '@/components/zoada/NotificationsScreen';
+import ClubScreen from '@/components/zoada/ClubScreen';
 import BottomNav from '@/components/zoada/BottomNav';
 import MiniPlayer from '@/components/zoada/MiniPlayer';
 
@@ -164,6 +165,8 @@ export default function Home() {
         return <ExploreScreen />;
       case 'notifications':
         return <NotificationsScreen />;
+      case 'club':
+        return <ClubScreen />;
       default:
         return <MainScreen />;
     }

@@ -5,7 +5,7 @@ import { getAuthToken, getStoredUser, saveAuth, clearAuth, registerTrackPlay, fe
 // Abas da tela inicial ("Início"). 'fans' é a busca de outros usuários
 // por nome — sem conteúdo próprio na store, é só mais uma aba client-side
 // igual 'favorites'.
-export type MainTab = 'tracks' | 'artists' | 'favorites' | 'fans';
+export type MainTab = 'tracks' | 'artists' | 'favorites' | 'fans' | 'clube';
 
 const FAVORITES_KEY = 'zoada-favorites';
 
@@ -154,6 +154,9 @@ interface AppState {
   // numa faixa, ou quem é dono de um artista)
   selectedUserId: string | null;
 
+  // Club (comunidade aberta na tela do clube — mural + convite)
+  selectedClubId: string | null;
+
   // Social
   likes: Like[];
   comments: Comment[];
@@ -241,6 +244,9 @@ interface AppState {
   // Actions - User profile
   selectUser: (id: string) => void;
 
+  // Actions - Club
+  selectClub: (id: string) => void;
+
   // Actions - Social
   setLikes: (likes: Like[]) => void;
   loadLikes: (userId: string) => Promise<void>;
@@ -305,6 +311,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedConversationContext: null,
   selectedArtistId: null,
   selectedUserId: null,
+  selectedClubId: null,
   likes: [],
   comments: [],
   radioComments: [],
@@ -694,6 +701,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     selectedUserId: id,
     previousScreen: state.currentScreen,
     currentScreen: 'user-profile',
+  })),
+
+  // Club actions
+  selectClub: (id) => set((state) => ({
+    selectedClubId: id,
+    previousScreen: state.currentScreen,
+    currentScreen: 'club',
   })),
 
   // Social actions

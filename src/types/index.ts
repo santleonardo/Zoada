@@ -231,7 +231,7 @@ export interface Conversation {
   unread_count: number;
 }
 
-export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-profile' | 'chat' | 'chat-conversation' | 'radio' | 'explore' | 'notifications';
+export type Screen = 'login' | 'main' | 'player' | 'profile' | 'artist' | 'user-profile' | 'chat' | 'chat-conversation' | 'radio' | 'explore' | 'notifications' | 'club';
 
 // Estação de rádio de um usuário. Cada usuário pode ter uma estação própria
 // com nome, capa opcional e uma lista ordenada de faixas. Quando publicada,
@@ -290,4 +290,41 @@ export interface UserSearchResult {
   id: string;
   name: string;
   avatar_url: string | null;
+}
+
+// ---------- Clubes (comunidades de fãs, aba "Clube") ----------
+
+export type ClubRole = 'ADMIN' | 'MEMBRO';
+
+export interface Club {
+  id: string;
+  name: string;
+  description: string | null;
+  cover_url: string | null;
+  creator_id: string;
+  created_at: string;
+  members_count: number;
+  // Papel do usuário logado nesse clube — null se não for membro
+  // (ou se não estiver autenticado).
+  my_role: ClubRole | null;
+}
+
+// Membro de um clube, já com nome/foto pra listar direto sem chamada extra.
+export interface ClubMember {
+  id: string;
+  user_id: string;
+  name: string;
+  avatar_url: string | null;
+  role: ClubRole;
+  joined_at: string;
+}
+
+// Postagem no mural de um clube — visível só para membros.
+export interface ClubPost {
+  id: string;
+  club_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  user: { id: string; name: string; avatar_url: string | null };
 }

@@ -16,7 +16,7 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
-import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, RadioPadrao, Post, PostComment, Notification } from '@/types';
+import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, RadioPadrao, Post, PostComment, Notification, Club, ClubMember, ClubPost } from '@/types';
 
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
@@ -1191,6 +1191,113 @@ export async function fetchActiveAviso(): Promise<Aviso | null> {
     return data.aviso || null;
   } catch (err) {
     console.warn('[fetchActiveAviso] falha ao buscar aviso:', err);
+    return null;
+  }
+}
+
+// ---------- Clubes (comunidades de fãs, aba "Clube") ----------
+
+// Lista os clubes existentes (mais recentes primeiro). Sem argumento
+// mostra todos; com mine=true, só os clubes dos quais o usuário logado
+// é membro (precisa estar autenticado).
+export async function fetchClubs(mine = false): Promise<Club[]> {
+  try {
+    const res = await apiFetch(`/api/clubs${mine ? '?mine=1' : ''}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.clubs) ? data.clubs : [];
+  } catch (err) {
+    console.warn('[fetchClubs] falha ao buscar clubes:', err);
+    return [];
+  }
+}
+
+// Cria um clube novo. Quem cria vira automaticamente o admin dele.
+export async function createClub(name: string, description?: string): Promise<Club | null> {
+  try {
+    const res = await apiFetch('/api/clubs', {
+      method: 'POST',
+      body: JSON.stringify({ name, description: description || '' }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.club ?? null;
+  } catch (err) {
+    console.warn('[createClub] falha ao criar clube:', err);
+    return null;
+  }
+}
+
+// Lista os membros de um clube (só quem já é membro consegue ver).
+export async function fetchClubMembers(clubId: string): Promise<ClubMember[]> {
+  try {
+    const res = await apiFetch(`/api/clubs/members?club_id=${encodeURIComponent(clubId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.members) ? data.members : [];
+  } catch (err) {
+    console.warn('[fetchClubMembers] falha ao buscar membros:', err);
+    return [];
+  }
+}
+
+// Convida (adiciona diretamente) um usuário a um clube. Só o admin do
+// clube pode chamar isso com sucesso.
+export async function inviteClubMember(clubId: string, userId: string): Promise<ClubMember | null> {
+  try {
+    const res = await apiFetch('/api/clubs/members', {
+      method: 'POST',
+      body: JSON.stringify({ club_id: clubId, user_id: userId }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.member ?? null;
+  } catch (err) {
+    console.warn('[inviteClubMember] falha ao convidar membro:', err);
+    return null;
+  }
+}
+
+// Remove um membro do clube (ou sai do clube, quando userId é o próprio
+// usuário logado).
+export async function removeClubMember(clubId: string, userId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(
+      `/api/clubs/members?club_id=${encodeURIComponent(clubId)}&user_id=${encodeURIComponent(userId)}`,
+      { method: 'DELETE' }
+    );
+    return res.ok;
+  } catch (err) {
+    console.warn('[removeClubMember] falha ao remover membro:', err);
+    return false;
+  }
+}
+
+// Busca o mural (postagens) de um clube — só membros conseguem ver.
+export async function fetchClubPosts(clubId: string): Promise<ClubPost[]> {
+  try {
+    const res = await apiFetch(`/api/clubs/posts?club_id=${encodeURIComponent(clubId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.posts) ? data.posts : [];
+  } catch (err) {
+    console.warn('[fetchClubPosts] falha ao buscar mural do clube:', err);
+    return [];
+  }
+}
+
+// Publica uma postagem no mural do clube — só membros conseguem postar.
+export async function createClubPost(clubId: string, content: string): Promise<ClubPost | null> {
+  try {
+    const res = await apiFetch('/api/clubs/posts', {
+      method: 'POST',
+      body: JSON.stringify({ club_id: clubId, content }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.post ?? null;
+  } catch (err) {
+    console.warn('[createClubPost] falha ao postar no clube:', err);
     return null;
   }
 }
