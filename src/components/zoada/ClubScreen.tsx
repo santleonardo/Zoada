@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, Users, UserPlus, UserMinus, Send, MessageSquareText, Check, X, Loader2, ChevronDown, ChevronUp, Mic, Pencil } from 'lucide-react';
+import { ChevronLeft, Users, UserPlus, UserMinus, Send, MessageSquareText, Check, X, Loader2, ChevronDown, ChevronUp, Mic, Pencil, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchClubs, fetchClubMembers, fetchClubPosts, createClubPost, removeClubMember } from '@/lib/api';
+import { fetchClubs, fetchClubMembers, fetchClubPosts, createClubPost, removeClubMember, joinClub } from '@/lib/api';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import type { Club, ClubMember, ClubPost } from '@/types';
 import CoverArt from './CoverArt';
@@ -34,6 +34,11 @@ const ClubScreen: React.FC = () => {
   const [showMembers, setShowMembers] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  // Entrada sozinho no clube (sem convite): senha digitada (se o clube
+  // exigir), estado de carregamento e erro do formulário de entrada.
+  const [joinPassword, setJoinPassword] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   const isMember = !!club?.my_role;
   const isAdmin = club?.my_role === 'ADMIN';
@@ -107,6 +112,27 @@ const ClubScreen: React.FC = () => {
     setMembers((prev) => [...prev, member]);
     setClub((prev) => (prev ? { ...prev, members_count: prev.members_count + 1 } : prev));
     toast.success(`${member.name} agora faz parte do clube!`);
+  };
+
+  // Entra sozinho no clube (sem precisar que o admin convide) — pede
+  // senha se o clube exigir uma (ver EditClubDialog).
+  const handleJoin = async () => {
+    if (!selectedClubId || !user || isJoining) return;
+    setJoinError(null);
+    setIsJoining(true);
+    const { member, error } = await joinClub(selectedClubId, joinPassword);
+    setIsJoining(false);
+
+    if (!member) {
+      setJoinError(error || 'Não foi possível entrar no clube.');
+      return;
+    }
+
+    setJoinPassword('');
+    setClub((prev) =>
+      prev ? { ...prev, my_role: 'MEMBRO', members_count: prev.members_count + 1 } : prev
+    );
+    toast.success('Você entrou no clube!');
   };
 
   // Remove um membro (admin removendo outro fã) ou sai do clube (membro
@@ -250,13 +276,58 @@ const ClubScreen: React.FC = () => {
           </div>
 
           {!isMember && (
-            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+            <div className="flex flex-col items-center justify-center py-10 text-center px-6">
               <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
-                <Users size={28} className="text-black/20" />
+                {club.has_password ? (
+                  <Lock size={26} className="text-black/20" />
+                ) : (
+                  <Users size={28} className="text-black/20" />
+                )}
               </div>
-              <p className="text-black/40 text-sm font-medium">
-                Só quem é membro vê o mural. Peça pra alguém do clube te convidar.
-              </p>
+
+              {!user ? (
+                <p className="text-black/40 text-sm font-medium">
+                  Entre na sua conta pra participar desse clube.
+                </p>
+              ) : (
+                <>
+                  <p className="text-black/40 text-sm font-medium mb-4">
+                    {club.has_password
+                      ? 'Esse clube pede uma senha pra entrar.'
+                      : 'Você ainda não faz parte desse clube.'}
+                  </p>
+
+                  <div className="w-full max-w-xs space-y-2.5">
+                    {club.has_password && (
+                      <input
+                        type="password"
+                        value={joinPassword}
+                        onChange={(e) => {
+                          setJoinPassword(e.target.value);
+                          setJoinError(null);
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                        placeholder="Senha do clube"
+                        disabled={isJoining}
+                        className="w-full !py-2.5 !text-sm text-center"
+                      />
+                    )}
+                    {joinError && <p className="text-xs text-[#E84393]">{joinError}</p>}
+                    <button
+                      onClick={handleJoin}
+                      disabled={isJoining || (club.has_password && !joinPassword.trim())}
+                      className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full gradient-bg text-white text-sm font-semibold active:scale-95 transition-all disabled:opacity-40"
+                    >
+                      {isJoining ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <UserPlus size={14} />
+                      )}
+                      Entrar no clube
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

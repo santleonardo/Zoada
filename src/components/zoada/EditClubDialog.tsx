@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { X, Camera, Loader2, Users as UsersIcon, Trash2 } from 'lucide-react';
+import { X, Camera, Loader2, Users as UsersIcon, Trash2, Lock, Eye, EyeOff } from 'lucide-react';
 import type { Club } from '@/types';
 import { uploadClubCover, updateClub } from '@/lib/api';
 
@@ -23,6 +23,12 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
   const [coverPreview, setCoverPreview] = useState<string | null>(club?.cover_url || null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [removeCover, setRemoveCover] = useState(false);
+  // Senha de entrada: o valor atual (hash) nunca chega no cliente, então
+  // só sabemos se ELA EXISTE (club.has_password). Digitar um valor novo
+  // troca a senha; desligar o toggle remove a proteção.
+  const [passwordEnabled, setPasswordEnabled] = useState(!!club?.has_password);
+  const [passwordValue, setPasswordValue] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +42,9 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
       setCoverPreview(club?.cover_url || null);
       setCoverFile(null);
       setRemoveCover(false);
+      setPasswordEnabled(!!club?.has_password);
+      setPasswordValue('');
+      setShowPassword(false);
       setError(null);
       setIsUploading(false);
       setIsSaving(false);
@@ -84,6 +93,24 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
       return;
     }
 
+    // Determina o que mandar pro campo `password`: undefined = não mexe,
+    // '' = remove a proteção, string = define/troca a senha.
+    let passwordField: string | undefined;
+    if (!passwordEnabled) {
+      passwordField = club.has_password ? '' : undefined;
+    } else if (passwordValue.trim()) {
+      if (passwordValue.trim().length < 4) {
+        setError('A senha precisa ter pelo menos 4 caracteres.');
+        return;
+      }
+      passwordField = passwordValue.trim();
+    } else if (!club.has_password) {
+      setError('Digite uma senha para exigir na entrada.');
+      return;
+    } else {
+      passwordField = undefined; // já tinha senha e o admin não digitou uma nova — mantém
+    }
+
     setIsSaving(true);
 
     try {
@@ -109,6 +136,7 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
         name: trimmedName,
         description,
         cover_url: finalCoverUrl,
+        password: passwordField,
       });
 
       if (!updated) {
@@ -133,7 +161,9 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
     !coverFile &&
     !removeCover &&
     name.trim() === (club.name || '') &&
-    description.trim() === (club.description || '');
+    description.trim() === (club.description || '') &&
+    passwordEnabled === club.has_password &&
+    !passwordValue.trim();
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -237,6 +267,62 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
               className="w-full px-4 py-3 rounded-xl bg-white border border-black/10 focus:border-[#FF8C42] focus:ring-2 focus:ring-[#FF8C42]/20 outline-none text-sm text-[#1A1B25] placeholder:text-black/25 transition-all resize-none"
             />
             <p className="text-right text-[11px] text-black/30">{description.length}/280</p>
+          </div>
+
+          {/* Senha de entrada */}
+          <div className="rounded-xl border border-black/10 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-black/5 flex items-center justify-center flex-shrink-0">
+                  <Lock size={16} className="text-[#1A1B25]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#1A1B25]">Senha de entrada</p>
+                  <p className="text-xs text-black/45 mt-0.5 leading-relaxed">
+                    Quando ativada, quem quiser entrar no clube sozinho (sem convite) precisa
+                    informar essa senha.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={passwordEnabled}
+                onClick={() => {
+                  setPasswordEnabled((v) => !v);
+                  setPasswordValue('');
+                }}
+                className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+                  passwordEnabled ? 'bg-[#FF8C42]' : 'bg-black/15'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    passwordEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {passwordEnabled && (
+              <div className="mt-3 relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={passwordValue}
+                  onChange={(e) => setPasswordValue(e.target.value.slice(0, 60))}
+                  placeholder={club.has_password ? 'Digite pra trocar a senha atual' : 'Crie uma senha (mín. 4 caracteres)'}
+                  className="w-full pl-4 pr-10 py-3 rounded-xl bg-white border border-black/10 focus:border-[#FF8C42] focus:ring-2 focus:ring-[#FF8C42]/20 outline-none text-sm text-[#1A1B25] placeholder:text-black/25 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-black/30 hover:text-black/50"
+                  aria-label={showPassword ? 'Esconder senha' : 'Mostrar senha'}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Error message */}
