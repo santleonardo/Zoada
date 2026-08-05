@@ -312,6 +312,10 @@ export interface Club {
   // Papel do usuário logado nesse clube — null se não for membro
   // (ou se não estiver autenticado).
   my_role: ClubRole | null;
+  // Se o clube tem senha de entrada definida pelo admin (a senha em si
+  // nunca vem pro cliente — só esse booleano, pra saber se o formulário
+  // de entrada precisa pedir a senha).
+  has_password: boolean;
 }
 
 // Membro de um clube, já com nome/foto pra listar direto sem chamada extra.

@@ -1238,11 +1238,12 @@ export async function createClub(name: string, description?: string): Promise<Cl
   }
 }
 
-// Edita nome, descrição (bio) e/ou capa de um clube já existente. Só o
-// admin do clube pode chamar isso — a API confere e retorna 403 se não for.
+// Edita nome, descrição (bio), capa e/ou senha de entrada de um clube já
+// existente. Só o admin do clube pode chamar isso — a API confere e
+// retorna 403 se não for. password: '' remove a senha (clube fica aberto).
 export async function updateClub(
   clubId: string,
-  fields: { name?: string; description?: string; cover_url?: string | null }
+  fields: { name?: string; description?: string; cover_url?: string | null; password?: string }
 ): Promise<Club | null> {
   try {
     const res = await apiFetch('/api/clubs', {
@@ -1252,6 +1253,7 @@ export async function updateClub(
         name: fields.name,
         description: fields.description,
         cover_url: fields.cover_url,
+        password: fields.password,
       }),
     });
     if (!res.ok) return null;
@@ -1260,6 +1262,29 @@ export async function updateClub(
   } catch (err) {
     console.warn('[updateClub] falha ao editar clube:', err);
     return null;
+  }
+}
+
+// Entra sozinho num clube (sem precisar de convite do admin). Se o clube
+// tiver senha, passe `password`; devolve uma mensagem de erro específica
+// (ex: "Senha incorreta") pra exibir no formulário de entrada.
+export async function joinClub(
+  clubId: string,
+  password?: string
+): Promise<{ member: ClubMember | null; error: string | null }> {
+  try {
+    const res = await apiFetch('/api/clubs/join', {
+      method: 'POST',
+      body: JSON.stringify({ club_id: clubId, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { member: null, error: data.error || 'Não foi possível entrar no clube.' };
+    }
+    return { member: data.member ?? null, error: null };
+  } catch (err) {
+    console.warn('[joinClub] falha ao entrar no clube:', err);
+    return { member: null, error: 'Não foi possível entrar no clube.' };
   }
 }
 

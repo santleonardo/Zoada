@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth';
 import { isNeonConfigured } from '@/lib/config';
 import { notDeleted } from '@/lib/soft-delete';
 
 // Formata um clube (com contagem de membros e, opcionalmente, o papel do
-// usuário logado nele) no formato que o frontend espera.
+// usuário logado nele) no formato que o frontend espera. `senhaHash` NUNCA
+// sai daqui — só um booleano dizendo se o clube tem senha de entrada.
 function formatClub(c: {
   id: string;
   nome: string;
@@ -13,6 +15,7 @@ function formatClub(c: {
   capaUrl: string | null;
   criadorId: string;
   createdAt: Date;
+  senhaHash?: string | null;
   _count?: { membros: number };
   membros?: { papel: string }[];
 }) {
@@ -25,6 +28,7 @@ function formatClub(c: {
     created_at: c.createdAt.toISOString(),
     members_count: c._count?.membros ?? 0,
     my_role: c.membros && c.membros.length > 0 ? c.membros[0].papel : null,
+    has_password: !!c.senhaHash,
   };
 }
 
@@ -111,9 +115,10 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH /api/clubs — Edita nome, descrição (bio) e/ou foto de capa de um
-// clube já existente. Só o admin do clube pode editar. Campos omitidos
-// (undefined) ficam como estavam; `null` em cover_url limpa a capa.
+// PATCH /api/clubs — Edita nome, descrição (bio), foto de capa e/ou senha
+// de entrada de um clube já existente. Só o admin do clube pode editar.
+// Campos omitidos (undefined) ficam como estavam; `null`/'' em cover_url
+// ou password limpa a capa/senha (clube volta a ser aberto).
 export async function PATCH(request: Request) {
   try {
     const userId = await authenticateRequest(request);
@@ -125,7 +130,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
     }
 
-    const { club_id, name, description, cover_url } = await request.json();
+    const { club_id, name, description, cover_url, password } = await request.json();
     if (!club_id) {
       return NextResponse.json({ error: 'club_id é obrigatório' }, { status: 400 });
     }
@@ -140,7 +145,12 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const data: { nome?: string; descricao?: string | null; capaUrl?: string | null } = {};
+    const data: {
+      nome?: string;
+      descricao?: string | null;
+      capaUrl?: string | null;
+      senhaHash?: string | null;
+    } = {};
 
     if (name !== undefined) {
       const trimmedName = typeof name === 'string' ? name.trim().slice(0, 60) : '';
@@ -158,6 +168,22 @@ export async function PATCH(request: Request) {
 
     if (cover_url !== undefined) {
       data.capaUrl = typeof cover_url === 'string' && cover_url.trim() ? cover_url.trim() : null;
+    }
+
+    // password: string não-vazia define/troca a senha; '' ou null remove
+    // (clube volta a ser aberto, qualquer um entra sem senha).
+    if (password !== undefined) {
+      const trimmedPassword = typeof password === 'string' ? password.trim() : '';
+      if (!trimmedPassword) {
+        data.senhaHash = null;
+      } else if (trimmedPassword.length < 4) {
+        return NextResponse.json(
+          { error: 'A senha precisa ter pelo menos 4 caracteres' },
+          { status: 400 }
+        );
+      } else {
+        data.senhaHash = await bcrypt.hash(trimmedPassword, 10);
+      }
     }
 
     const clube = await db.clube.update({
