@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { MessageCircle, Send, Loader2, Trash2, Check, X, Flag } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Trash2, Check, X, Flag, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
 import {
@@ -10,10 +10,13 @@ import {
   deleteClubPostComment,
   toggleClubPostCommentLike,
 } from '@/lib/api';
+import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import type { ClubPostComment } from '@/types';
 import { cn } from '@/lib/utils';
 import ReactionHeart from './ReactionHeart';
 import ReportModal from './ReportModal';
+import VoiceMessageBubble from './VoiceMessageBubble';
+import VoiceRecordingBar from './VoiceRecordingBar';
 
 interface ClubPostCommentThreadProps {
   clubPostId: string;
@@ -85,6 +88,28 @@ const ClubPostCommentThread: React.FC<ClubPostCommentThreadProps> = ({ clubPostI
     setComments((prev) => [...prev, result]);
     setCount((prev) => prev + 1);
   };
+
+  // Gravação de comentário de voz — mesmo mecanismo usado no mural do
+  // clube e nas conversas (ver ClubScreen/ChatScreen), reaproveitado via
+  // useVoiceRecorder.
+  const {
+    voiceState,
+    recordingSeconds,
+    maxSeconds: maxRecordingSeconds,
+    startRecording: handleStartRecording,
+    cancelRecording: handleCancelRecording,
+    stopAndSendRecording: handleStopAndSendRecording,
+  } = useVoiceRecorder({
+    resetKey: clubPostId,
+    disabled: !user,
+    onRecorded: async (url, durationSeconds) => {
+      const result = await postClubPostComment(clubPostId, '', { url, duration: durationSeconds });
+      if (!result) return false;
+      setComments((prev) => [...prev, result]);
+      setCount((prev) => prev + 1);
+      return true;
+    },
+  });
 
   const handleReact = async (commentId: string) => {
     if (!user) {
@@ -222,9 +247,15 @@ const ClubPostCommentThread: React.FC<ClubPostCommentThreadProps> = ({ clubPostI
                         {new Date(comment.created_at).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
-                    <p className="text-xs text-black/60 mt-0.5 whitespace-pre-wrap break-words">
-                      {comment.content}
-                    </p>
+                    {comment.audio_url ? (
+                      <div className="mt-1">
+                        <VoiceMessageBubble url={comment.audio_url} duration={comment.audio_duration} isMe={false} />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-black/60 mt-0.5 whitespace-pre-wrap break-words">
+                        {comment.content}
+                      </p>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleReact(comment.id)}
@@ -297,28 +328,51 @@ const ClubPostCommentThread: React.FC<ClubPostCommentThreadProps> = ({ clubPostI
           </div>
 
           {user && (
-            <div className="flex gap-1.5">
-              <input
-                type="text"
-                placeholder="Adicionar comentário..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                className="!py-2 !text-xs"
+            voiceState === 'recording' ? (
+              <VoiceRecordingBar
+                seconds={recordingSeconds}
+                maxSeconds={maxRecordingSeconds}
+                onCancel={handleCancelRecording}
+                onSend={handleStopAndSendRecording}
               />
-              <button
-                onClick={handleSend}
-                disabled={isSending || !newComment.trim()}
-                className="p-2 rounded-xl gradient-bg flex-shrink-0 active:scale-90 transition-transform disabled:opacity-40"
-                aria-label="Enviar comentário"
-              >
-                {isSending ? (
-                  <Loader2 size={14} className="text-white animate-spin" />
-                ) : (
-                  <Send size={14} className="text-white" />
-                )}
-              </button>
-            </div>
+            ) : (
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  placeholder="Adicionar comentário..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  disabled={isSending}
+                  className="!py-2 !text-xs"
+                />
+                <button
+                  onClick={handleStartRecording}
+                  disabled={isSending || voiceState === 'uploading'}
+                  className="p-2 rounded-xl bg-[#F2F2F8] flex-shrink-0 active:scale-90 transition-transform disabled:opacity-40"
+                  aria-label="Gravar comentário de voz"
+                  title="Gravar áudio"
+                >
+                  {voiceState === 'uploading' ? (
+                    <Loader2 size={14} className="text-[#6C5CE7] animate-spin" />
+                  ) : (
+                    <Mic size={14} className="text-[#6C5CE7]" />
+                  )}
+                </button>
+                <button
+                  onClick={handleSend}
+                  disabled={isSending || !newComment.trim()}
+                  className="p-2 rounded-xl gradient-bg flex-shrink-0 active:scale-90 transition-transform disabled:opacity-40"
+                  aria-label="Enviar comentário"
+                >
+                  {isSending ? (
+                    <Loader2 size={14} className="text-white animate-spin" />
+                  ) : (
+                    <Send size={14} className="text-white" />
+                  )}
+                </button>
+              </div>
+            )
           )}
         </div>
       )}
