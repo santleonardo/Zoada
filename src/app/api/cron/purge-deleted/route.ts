@@ -150,6 +150,10 @@ export async function GET(request: Request) {
     const comentariosExpirados = await db.comentarioPostagem.deleteMany({ where: { deletedAt: { lt: cutoff } } });
     summary.comentarios = comentariosExpirados.count;
 
+    // ---------- 5b) Comentários de postagem de clube apagados ----------
+    const comentariosClubeExpirados = await db.comentarioPostagemClube.deleteMany({ where: { deletedAt: { lt: cutoff } } });
+    summary.comentarios += comentariosClubeExpirados.count;
+
     // ---------- 6) Estações de rádio apagadas avulsas ----------
     const estacoesExpiradas = await db.estacaoRadio.findMany({ where: { deletedAt: { lt: cutoff } } });
     if (isR2Configured) {

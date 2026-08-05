@@ -332,4 +332,22 @@ export interface ClubPost {
   audio_duration?: number | null;
   created_at: string;
   user: { id: string; name: string; avatar_url: string | null };
+  // Quantidade de comentários na thread dessa postagem de clube (preenchido
+  // pelo GET /api/clubs/posts). Pode vir undefined em respostas mais antigas.
+  comments_count?: number;
+}
+
+// Comentário na thread de uma postagem do mural de um clube — mesmo
+// formato de PostComment, só que vinculado a um ClubPost em vez de um Post.
+export interface ClubPostComment {
+  id: string;
+  user_id: string;
+  club_post_id: string;
+  content: string;
+  created_at: string;
+  user?: { id: string; name: string; avatar_url: string | null } | null;
+  // Reação de coração (curtida) num comentário da thread — quantidade total
+  // e se o usuário logado já reagiu (null quando não autenticado).
+  likes_count?: number;
+  liked_by_me?: boolean | null;
 }

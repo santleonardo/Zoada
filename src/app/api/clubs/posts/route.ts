@@ -13,6 +13,7 @@ function formatClubPost(p: {
   audioDuracao: number | null;
   createdAt: Date;
   usuario: { id: string; name: string; avatarUrl: string | null };
+  _count?: { comentarios: number };
 }) {
   return {
     id: p.id,
@@ -27,6 +28,7 @@ function formatClubPost(p: {
       name: p.usuario.name,
       avatar_url: p.usuario.avatarUrl,
     },
+    comments_count: p._count?.comentarios ?? 0,
   };
 }
 
@@ -60,7 +62,10 @@ export async function GET(request: Request) {
       where: { clubeId, ...notDeleted },
       orderBy: { createdAt: 'desc' },
       take: 50,
-      include: { usuario: { select: { id: true, name: true, avatarUrl: true } } },
+      include: {
+        usuario: { select: { id: true, name: true, avatarUrl: true } },
+        _count: { select: { comentarios: true } },
+      },
     });
 
     return NextResponse.json({ posts: postagens.map(formatClubPost) });

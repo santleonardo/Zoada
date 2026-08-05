@@ -16,7 +16,7 @@
 //   JWT_SECRET           → Chave secreta para assinatura dos tokens
 // ============================================================
 
-import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, RadioPadrao, Post, PostComment, Notification, Club, ClubMember, ClubPost } from '@/types';
+import type { Message, Track, TopListenedTrack, PublicUserProfile, RadioStation, RadioPadrao, Post, PostComment, Notification, Club, ClubMember, ClubPost, ClubPostComment } from '@/types';
 
 // API base URL (relativa — o gateway cuida do proxy)
 export const API_BASE = '';
@@ -1150,7 +1150,7 @@ export async function exportMyData(): Promise<boolean> {
 
 // Tipos de conteúdo que podem ser denunciados — precisa bater com o enum
 // TipoAlvoDenuncia do schema/API.
-export type ReportTargetType = 'POSTAGEM' | 'COMENTARIO_POSTAGEM' | 'COMENTARIO_FAIXA' | 'FAIXA' | 'USUARIO';
+export type ReportTargetType = 'POSTAGEM' | 'COMENTARIO_POSTAGEM' | 'COMENTARIO_POSTAGEM_CLUBE' | 'COMENTARIO_FAIXA' | 'FAIXA' | 'USUARIO';
 
 // Envia uma denúncia (canal de denúncia/reporte — Marco Civil pós-STF
 // 2025). Cai em /api/reports, que guarda um retrato do conteúdo pro
@@ -1307,6 +1307,73 @@ export async function createClubPost(
     return data.post ?? null;
   } catch (err) {
     console.warn('[createClubPost] falha ao postar no clube:', err);
+    return null;
+  }
+}
+
+// Busca a thread de comentários de uma postagem do mural de um clube
+// (só membros do clube conseguem ver).
+export async function fetchClubPostComments(clubPostId: string): Promise<ClubPostComment[]> {
+  try {
+    const res = await apiFetch(`/api/club-post-comments?club_post_id=${encodeURIComponent(clubPostId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.comments) ? data.comments : [];
+  } catch (err) {
+    console.warn('[fetchClubPostComments] falha ao buscar comentários da postagem do clube:', err);
+    return [];
+  }
+}
+
+// Envia um comentário na thread de uma postagem do mural de um clube
+// (só membros do clube conseguem comentar).
+export async function postClubPostComment(clubPostId: string, content: string): Promise<ClubPostComment | null> {
+  try {
+    const res = await apiFetch('/api/club-post-comments', {
+      method: 'POST',
+      body: JSON.stringify({ club_post_id: clubPostId, content }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.comment ?? null;
+  } catch (err) {
+    console.warn('[postClubPostComment] falha ao comentar na postagem do clube:', err);
+    return null;
+  }
+}
+
+// Apaga um comentário próprio da thread de uma postagem do mural de um clube.
+export async function deleteClubPostComment(commentId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`/api/club-post-comments?id=${encodeURIComponent(commentId)}`, { method: 'DELETE' });
+    return res.ok;
+  } catch (err) {
+    console.warn('[deleteClubPostComment] falha ao apagar comentário:', err);
+    return false;
+  }
+}
+
+// Restaura (desfaz o soft-delete de) um comentário próprio da thread de
+// uma postagem do mural de um clube, dentro dos 30 dias.
+export const restoreClubPostComment = (commentId: string) =>
+  restoreItem(`/api/club-post-comments?id=${encodeURIComponent(commentId)}`);
+
+// Reage (coração) ou remove a reação de um comentário da thread do mural
+// de um clube (toggle). Retorna o estado real após a operação, pra manter
+// o front sincronizado com o banco.
+export async function toggleClubPostCommentLike(commentId: string): Promise<{
+  liked: boolean;
+  likes_count: number;
+} | null> {
+  try {
+    const res = await apiFetch('/api/club-post-comment-likes', {
+      method: 'POST',
+      body: JSON.stringify({ comment_id: commentId }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[toggleClubPostCommentLike] falha ao reagir ao comentário:', err);
     return null;
   }
 }
