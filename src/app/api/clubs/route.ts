@@ -201,3 +201,53 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Erro ao editar clube' }, { status: 500 });
   }
 }
+
+// DELETE /api/clubs?id=xxx — Soft-delete de um clube. Só o admin do clube
+// pode apagar. O clube some das listagens na hora e fica 30 dias marcado
+// com `deletedAt` (o job /api/cron/purge-deleted apaga de vez depois,
+// levando membros e postagens do mural via onDelete Cascade).
+export async function DELETE(request: Request) {
+  try {
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const clubId = searchParams.get('id');
+    if (!clubId) {
+      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+
+    const clube = await db.clube.findFirst({
+      where: { id: clubId, ...notDeleted },
+    });
+    if (!clube) {
+      return NextResponse.json({ error: 'Clube não encontrado' }, { status: 404 });
+    }
+
+    const meuVinculo = await db.membroClube.findUnique({
+      where: { clubeId_usuarioId: { clubeId: clubId, usuarioId: userId } },
+    });
+    if (!meuVinculo || meuVinculo.papel !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Só o admin do clube pode excluí-lo' },
+        { status: 403 }
+      );
+    }
+
+    await db.clube.update({
+      where: { id: clubId },
+      data: { deletedAt: new Date() },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('[CLUBS DELETE]', error);
+    return NextResponse.json({ error: 'Erro ao excluir clube' }, { status: 500 });
+  }
+}

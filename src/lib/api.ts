@@ -1265,6 +1265,21 @@ export async function updateClub(
   }
 }
 
+// Soft-delete de um clube. Só o admin consegue — a API confere o papel e
+// retorna 403 caso contrário. O clube some das listagens na hora e fica
+// 30 dias até o job de limpeza apagar de vez.
+export async function deleteClub(clubId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`/api/clubs?id=${encodeURIComponent(clubId)}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[deleteClub] falha ao excluir clube:', err);
+    return false;
+  }
+}
+
 // Entra sozinho num clube (sem precisar de convite do admin). Se o clube
 // tiver senha, passe `password`; devolve uma mensagem de erro específica
 // (ex: "Senha incorreta") pra exibir no formulário de entrada.

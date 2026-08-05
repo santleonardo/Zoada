@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
     const cutoff = purgeCutoff();
     const r2Keys: string[] = [];
-    const summary = { usuarios: 0, artistas: 0, faixas: 0, postagens: 0, comentarios: 0, estacoes: 0 };
+    const summary = { usuarios: 0, artistas: 0, faixas: 0, postagens: 0, comentarios: 0, estacoes: 0, clubes: 0 };
 
     // ---------- 1) Contas apagadas há mais de 30 dias ----------
     const usuariosExpirados = await db.usuario.findMany({
@@ -167,6 +167,23 @@ export async function GET(request: Request) {
     if (estacoesExpiradas.length > 0) {
       await db.estacaoRadio.deleteMany({ where: { id: { in: estacoesExpiradas.map((e) => e.id) } } });
       summary.estacoes += estacoesExpiradas.length;
+    }
+
+    // ---------- 7) Clubes apagados (soft-delete há >30 dias) ----------
+    // Cascade no schema leva membros e postagens do mural (e comentários
+    // da thread via cascade da postagem).
+    const clubesExpirados = await db.clube.findMany({ where: { deletedAt: { lt: cutoff } } });
+    if (isR2Configured) {
+      for (const c of clubesExpirados) {
+        if (c.capaUrl) {
+          const k = keyFromPublicUrl(c.capaUrl);
+          if (k) r2Keys.push(k);
+        }
+      }
+    }
+    if (clubesExpirados.length > 0) {
+      await db.clube.deleteMany({ where: { id: { in: clubesExpirados.map((c) => c.id) } } });
+      summary.clubes += clubesExpirados.length;
     }
 
     // ---------- Limpeza dos arquivos no R2 (best-effort) ----------
