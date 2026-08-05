@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, Users, UserPlus, UserMinus, Send, MessageSquareText, Check, X, Loader2, ChevronDown, ChevronUp, Mic, Pencil, Lock } from 'lucide-react';
+import { ChevronLeft, Users, UserPlus, UserMinus, Send, MessageSquareText, Check, X, Loader2, ChevronDown, ChevronUp, Mic, Pencil, Lock, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
 import { fetchClubs, fetchClubMembers, fetchClubPosts, createClubPost, removeClubMember, joinClub } from '@/lib/api';
@@ -13,6 +13,7 @@ import EditClubDialog from './EditClubDialog';
 import VoiceMessageBubble from './VoiceMessageBubble';
 import VoiceRecordingBar from './VoiceRecordingBar';
 import ClubPostCommentThread from './ClubPostCommentThread';
+import ReportModal from './ReportModal';
 
 /**
  * Tela de um clube (comunidade de fãs): cabeçalho com nome/capa, campo de
@@ -39,6 +40,10 @@ const ClubScreen: React.FC = () => {
   const [joinPassword, setJoinPassword] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  // Denúncia de postagens do mural (mesmo mecanismo já usado nos
+  // comentários — ver ClubPostCommentThread) — guarda o id da postagem
+  // sendo denunciada pra abrir o ReportModal.
+  const [reportingPostId, setReportingPostId] = useState<string | null>(null);
 
   const isMember = !!club?.my_role;
   const isAdmin = club?.my_role === 'ADMIN';
@@ -488,7 +493,24 @@ const ClubScreen: React.FC = () => {
                           size="sm"
                           className="!w-8 !h-8 !max-w-none !rounded-full flex-shrink-0"
                         />
-                        <span className="text-sm font-semibold text-[#1A1B25] truncate">{post.user.name}</span>
+                        <span className="text-sm font-semibold text-[#1A1B25] truncate flex-1">{post.user.name}</span>
+                        {post.user.id !== user?.id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!user) {
+                                toast.error('Entre na sua conta para denunciar');
+                                return;
+                              }
+                              setReportingPostId(post.id);
+                            }}
+                            className="p-1 rounded-full text-black/15 hover:text-[#E84393] hover:bg-[#E84393]/10 flex-shrink-0"
+                            aria-label="Denunciar postagem"
+                            title="Denunciar postagem"
+                          >
+                            <Flag size={13} />
+                          </button>
+                        )}
                       </div>
                       {post.audio_url ? (
                         <VoiceMessageBubble url={post.audio_url} duration={post.audio_duration} isMe={false} />
@@ -514,6 +536,13 @@ const ClubScreen: React.FC = () => {
           onInvited={handleInvited}
         />
       )}
+
+      <ReportModal
+        open={!!reportingPostId}
+        onClose={() => setReportingPostId(null)}
+        targetType="POSTAGEM_CLUBE"
+        targetId={reportingPostId || ''}
+      />
 
       {isAdmin && (
         <EditClubDialog
