@@ -696,6 +696,10 @@ model Clube {
   updatedAt DateTime  @updatedAt @map("updated_at")
   // Soft-delete: ver comentário em Usuario.deletedAt — mesma janela de 30 dias.
   deletedAt DateTime? @map("deleted_at")
+  // Senha de entrada (opcional, definida pelo admin). Quando presente, só
+  // quem informar a senha certa consegue entrar sozinho no clube (ver
+  // /api/clubs/join) — nunca é devolvida ao cliente, só um "has_password".
+  senhaHash String?   @map("senha_hash")
 
   criador   Usuario         @relation(fields: [criadorId], references: [id], onDelete: Cascade)
   membros   MembroClube[]
