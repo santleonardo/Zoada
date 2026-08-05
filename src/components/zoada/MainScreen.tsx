@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, TrendingUp, Play, Music2, Star, Flame, Users, HeartHandshake, Radio as RadioIcon, Bell } from 'lucide-react';
+import { Search, TrendingUp, Play, Music2, Star, Flame, Users, HeartHandshake, Radio as RadioIcon, Bell, PartyPopper, Plus } from 'lucide-react';
 import { useAppStore, type MainTab } from '@/store/useAppStore';
 import { DEMO_TRACKS, DEMO_ARTISTS, COVER_COLORS } from '@/lib/demo-data';
-import type { Track, Artist, UserSearchResult, RadioStation, Post } from '@/types';
-import { searchUsers, fetchGlobalFeed } from '@/lib/api';
+import type { Track, Artist, UserSearchResult, RadioStation, Post, Club } from '@/types';
+import { searchUsers, fetchGlobalFeed, fetchClubs, createClub } from '@/lib/api';
+import { toast } from 'sonner';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import PostCard from './PostCard';
@@ -17,7 +18,7 @@ type Tab = MainTab;
 
 const MainScreen: React.FC = () => {
   const {
-    playTrack, player, selectArtist, selectUser, mainTab: activeTab, setMainTab: setActiveTab,
+    playTrack, player, selectArtist, selectUser, selectClub, mainTab: activeTab, setMainTab: setActiveTab,
     favorites, toggleFavorite, lastCountedPlay, user,
     publishedStations, loadPublishedStations, tuneIntoStation, navigate,
     selectStation, startRadio, unreadNotificationsCount,
@@ -29,6 +30,20 @@ const MainScreen: React.FC = () => {
   const [isSearchingFans, setIsSearchingFans] = useState(false);
   const [globalFeed, setGlobalFeed] = useState<Post[]>([]);
   const [isLoadingFeed, setIsLoadingFeed] = useState(false);
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [isLoadingClubs, setIsLoadingClubs] = useState(false);
+  const [isCreatingClub, setIsCreatingClub] = useState(false);
+  const [newClubName, setNewClubName] = useState('');
+  const [isSavingClub, setIsSavingClub] = useState(false);
+
+  // Clube: busca a lista de clubes assim que a aba fica ativa.
+  useEffect(() => {
+    if (activeTab !== 'clube') return;
+    setIsLoadingClubs(true);
+    fetchClubs()
+      .then(setClubs)
+      .finally(() => setIsLoadingClubs(false));
+  }, [activeTab]);
 
   // Busca usuários por nome na aba "Fãs" — com um pequeno debounce pra não
   // disparar uma chamada a cada tecla digitada. Só roda quando a aba
@@ -224,6 +239,28 @@ const MainScreen: React.FC = () => {
   const handleGoToArtist = (e: React.MouseEvent, artistId: string) => {
     e.stopPropagation();
     selectArtist(artistId);
+  };
+
+  // Cria um clube novo a partir do formulário da aba "Clube" — quem cria
+  // já entra automaticamente como admin (garantido pela API) e é levado
+  // direto pra tela do clube recém-criado.
+  const handleCreateClub = async () => {
+    const trimmed = newClubName.trim();
+    if (!trimmed || isSavingClub) return;
+
+    setIsSavingClub(true);
+    const club = await createClub(trimmed);
+    setIsSavingClub(false);
+
+    if (!club) {
+      toast.error('Não foi possível criar o clube. Tente novamente.');
+      return;
+    }
+
+    setClubs((prev) => [club, ...prev]);
+    setNewClubName('');
+    setIsCreatingClub(false);
+    selectClub(club.id);
   };
 
   // Acentos por posição no ranking de artistas: ouro/prata/bronze pra quem
@@ -777,13 +814,15 @@ const MainScreen: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold gradient-text">
-              {activeTab === 'favorites' ? 'Favoritos' : activeTab === 'fans' ? 'Fãs' : activeTab === 'artists' ? 'Artistas' : 'Explorar'}
+              {activeTab === 'favorites' ? 'Favoritos' : activeTab === 'fans' ? 'Fãs' : activeTab === 'clube' ? 'Clube' : activeTab === 'artists' ? 'Artistas' : 'Explorar'}
             </h1>
             <p className="text-black/40 text-sm mt-0.5">
               {activeTab === 'favorites'
                 ? `${favoriteTracks.length} música${favoriteTracks.length !== 1 ? 's' : ''} salva${favoriteTracks.length !== 1 ? 's' : ''}`
                 : activeTab === 'fans'
                 ? 'Feed geral e busca de outros fãs'
+                : activeTab === 'clube'
+                ? 'Comunidades de fãs — crie a sua ou entre em uma'
                 : 'Descubra novos artistas'}
             </p>
           </div>
@@ -797,21 +836,24 @@ const MainScreen: React.FC = () => {
       )}
 
       {/* Search: mais discreta/compacta pra não competir com a vitrine de
-          mais tocadas. */}
-      <div className={cn('relative', activeTab === 'tracks' ? 'mt-1 mb-2.5' : 'mb-3')}>
-        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/25" />
-        <input
-          type="text"
-          placeholder={activeTab === 'fans' ? 'Buscar usuários por nome...' : 'Buscar músicas, artistas...'}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="!pl-8 !py-1.5 !text-xs"
-        />
-      </div>
+          mais tocadas. Some na aba "Clube" — lá não há busca, só a lista
+          de comunidades e o botão de criar. */}
+      {activeTab !== 'clube' && (
+        <div className={cn('relative', activeTab === 'tracks' ? 'mt-1 mb-2.5' : 'mb-3')}>
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/25" />
+          <input
+            type="text"
+            placeholder={activeTab === 'fans' ? 'Buscar usuários por nome...' : 'Buscar músicas, artistas...'}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="!pl-8 !py-1.5 !text-xs"
+          />
+        </div>
+      )}
 
       {/* Tabs: também reduzidas, só pra navegação, sem chamar atenção. */}
       <div className="flex gap-1 mb-3">
-        {(['tracks', 'favorites', 'artists', 'fans'] as Tab[]).map((tab) => (
+        {(['tracks', 'favorites', 'artists', 'fans', 'clube'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -822,10 +864,112 @@ const MainScreen: React.FC = () => {
                 : 'bg-black/5 text-black/40 hover:bg-black/10 hover:text-black/60'
             )}
           >
-            {tab === 'fans' ? '💜 Fãs' : tab === 'tracks' ? '🎵 Músicas' : tab === 'favorites' ? '⭐ Favoritos' : '🎤 Artistas'}
+            {tab === 'fans' ? '💜 Fãs' : tab === 'clube' ? '🎉 Clube' : tab === 'tracks' ? '🎵 Músicas' : tab === 'favorites' ? '⭐ Favoritos' : '🎤 Artistas'}
           </button>
         ))}
       </div>
+
+      {/* Clube: lista de comunidades de fãs + botão de criar. Quem cria
+          vira admin automaticamente (garantido pela API) e é levado
+          direto pra tela do clube recém-criado. */}
+      {activeTab === 'clube' && (
+        <div className="space-y-2">
+          {!user && (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                <PartyPopper size={28} className="text-black/20" />
+              </div>
+              <p className="text-black/40 text-sm font-medium">Entre na sua conta para criar ou ver clubes</p>
+            </div>
+          )}
+
+          {user && (
+            <div className="rounded-xl bg-[#F7F7FB] p-3 mb-1">
+              {!isCreatingClub ? (
+                <button
+                  onClick={() => setIsCreatingClub(true)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-full gradient-bg text-white text-sm font-semibold active:scale-95 transition-all"
+                >
+                  <Plus size={16} />
+                  Criar clube
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={newClubName}
+                    onChange={(e) => setNewClubName(e.target.value.slice(0, 60))}
+                    placeholder="Nome do clube..."
+                    disabled={isSavingClub}
+                    autoFocus
+                    className="w-full !py-2 !text-sm !bg-white"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setIsCreatingClub(false);
+                        setNewClubName('');
+                      }}
+                      disabled={isSavingClub}
+                      className="flex-1 py-2 rounded-full bg-black/5 text-black/50 text-sm font-medium hover:bg-black/10 transition-colors disabled:opacity-40"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleCreateClub}
+                      disabled={!newClubName.trim() || isSavingClub}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full gradient-bg text-white text-sm font-semibold active:scale-95 transition-all disabled:opacity-40"
+                    >
+                      {isSavingClub && (
+                        <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      )}
+                      Criar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {user && isLoadingClubs ? (
+            <p className="text-center text-black/40 text-sm py-6">Carregando clubes...</p>
+          ) : user && clubs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
+                <PartyPopper size={28} className="text-black/20" />
+              </div>
+              <p className="text-black/40 text-sm font-medium">Nenhum clube por aqui ainda. Crie o primeiro!</p>
+            </div>
+          ) : (
+            user && (
+              <div className="space-y-2">
+                {clubs.map((club) => (
+                  <button
+                    key={club.id}
+                    onClick={() => selectClub(club.id)}
+                    className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white hover:bg-[#F2F2F8] shadow-sm transition-colors text-left"
+                  >
+                    <CoverArt
+                      title={club.name}
+                      artistName=""
+                      coverUrl={club.cover_url || ''}
+                      size="sm"
+                      className="!w-12 !h-12 !max-w-none !rounded-full flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#1A1B25] truncate">{club.name}</p>
+                      <p className="text-xs text-black/40 truncate">
+                        {club.members_count} membro{club.members_count !== 1 ? 's' : ''}
+                        {club.my_role === 'ADMIN' ? ' · você é admin' : club.my_role === 'MEMBRO' ? ' · você é membro' : ''}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      )}
 
       {/* Fãs: busca de outros usuários por nome. */}
       {activeTab === 'fans' && (
