@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, Users, UserPlus, UserMinus, Send, MessageSquareText, Check, X, Loader2, ChevronDown, ChevronUp, Mic } from 'lucide-react';
+import { ChevronLeft, Users, UserPlus, UserMinus, Send, MessageSquareText, Check, X, Loader2, ChevronDown, ChevronUp, Mic, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
 import { fetchClubs, fetchClubMembers, fetchClubPosts, createClubPost, removeClubMember } from '@/lib/api';
@@ -9,6 +9,7 @@ import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import type { Club, ClubMember, ClubPost } from '@/types';
 import CoverArt from './CoverArt';
 import ClubInviteModal from './ClubInviteModal';
+import EditClubDialog from './EditClubDialog';
 import VoiceMessageBubble from './VoiceMessageBubble';
 import VoiceRecordingBar from './VoiceRecordingBar';
 import ClubPostCommentThread from './ClubPostCommentThread';
@@ -27,6 +28,7 @@ const ClubScreen: React.FC = () => {
   const [posts, setPosts] = useState<ClubPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
@@ -150,13 +152,23 @@ const ClubScreen: React.FC = () => {
         </button>
         <h1 className="text-xl font-bold text-[#1A1B25] truncate flex-1">Clube</h1>
         {isAdmin && (
-          <button
-            onClick={() => setInviteOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-full gradient-bg text-white text-xs font-semibold active:scale-95 transition-all"
-          >
-            <UserPlus size={14} />
-            Convidar
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setEditOpen(true)}
+              className="p-2 rounded-full bg-black/5 hover:bg-black/10 transition-colors"
+              aria-label="Editar clube"
+              title="Editar clube"
+            >
+              <Pencil size={16} className="text-[#1A1B25]" />
+            </button>
+            <button
+              onClick={() => setInviteOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-full gradient-bg text-white text-xs font-semibold active:scale-95 transition-all"
+            >
+              <UserPlus size={14} />
+              Convidar
+            </button>
+          </div>
         )}
       </div>
 
@@ -200,6 +212,40 @@ const ClubScreen: React.FC = () => {
                 {club.members_count} membro{club.members_count !== 1 ? 's' : ''}
                 {club.my_role === 'ADMIN' ? ' · você é admin' : club.my_role === 'MEMBRO' ? ' · você é membro' : ''}
               </p>
+
+              {/* Sair do clube — só pra membros comuns; o admin precisa
+                  passar a função pra alguém antes (a API bloqueia isso). */}
+              {isMember && !isAdmin && (
+                <div className="mt-3">
+                  {removingId === user?.id ? (
+                    <Loader2 size={16} className="text-black/30 animate-spin mx-auto" />
+                  ) : confirmRemoveId === user?.id ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-xs text-black/50">Sair do clube?</span>
+                      <button
+                        onClick={() => user && handleRemoveMember(user.id)}
+                        className="px-2.5 py-1 rounded-full bg-[#E84393]/20 text-[#E84393] text-xs font-semibold hover:bg-[#E84393]/30"
+                      >
+                        Confirmar
+                      </button>
+                      <button
+                        onClick={() => setConfirmRemoveId(null)}
+                        className="px-2.5 py-1 rounded-full bg-black/5 text-black/50 text-xs font-medium hover:bg-black/10"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => user && setConfirmRemoveId(user.id)}
+                      className="flex items-center gap-1.5 mx-auto text-xs font-medium text-black/40 hover:text-[#E84393] transition-colors"
+                    >
+                      <UserMinus size={13} />
+                      Sair do clube
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -395,6 +441,15 @@ const ClubScreen: React.FC = () => {
           clubId={club.id}
           memberIds={members.map((m) => m.user_id)}
           onInvited={handleInvited}
+        />
+      )}
+
+      {isAdmin && (
+        <EditClubDialog
+          open={editOpen}
+          club={club}
+          onClose={() => setEditOpen(false)}
+          onSaved={(updated) => setClub(updated)}
         />
       )}
     </div>
