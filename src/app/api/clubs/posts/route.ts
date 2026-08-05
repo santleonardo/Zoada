@@ -9,6 +9,8 @@ function formatClubPost(p: {
   clubeId: string;
   usuarioId: string;
   conteudo: string;
+  audioUrl: string | null;
+  audioDuracao: number | null;
   createdAt: Date;
   usuario: { id: string; name: string; avatarUrl: string | null };
 }) {
@@ -17,6 +19,8 @@ function formatClubPost(p: {
     club_id: p.clubeId,
     user_id: p.usuarioId,
     content: p.conteudo,
+    audio_url: p.audioUrl,
+    audio_duration: p.audioDuracao,
     created_at: p.createdAt.toISOString(),
     user: {
       id: p.usuario.id,
@@ -79,12 +83,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
     }
 
-    const { club_id, content } = await request.json();
+    const { club_id, content, audio_url, audio_duration } = await request.json();
     const trimmedContent = typeof content === 'string' ? content.trim().slice(0, 280) : '';
+    const audioUrl = typeof audio_url === 'string' && audio_url.trim() ? audio_url.trim() : null;
+    const audioDuracao = audioUrl && Number.isFinite(audio_duration) ? Math.max(0, Math.round(audio_duration)) : null;
 
-    if (!club_id || !trimmedContent) {
+    if (!club_id || (!trimmedContent && !audioUrl)) {
       return NextResponse.json(
-        { error: 'club_id e um texto são obrigatórios' },
+        { error: 'club_id e um texto ou áudio são obrigatórios' },
         { status: 400 }
       );
     }
@@ -100,7 +106,13 @@ export async function POST(request: Request) {
     }
 
     const postagem = await db.postagemClube.create({
-      data: { clubeId: club_id, usuarioId: userId, conteudo: trimmedContent },
+      data: {
+        clubeId: club_id,
+        usuarioId: userId,
+        conteudo: trimmedContent || '🎤 Mensagem de voz',
+        audioUrl,
+        audioDuracao,
+      },
       include: { usuario: { select: { id: true, name: true, avatarUrl: true } } },
     });
 

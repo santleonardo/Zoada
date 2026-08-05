@@ -325,6 +325,11 @@ export interface ClubPost {
   club_id: string;
   user_id: string;
   content: string;
+  // Postagem de voz (opcional). Quando presente, a postagem é um player de
+  // áudio tocável em vez de um texto simples — mesmo mecanismo usado nas
+  // conversas (ver Message.audio_url).
+  audio_url?: string | null;
+  audio_duration?: number | null;
   created_at: string;
   user: { id: string; name: string; avatar_url: string | null };
 }

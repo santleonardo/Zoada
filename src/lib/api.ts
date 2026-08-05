@@ -1287,11 +1287,20 @@ export async function fetchClubPosts(clubId: string): Promise<ClubPost[]> {
 }
 
 // Publica uma postagem no mural do clube — só membros conseguem postar.
-export async function createClubPost(clubId: string, content: string): Promise<ClubPost | null> {
+export async function createClubPost(
+  clubId: string,
+  content: string,
+  audio?: { url: string; duration: number }
+): Promise<ClubPost | null> {
   try {
     const res = await apiFetch('/api/clubs/posts', {
       method: 'POST',
-      body: JSON.stringify({ club_id: clubId, content }),
+      body: JSON.stringify({
+        club_id: clubId,
+        content,
+        audio_url: audio?.url,
+        audio_duration: audio?.duration,
+      }),
     });
     if (!res.ok) return null;
     const data = await res.json();

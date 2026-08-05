@@ -15,6 +15,15 @@ export function formatNumber(n: number): string {
 /** Formata uma data como tempo relativo curto (ex: "agora", "5min",
  * "3h", "2d", "3sem"), usado nas notificações. Cai pra data curta
  * (dd/mm) depois de ~4 semanas, pra não ficar um número gigante. */
+/** Formata segundos como "m:ss" (ex: 75 -> "1:15"), usado no cronômetro de
+ * gravação e no player das mensagens/postagens de voz. */
+export function formatRecordingTime(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds || 0));
+  const minutes = Math.floor(s / 60);
+  const seconds = s % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 export function formatRelativeTime(dateStr: string | Date): string {
   const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
   const diffMs = Date.now() - date.getTime();
