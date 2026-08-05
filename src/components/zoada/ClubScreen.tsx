@@ -521,6 +521,10 @@ const ClubScreen: React.FC = () => {
           club={club}
           onClose={() => setEditOpen(false)}
           onSaved={(updated) => setClub(updated)}
+          onDeleted={() => {
+            toast.success('Clube excluído.');
+            goBack();
+          }}
         />
       )}
     </div>

@@ -3,21 +3,24 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { X, Camera, Loader2, Users as UsersIcon, Trash2, Lock, Eye, EyeOff } from 'lucide-react';
 import type { Club } from '@/types';
-import { uploadClubCover, updateClub } from '@/lib/api';
+import { uploadClubCover, updateClub, deleteClub } from '@/lib/api';
 
 interface EditClubDialogProps {
   open: boolean;
   club: Club | null;
   onClose: () => void;
   onSaved: (club: Club) => void;
+  /** Chamado depois que o admin confirma e a exclusão do clube dá certo. */
+  onDeleted?: (clubId: string) => void;
 }
 
 /**
  * Dialog de edição de um clube (só pro admin) — nome, bio/descrição e foto
  * de capa. Espelha o EditProfileDialog, só que trocando avatar de usuário
  * por capa de clube e persistindo via updateClub/uploadClubCover.
+ * Também expõe a exclusão do clube (soft-delete, 30 dias).
  */
-const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, onSaved }) => {
+const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, onSaved, onDeleted }) => {
   const [name, setName] = useState(club?.name || '');
   const [description, setDescription] = useState(club?.description || '');
   const [coverPreview, setCoverPreview] = useState<string | null>(club?.cover_url || null);
@@ -31,6 +34,8 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
   const [showPassword, setShowPassword] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,6 +53,8 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
       setError(null);
       setIsUploading(false);
       setIsSaving(false);
+      setIsDeleting(false);
+      setConfirmDelete(false);
     }
   }, [open, club]);
 
@@ -152,6 +159,33 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
     } finally {
       setIsSaving(false);
       setIsUploading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!club) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+
+    setError(null);
+    setIsDeleting(true);
+    try {
+      const ok = await deleteClub(club.id);
+      if (!ok) {
+        setError('Não foi possível excluir o clube. Tente novamente.');
+        setIsDeleting(false);
+        setConfirmDelete(false);
+        return;
+      }
+      onDeleted?.(club.id);
+      onClose();
+    } catch {
+      setError('Erro inesperado ao excluir. Tente novamente.');
+      setConfirmDelete(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -331,20 +365,64 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
+
+          {/* Zona de perigo — excluir clube */}
+          <div className="rounded-xl border border-red-200 bg-red-50/60 p-4">
+            <p className="text-sm font-semibold text-red-700">Excluir clube</p>
+            <p className="text-xs text-red-600/80 mt-1 leading-relaxed">
+              O clube some para todos os membros. Essa ação não pode ser desfeita pelo app.
+            </p>
+            {confirmDelete ? (
+              <div className="mt-3 flex flex-col gap-2">
+                <p className="text-xs font-medium text-red-700">
+                  Tem certeza? Confirme para excluir &ldquo;{club.name}&rdquo;.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 rounded-xl bg-white border border-black/10 text-xs font-medium text-[#1A1B25] hover:bg-black/5 transition-colors disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={isDeleting || isSaving}
+                    className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {isDeleting && <Loader2 size={12} className="animate-spin" />}
+                    {isDeleting ? 'Excluindo...' : 'Confirmar exclusão'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isSaving || isDeleting}
+                className="mt-3 w-full py-2.5 rounded-xl border border-red-300 bg-white text-red-600 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={13} />
+                Excluir este clube
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
         <div className="p-5 border-t border-black/5 flex gap-3">
           <button
             onClick={onClose}
-            disabled={isSaving}
+            disabled={isSaving || isDeleting}
             className="flex-1 py-3 rounded-xl bg-black/5 hover:bg-black/10 text-sm font-medium text-[#1A1B25] transition-colors disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving || noChanges}
+            disabled={isSaving || isDeleting || noChanges}
             className="flex-1 py-3 rounded-xl gradient-bg text-sm font-medium text-white hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isSaving && <Loader2 size={14} className="animate-spin" />}
