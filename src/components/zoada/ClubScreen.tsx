@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, Users, UserPlus, Send, MessageSquareText } from 'lucide-react';
+import { ChevronLeft, Users, UserPlus, UserMinus, Send, MessageSquareText, Check, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchClubs, fetchClubMembers, fetchClubPosts, createClubPost } from '@/lib/api';
+import { fetchClubs, fetchClubMembers, fetchClubPosts, createClubPost, removeClubMember } from '@/lib/api';
 import type { Club, ClubMember, ClubPost } from '@/types';
 import CoverArt from './CoverArt';
 import ClubInviteModal from './ClubInviteModal';
@@ -25,6 +25,9 @@ const ClubScreen: React.FC = () => {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const isMember = !!club?.my_role;
   const isAdmin = club?.my_role === 'ADMIN';
@@ -77,6 +80,34 @@ const ClubScreen: React.FC = () => {
     setMembers((prev) => [...prev, member]);
     setClub((prev) => (prev ? { ...prev, members_count: prev.members_count + 1 } : prev));
     toast.success(`${member.name} agora faz parte do clube!`);
+  };
+
+  // Remove um membro (admin removendo outro fã) ou sai do clube (membro
+  // removendo a si mesmo). A API já garante que o admin não consegue sair
+  // do próprio clube, então esse botão nem aparece pra esse caso.
+  const handleRemoveMember = async (targetUserId: string) => {
+    if (!selectedClubId || removingId) return;
+    const isSelf = targetUserId === user?.id;
+
+    setRemovingId(targetUserId);
+    const ok = await removeClubMember(selectedClubId, targetUserId);
+    setRemovingId(null);
+    setConfirmRemoveId(null);
+
+    if (!ok) {
+      toast.error(isSelf ? 'Não foi possível sair do clube.' : 'Não foi possível remover esse membro.');
+      return;
+    }
+
+    setMembers((prev) => prev.filter((m) => m.user_id !== targetUserId));
+    setClub((prev) => (prev ? { ...prev, members_count: Math.max(0, prev.members_count - 1) } : prev));
+
+    if (isSelf) {
+      toast.success('Você saiu do clube.');
+      goBack();
+    } else {
+      toast.success('Membro removido do clube.');
+    }
   };
 
   if (!selectedClubId) return null;
@@ -160,6 +191,88 @@ const ClubScreen: React.FC = () => {
 
           {isMember && (
             <>
+              {/* Membros: lista recolhível, com opção de remover (admin) ou
+                  sair (qualquer membro, exceto o admin). */}
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowMembers((v) => !v)}
+                  className="w-full flex items-center justify-between text-left mb-2"
+                >
+                  <span className="text-sm font-semibold text-[#1A1B25] flex items-center gap-1.5">
+                    <Users size={14} />
+                    Membros ({members.length})
+                  </span>
+                  {showMembers ? (
+                    <ChevronUp size={16} className="text-black/40" />
+                  ) : (
+                    <ChevronDown size={16} className="text-black/40" />
+                  )}
+                </button>
+
+                {showMembers && (
+                  <div className="space-y-1.5">
+                    {members.map((member) => {
+                      const isSelf = member.user_id === user?.id;
+                      const canRemove = isAdmin ? !isSelf : isSelf;
+
+                      return (
+                        <div
+                          key={member.id}
+                          className="flex items-center gap-3 p-2.5 rounded-xl bg-white shadow-sm"
+                        >
+                          <CoverArt
+                            title={member.name}
+                            artistName=""
+                            coverUrl={member.avatar_url || ''}
+                            size="sm"
+                            className="!w-9 !h-9 !max-w-none !rounded-full flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-[#1A1B25] truncate">
+                              {member.name}
+                              {isSelf ? ' (você)' : ''}
+                            </p>
+                            <p className="text-xs text-black/40">
+                              {member.role === 'ADMIN' ? 'Admin' : 'Membro'}
+                            </p>
+                          </div>
+
+                          {canRemove &&
+                            (removingId === member.user_id ? (
+                              <Loader2 size={16} className="text-black/30 animate-spin flex-shrink-0" />
+                            ) : confirmRemoveId === member.user_id ? (
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <button
+                                  onClick={() => handleRemoveMember(member.user_id)}
+                                  aria-label={isSelf ? 'Confirmar saída' : 'Confirmar remoção'}
+                                  className="p-1.5 rounded-full bg-[#E84393]/20 text-[#E84393] hover:bg-[#E84393]/30"
+                                >
+                                  <Check size={13} />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmRemoveId(null)}
+                                  aria-label="Cancelar"
+                                  className="p-1.5 rounded-full bg-black/5 text-black/50 hover:bg-black/10"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmRemoveId(member.user_id)}
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/5 text-black/50 hover:bg-[#E84393]/10 hover:text-[#E84393] text-xs font-medium transition-colors flex-shrink-0"
+                              >
+                                <UserMinus size={12} />
+                                {isSelf ? 'Sair' : 'Remover'}
+                              </button>
+                            ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Campo de postagens (mural do clube) */}
               <div className="rounded-xl bg-[#F7F7FB] p-3 mb-4">
                 <textarea
