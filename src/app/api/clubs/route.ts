@@ -110,3 +110,68 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Erro ao criar clube' }, { status: 500 });
   }
 }
+
+// PATCH /api/clubs — Edita nome, descrição (bio) e/ou foto de capa de um
+// clube já existente. Só o admin do clube pode editar. Campos omitidos
+// (undefined) ficam como estavam; `null` em cover_url limpa a capa.
+export async function PATCH(request: Request) {
+  try {
+    const userId = await authenticateRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    if (!isNeonConfigured) {
+      return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
+    }
+
+    const { club_id, name, description, cover_url } = await request.json();
+    if (!club_id) {
+      return NextResponse.json({ error: 'club_id é obrigatório' }, { status: 400 });
+    }
+
+    const meuVinculo = await db.membroClube.findUnique({
+      where: { clubeId_usuarioId: { clubeId: club_id, usuarioId: userId } },
+    });
+    if (!meuVinculo || meuVinculo.papel !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Só o admin do clube pode editar' },
+        { status: 403 }
+      );
+    }
+
+    const data: { nome?: string; descricao?: string | null; capaUrl?: string | null } = {};
+
+    if (name !== undefined) {
+      const trimmedName = typeof name === 'string' ? name.trim().slice(0, 60) : '';
+      if (!trimmedName) {
+        return NextResponse.json({ error: 'O clube precisa de um nome' }, { status: 400 });
+      }
+      data.nome = trimmedName;
+    }
+
+    if (description !== undefined) {
+      const trimmedDescription =
+        typeof description === 'string' ? description.trim().slice(0, 280) : '';
+      data.descricao = trimmedDescription || null;
+    }
+
+    if (cover_url !== undefined) {
+      data.capaUrl = typeof cover_url === 'string' && cover_url.trim() ? cover_url.trim() : null;
+    }
+
+    const clube = await db.clube.update({
+      where: { id: club_id },
+      data,
+      include: {
+        _count: { select: { membros: true } },
+        membros: { where: { usuarioId: userId }, select: { papel: true } },
+      },
+    });
+
+    return NextResponse.json({ club: formatClub(clube) });
+  } catch (error) {
+    console.error('[CLUBS PATCH]', error);
+    return NextResponse.json({ error: 'Erro ao editar clube' }, { status: 500 });
+  }
+}

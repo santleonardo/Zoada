@@ -1238,6 +1238,51 @@ export async function createClub(name: string, description?: string): Promise<Cl
   }
 }
 
+// Edita nome, descrição (bio) e/ou capa de um clube já existente. Só o
+// admin do clube pode chamar isso — a API confere e retorna 403 se não for.
+export async function updateClub(
+  clubId: string,
+  fields: { name?: string; description?: string; cover_url?: string | null }
+): Promise<Club | null> {
+  try {
+    const res = await apiFetch('/api/clubs', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        club_id: clubId,
+        name: fields.name,
+        description: fields.description,
+        cover_url: fields.cover_url,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.club ?? null;
+  } catch (err) {
+    console.warn('[updateClub] falha ao editar clube:', err);
+    return null;
+  }
+}
+
+// Sobe uma nova foto de capa para um clube (só o admin consegue) e
+// devolve a URL pública já pronta pra usar em updateClub.
+export async function uploadClubCover(clubId: string, file: File): Promise<string | null> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('club_id', clubId);
+    const res = await apiFetch('/api/club-cover-upload', {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.url ?? null;
+  } catch (err) {
+    console.warn('[uploadClubCover] falha ao enviar capa do clube:', err);
+    return null;
+  }
+}
+
 // Lista os membros de um clube (só quem já é membro consegue ver).
 export async function fetchClubMembers(clubId: string): Promise<ClubMember[]> {
   try {
