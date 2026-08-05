@@ -1160,7 +1160,7 @@ export async function exportMyData(): Promise<boolean> {
 
 // Tipos de conteúdo que podem ser denunciados — precisa bater com o enum
 // TipoAlvoDenuncia do schema/API.
-export type ReportTargetType = 'POSTAGEM' | 'COMENTARIO_POSTAGEM' | 'COMENTARIO_POSTAGEM_CLUBE' | 'COMENTARIO_FAIXA' | 'FAIXA' | 'USUARIO';
+export type ReportTargetType = 'POSTAGEM' | 'POSTAGEM_CLUBE' | 'COMENTARIO_POSTAGEM' | 'COMENTARIO_POSTAGEM_CLUBE' | 'COMENTARIO_FAIXA' | 'FAIXA' | 'USUARIO';
 
 // Envia uma denúncia (canal de denúncia/reporte — Marco Civil pós-STF
 // 2025). Cai em /api/reports, que guarda um retrato do conteúdo pro

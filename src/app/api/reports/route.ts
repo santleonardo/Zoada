@@ -12,7 +12,7 @@ import { isValidBearerSecret } from '@/lib/rateLimit';
 // essas denúncias por aqui usando MODERATION_SECRET.
 // ============================================================
 
-const TIPOS_VALIDOS = ['POSTAGEM', 'COMENTARIO_POSTAGEM', 'COMENTARIO_POSTAGEM_CLUBE', 'COMENTARIO_FAIXA', 'FAIXA', 'USUARIO'] as const;
+const TIPOS_VALIDOS = ['POSTAGEM', 'POSTAGEM_CLUBE', 'COMENTARIO_POSTAGEM', 'COMENTARIO_POSTAGEM_CLUBE', 'COMENTARIO_FAIXA', 'FAIXA', 'USUARIO'] as const;
 type TipoAlvo = (typeof TIPOS_VALIDOS)[number];
 
 const STATUS_VALIDOS = ['PENDENTE', 'EM_ANALISE', 'RESOLVIDA', 'REJEITADA'] as const;
@@ -77,6 +77,15 @@ async function buildSnapshot(
       });
       if (!p) return null;
       const texto = [p.legenda, p.faixa ? `[faixa: ${p.faixa.titulo}]` : null].filter(Boolean).join(' ');
+      return { conteudoSnapshot: texto ? truncate(texto) : null, autorSnapshot: p.usuario.name, autorId: p.usuarioId };
+    }
+    case 'POSTAGEM_CLUBE': {
+      const p = await db.postagemClube.findUnique({
+        where: { id: alvoId },
+        include: { usuario: { select: { id: true, name: true } }, clube: { select: { nome: true } } },
+      });
+      if (!p) return null;
+      const texto = [p.conteudo, p.clube ? `[clube: ${p.clube.nome}]` : null].filter(Boolean).join(' ');
       return { conteudoSnapshot: texto ? truncate(texto) : null, autorSnapshot: p.usuario.name, autorId: p.usuarioId };
     }
     case 'COMENTARIO_POSTAGEM': {
