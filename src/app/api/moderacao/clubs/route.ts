@@ -13,6 +13,9 @@ import { isValidBearerSecret } from '@/lib/rateLimit';
 // GET    ?q=termo — busca clubes por nome ou por nome/email do criador
 //                    (até 30 resultados). Sem `q`, lista os clubes mais
 //                    recentes (até 100).
+// GET    ?id=xxx  — acesso ao clube pelo painel: dados gerais, lista
+//                    completa de membros (com email) e últimas postagens
+//                    do mural — sem precisar ser membro do clube.
 // DELETE ?id=xxx  — soft-delete do clube (mesma janela de 30 dias antes da
 //                    limpeza automática — ver /api/cron/purge-deleted).
 //                    Diferente de DELETE /api/clubs, esta rota não exige
@@ -51,8 +54,78 @@ function formatClub(c: {
   };
 }
 
+function formatMember(m: {
+  id: string;
+  usuarioId: string;
+  papel: string;
+  createdAt: Date;
+  usuario: { id: string; name: string; email: string; avatarUrl: string | null };
+}) {
+  return {
+    id: m.id,
+    user_id: m.usuarioId,
+    name: m.usuario.name,
+    email: m.usuario.email,
+    avatar_url: m.usuario.avatarUrl,
+    role: m.papel,
+    joined_at: m.createdAt.toISOString(),
+  };
+}
+
+function formatClubPost(p: {
+  id: string;
+  conteudo: string;
+  audioUrl: string | null;
+  createdAt: Date;
+  usuario: { id: string; name: string };
+}) {
+  return {
+    id: p.id,
+    content: p.conteudo,
+    has_audio: !!p.audioUrl,
+    created_at: p.createdAt.toISOString(),
+    author: { id: p.usuario.id, name: p.usuario.name },
+  };
+}
+
+// GET /api/moderacao/clubs?id=xxx — acesso ao clube pelo painel: dados
+// gerais + lista completa de membros (com email, pra moderação conseguir
+// localizar a conta em Usuários) + últimas postagens do mural, pra dar uma
+// visão geral do clube sem precisar entrar como membro.
+async function getClubDetail(id: string) {
+  const clube = await db.clube.findFirst({
+    where: { id, ...notDeleted },
+    include: {
+      criador: { select: { id: true, name: true, email: true } },
+      _count: { select: { membros: true, postagens: true } },
+    },
+  });
+  if (!clube) return null;
+
+  const [membros, postagens] = await Promise.all([
+    db.membroClube.findMany({
+      where: { clubeId: id, usuario: { ...notDeleted } },
+      orderBy: [{ papel: 'asc' }, { createdAt: 'asc' }],
+      include: { usuario: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+    }),
+    db.postagemClube.findMany({
+      where: { clubeId: id, ...notDeleted },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+      include: { usuario: { select: { id: true, name: true } } },
+    }),
+  ]);
+
+  return {
+    club: formatClub(clube),
+    members: membros.map(formatMember),
+    posts: postagens.map(formatClubPost),
+  };
+}
+
 // GET /api/moderacao/clubs?q=termo — busca por nome do clube ou nome/email
-// do criador. Sem `q`, lista os clubes mais recentes.
+// do criador. Sem `q`, lista os clubes mais recentes. Com `?id=xxx` em vez
+// de `q`, devolve o detalhe de um clube (membros + postagens do mural).
 export async function GET(request: Request) {
   try {
     if (!isModerator(request)) {
@@ -63,6 +136,16 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
+    const id = (searchParams.get('id') || '').trim();
+
+    if (id) {
+      const detail = await getClubDetail(id);
+      if (!detail) {
+        return NextResponse.json({ error: 'Clube não encontrado' }, { status: 404 });
+      }
+      return NextResponse.json(detail);
+    }
+
     const q = (searchParams.get('q') || '').trim();
 
     const clubes = await db.clube.findMany({
