@@ -982,6 +982,7 @@
   <div class="section-switch" id="sectionSwitch">
     <button class="tab active" id="tabSectionDenuncias" onclick="switchSection('denuncias')">🚩 Denúncias</button>
     <button class="tab" id="tabSectionUsuarios" onclick="switchSection('usuarios')">🚫 Usuários</button>
+    <button class="tab" id="tabSectionClubes" onclick="switchSection('clubes')">🎪 Clubes</button>
     <button class="tab" id="tabSectionAvisos" onclick="switchSection('avisos')">📣 Avisos</button>
     <button class="tab" id="tabSectionFeed" onclick="switchSection('feed')">📝 Feed (Fãs)</button>
     <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
@@ -1023,6 +1024,32 @@
     <div class="radio-panel" style="margin-top:16px;">
       <h3>⏳ Suspensos no momento</h3>
       <div id="suspendedUsersList"><div class="status-msg">Carregando…</div></div>
+    </div>
+  </div>
+
+  <div id="section-clubes" style="display:none;">
+    <div class="section-head">
+      <h2>🎪 Clubes</h2>
+      <p>Lista de controle de todos os clubes criados na plataforma — quem criou, quantos membros e postagens tem, e se exige senha pra entrar. Excluir por aqui não depende do admin do clube.</p>
+    </div>
+
+    <div class="aviso-box">
+      <h2>🔍 Buscar clube</h2>
+      <p class="sub">Digite o nome do clube ou o nome/email de quem criou.</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <div class="field" style="flex:1; min-width:220px; margin-bottom:0;">
+          <label for="clubSearchInput">Nome do clube ou nome/email do criador</label>
+          <input type="text" id="clubSearchInput" placeholder="ex: Fã-clube Oficial" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); loadClubsMod();}">
+        </div>
+        <button class="btn-secondary" onclick="loadClubsMod()" id="clubSearchBtn">Buscar</button>
+        <button class="btn-secondary" onclick="document.getElementById('clubSearchInput').value=''; loadClubsMod();">Limpar</button>
+      </div>
+    </div>
+
+    <div class="radio-panel" style="margin-top:16px;">
+      <h3>🎪 Clubes cadastrados</h3>
+      <p class="catalog-summary" id="clubsCount" style="margin-bottom:10px;"></p>
+      <div id="clubsList"><div class="status-msg">Carregando…</div></div>
     </div>
   </div>
 
@@ -1606,6 +1633,7 @@
   function switchSection(section) {
     document.getElementById('section-denuncias').style.display = section === 'denuncias' ? '' : 'none';
     document.getElementById('section-usuarios').style.display = section === 'usuarios' ? '' : 'none';
+    document.getElementById('section-clubes').style.display = section === 'clubes' ? '' : 'none';
     document.getElementById('section-avisos').style.display = section === 'avisos' ? '' : 'none';
     document.getElementById('section-feed').style.display = section === 'feed' ? '' : 'none';
     document.getElementById('section-mensagens').style.display = section === 'mensagens' ? '' : 'none';
@@ -1614,6 +1642,7 @@
     document.getElementById('section-admins').style.display = section === 'admins' ? '' : 'none';
     document.getElementById('tabSectionDenuncias').classList.toggle('active', section === 'denuncias');
     document.getElementById('tabSectionUsuarios').classList.toggle('active', section === 'usuarios');
+    document.getElementById('tabSectionClubes').classList.toggle('active', section === 'clubes');
     document.getElementById('tabSectionAvisos').classList.toggle('active', section === 'avisos');
     document.getElementById('tabSectionFeed').classList.toggle('active', section === 'feed');
     document.getElementById('tabSectionMensagens').classList.toggle('active', section === 'mensagens');
@@ -1622,6 +1651,9 @@
     document.getElementById('tabSectionAdmins').classList.toggle('active', section === 'admins');
     if (section === 'usuarios') {
       loadSuspendedUsers();
+    }
+    if (section === 'clubes') {
+      loadClubsMod();
     }
     if (section === 'avisos') {
       loadAviso();
@@ -2117,6 +2149,75 @@
         : '<div class="status-msg">Ninguém suspenso agora. 🎉</div>';
     } catch (err) {
       listEl.innerHTML = '<div class="status-msg">Erro ao carregar: ' + escapeHtml(String(err.message || err)) + '</div>';
+    }
+  }
+
+  function clubCardHtml(c) {
+    const nameEsc = escapeHtml(c.name);
+    const idEsc = escapeHtml(c.id).replace(/'/g, '&#39;');
+    const criadorLabel = c.creator ? escapeHtml(c.creator.name) + ' · ' + escapeHtml(c.creator.email) : 'Criador removido';
+    return (
+      '<div class="track-row" data-club-id="' + escapeHtml(c.id) + '">' +
+        '<span class="track-file-icon">' + (c.has_password ? '🔒' : '🎪') + '</span>' +
+        '<div class="track-info">' +
+          '<p class="thread-name" style="margin:0 0 2px;">' + nameEsc + '</p>' +
+          '<p class="thread-preview">Criado por ' + criadorLabel + '</p>' +
+          '<p class="thread-preview">👥 ' + c.members_count + ' membro(s) · 📝 ' + c.posts_count + ' postagem(ns) · Desde ' + fmtDate(c.created_at) + (c.has_password ? ' · 🔒 com senha' : '') + '</p>' +
+        '</div>' +
+        '<div class="track-actions">' +
+          '<button class="btn-danger" onclick="deleteClubMod(\'' + idEsc + '\', \'' + nameEsc.replace(/'/g, "\\'") + '\')">Excluir clube</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  async function loadClubsMod() {
+    const listEl = document.getElementById('clubsList');
+    const countEl = document.getElementById('clubsCount');
+    if (!secret()) {
+      listEl.innerHTML = '<div class="status-msg">Cole a chave de moderação acima e clique em "Conectar".</div>';
+      countEl.textContent = '';
+      return;
+    }
+    const q = document.getElementById('clubSearchInput').value.trim();
+    listEl.innerHTML = '<div class="status-msg">Carregando…</div>';
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/clubs' + (q ? '?q=' + encodeURIComponent(q) : ''), {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      if (res.status === 401) {
+        listEl.innerHTML = '<div class="status-msg">Chave de moderação inválida.</div>';
+        countEl.textContent = '';
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const clubs = data.clubs || [];
+      listEl.innerHTML = clubs.length
+        ? clubs.map(clubCardHtml).join('')
+        : '<div class="status-msg">' + (q ? 'Nenhum clube encontrado.' : 'Nenhum clube criado ainda.') + '</div>';
+      countEl.textContent = 'Clubes: ' + clubs.length;
+    } catch (err) {
+      listEl.innerHTML = '<div class="status-msg">Erro ao carregar: ' + escapeHtml(String(err.message || err)) + '</div>';
+      countEl.textContent = '';
+    }
+  }
+
+  async function deleteClubMod(clubId, clubName) {
+    if (!confirm('Excluir o clube "' + clubName + '"? Membros e postagens do mural somem junto. Isso não pode ser desfeito pela pessoa que criou o clube.')) return;
+    const row = document.querySelector('[data-club-id="' + CSS.escape(clubId) + '"]');
+    if (row) row.querySelectorAll('button').forEach((b) => (b.disabled = true));
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/clubs?id=' + encodeURIComponent(clubId), {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      loadClubsMod();
+    } catch (err) {
+      alert('Erro ao excluir: ' + (err.message || err));
+      if (row) row.querySelectorAll('button').forEach((b) => (b.disabled = false));
     }
   }
 
