@@ -11,6 +11,7 @@ import CoverArt from './CoverArt';
 import ClubInviteModal from './ClubInviteModal';
 import VoiceMessageBubble from './VoiceMessageBubble';
 import VoiceRecordingBar from './VoiceRecordingBar';
+import ClubPostCommentThread from './ClubPostCommentThread';
 
 /**
  * Tela de um clube (comunidade de fãs): cabeçalho com nome/capa, campo de
@@ -377,6 +378,7 @@ const ClubScreen: React.FC = () => {
                       ) : (
                         <p className="text-sm text-black/70 whitespace-pre-wrap break-words">{post.content}</p>
                       )}
+                      <ClubPostCommentThread clubPostId={post.id} initialCount={post.comments_count} />
                     </div>
                   ))}
                 </div>
