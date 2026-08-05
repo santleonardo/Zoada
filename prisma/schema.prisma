@@ -568,6 +568,7 @@ model FaixaRadioPadrao {
 // public/moderacao/index.html), que fala com /api/reports.
 enum TipoAlvoDenuncia {
   POSTAGEM                  // Postagem do feed (Postagem)
+  POSTAGEM_CLUBE             // Postagem do mural de um clube (PostagemClube)
   COMENTARIO_POSTAGEM       // Comentário de uma postagem do feed (ComentarioPostagem)
   COMENTARIO_POSTAGEM_CLUBE // Comentário de uma postagem do mural de um clube (ComentarioPostagemClube)
   COMENTARIO_FAIXA          // Comentário numa faixa, no player (Comentario)
