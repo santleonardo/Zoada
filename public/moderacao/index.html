@@ -903,6 +903,26 @@
   /* Evita rolagem horizontal acidental */
   html, body { overflow-x: hidden; max-width: 100%; }
   img, video { max-width: 100%; height: auto; }
+
+  /* Modal de detalhe do clube (ver membros, mural, etc — acessado pelo
+     botão "Ver clube" na lista de controle). */
+  .club-modal-overlay {
+    position: fixed; inset: 0; background: rgba(20,20,35,.45);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto; z-index: 1000;
+  }
+  .club-modal {
+    background: var(--surface); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg); width: 100%; max-width: 620px;
+    padding: 22px; margin: auto 0;
+  }
+  .club-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+  .club-modal-head h2 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
+  .club-modal-close { background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; width: 30px; height: 30px; font-size: 15px; cursor: pointer; color: var(--muted); flex-shrink: 0; }
+  .club-modal-close:hover { background: var(--border); }
+  .club-modal-sub { margin: 0 0 16px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .club-modal h3 { font-size: 13.5px; font-weight: 700; margin: 18px 0 8px; }
+  .club-modal-empty { font-size: 13px; color: var(--muted-2); padding: 10px 0; }
 </style>
 </head>
 <body>
@@ -1051,6 +1071,10 @@
       <p class="catalog-summary" id="clubsCount" style="margin-bottom:10px;"></p>
       <div id="clubsList"><div class="status-msg">Carregando…</div></div>
     </div>
+  </div>
+
+  <div id="clubModalOverlay" class="club-modal-overlay" style="display:none;" onclick="if(event.target===this) closeClubModal();">
+    <div class="club-modal" id="clubModalBody"></div>
   </div>
 
   <div id="section-avisos" style="display:none;">
@@ -2165,6 +2189,7 @@
           '<p class="thread-preview">👥 ' + c.members_count + ' membro(s) · 📝 ' + c.posts_count + ' postagem(ns) · Desde ' + fmtDate(c.created_at) + (c.has_password ? ' · 🔒 com senha' : '') + '</p>' +
         '</div>' +
         '<div class="track-actions">' +
+          '<button class="btn-secondary" onclick="viewClubMod(\'' + idEsc + '\')">Ver clube</button>' +
           '<button class="btn-danger" onclick="deleteClubMod(\'' + idEsc + '\', \'' + nameEsc.replace(/'/g, "\\'") + '\')">Excluir clube</button>' +
         '</div>' +
       '</div>'
@@ -2218,6 +2243,79 @@
     } catch (err) {
       alert('Erro ao excluir: ' + (err.message || err));
       if (row) row.querySelectorAll('button').forEach((b) => (b.disabled = false));
+    }
+  }
+
+  function clubMemberRowHtml(m) {
+    return (
+      '<div class="track-row">' +
+        '<span class="track-file-icon">' + (m.role === 'ADMIN' ? '👑' : '👤') + '</span>' +
+        '<div class="track-info">' +
+          '<p class="thread-name" style="margin:0 0 2px;">' + escapeHtml(m.name) + '</p>' +
+          '<p class="thread-preview">' + escapeHtml(m.email) + '</p>' +
+          '<p class="thread-preview">' + (m.role === 'ADMIN' ? 'Admin' : 'Membro') + ' · desde ' + fmtDate(m.joined_at) + '</p>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function clubPostRowHtml(p) {
+    const preview = p.content ? escapeHtml(p.content) : (p.has_audio ? '🎤 Mensagem de voz' : '');
+    return (
+      '<div class="track-row">' +
+        '<span class="track-file-icon">📝</span>' +
+        '<div class="track-info">' +
+          '<p class="thread-name" style="margin:0 0 2px;">' + escapeHtml(p.author.name) + '</p>' +
+          '<p class="thread-preview">' + preview + '</p>' +
+          '<p class="thread-preview">' + fmtDate(p.created_at) + '</p>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function closeClubModal() {
+    document.getElementById('clubModalOverlay').style.display = 'none';
+    document.getElementById('clubModalBody').innerHTML = '';
+  }
+
+  async function viewClubMod(clubId) {
+    const overlay = document.getElementById('clubModalOverlay');
+    const body = document.getElementById('clubModalBody');
+    overlay.style.display = 'flex';
+    body.innerHTML = '<div class="status-msg">Carregando…</div>';
+
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/clubs?id=' + encodeURIComponent(clubId), {
+        headers: { Authorization: 'Bearer ' + secret() },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+
+      const c = data.club;
+      const members = data.members || [];
+      const posts = data.posts || [];
+
+      body.innerHTML =
+        '<div class="club-modal-head">' +
+          '<h2>' + (c.has_password ? '🔒 ' : '🎪 ') + escapeHtml(c.name) + '</h2>' +
+          '<button class="club-modal-close" onclick="closeClubModal()" aria-label="Fechar">✕</button>' +
+        '</div>' +
+        '<p class="club-modal-sub">' +
+          'Criado por ' + (c.creator ? escapeHtml(c.creator.name) + ' · ' + escapeHtml(c.creator.email) : 'criador removido') +
+          ' · desde ' + fmtDate(c.created_at) +
+          (c.description ? '<br>' + escapeHtml(c.description) : '') +
+        '</p>' +
+        '<h3>👥 Membros (' + members.length + ')</h3>' +
+        (members.length ? members.map(clubMemberRowHtml).join('') : '<div class="club-modal-empty">Nenhum membro.</div>') +
+        '<h3>📝 Mural — últimas postagens (' + posts.length + ')</h3>' +
+        (posts.length ? posts.map(clubPostRowHtml).join('') : '<div class="club-modal-empty">Nenhuma postagem ainda.</div>') +
+        '<div class="actions" style="margin-top:18px;">' +
+          '<button class="btn-danger" onclick="closeClubModal(); deleteClubMod(\'' + clubId.replace(/'/g, "\\'") + '\', \'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')">Excluir clube</button>' +
+        '</div>';
+    } catch (err) {
+      body.innerHTML =
+        '<div class="club-modal-head"><h2>Erro</h2><button class="club-modal-close" onclick="closeClubModal()" aria-label="Fechar">✕</button></div>' +
+        '<div class="status-msg">Erro ao carregar clube: ' + escapeHtml(String(err.message || err)) + '</div>';
     }
   }
 
