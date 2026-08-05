@@ -115,3 +115,53 @@ Stage Summary:
   `prisma db push --accept-data-loss`, which will apply the new columns
 - Could not run tsc/next build in this environment (no node_modules,
   network disabled) — reviewed the diffs manually for syntax/import errors
+
+---
+Task ID: 13
+Agent: Main
+Task: Mecanismo de threads (comentários) nos clubes
+
+Work Log:
+- Added ComentarioPostagemClube and CurtidaComentarioPostagemClube models
+  to prisma/schema.prisma (same shape as ComentarioPostagem /
+  CurtidaComentarioPostagem, soft-delete + 30-day retention, one heart
+  reaction per user per comment). Added the relations on Usuario and
+  PostagemClube, and a COMENTARIO_POSTAGEM_CLUBE value on the
+  TipoAlvoDenuncia enum.
+- Created /api/club-post-comments (GET/POST/DELETE/PATCH restore),
+  mirroring /api/post-comments but gated on club membership (checks
+  MembroClube for the club that owns the target PostagemClube) instead of
+  being public.
+- Created /api/club-post-comment-likes (POST toggle), mirroring
+  /api/post-comment-likes, same membership check.
+- /api/clubs/posts now returns comments_count per post (_count on
+  comentarios).
+- /api/reports and public/moderacao/index.html now accept/label the new
+  COMENTARIO_POSTAGEM_CLUBE report target type.
+- /api/cron/purge-deleted now also purges expired
+  comentarioPostagemClube rows (30-day soft-delete window), same as the
+  feed's ComentarioPostagem.
+- Added ClubPostComment type (src/types/index.ts) and
+  fetchClubPostComments/postClubPostComment/deleteClubPostComment/
+  restoreClubPostComment/toggleClubPostCommentLike client functions
+  (src/lib/api.ts).
+- Created src/components/zoada/ClubPostCommentThread.tsx (copy of
+  PostCommentThread.tsx adapted to the club-scoped endpoints/types) and
+  wired it under each post in ClubScreen.tsx's mural.
+
+Stage Summary:
+- Every post in a club's mural now has the same comment-thread UX as the
+  general feed: expandable thread, chronological comments, heart
+  reactions, delete/restore within 30 days, report — all restricted to
+  members of that club.
+- Ran `npm install` + `npx tsc --noEmit` + `npx eslint .` in this
+  environment. Could not run `prisma generate`/`db push` — the sandbox's
+  network allowlist doesn't include binaries.prisma.sh, which Prisma
+  needs to download its query/schema engine, so the local .prisma/client
+  types are just an empty stub and don't reflect the new models. tsc and
+  eslint came back clean relative to the pre-existing baseline (same two
+  unrelated tsc errors and the same set-state-in-effect lint pattern
+  already present elsewhere in the codebase, e.g. PostCommentThread.tsx
+  and use-mobile.ts). Needs `npx prisma generate` and
+  `npx prisma db push` (or a migration) run somewhere with real network
+  access before this ships.

@@ -119,6 +119,8 @@ model Usuario {
   clubesCriados    Clube[]
   membrosClube     MembroClube[]
   postagensClube   PostagemClube[]
+  comentariosPostagemClube ComentarioPostagemClube[]
+  curtidasComentarioPostagemClube CurtidaComentarioPostagemClube[]
 
   @@map("usuarios")
 }
@@ -557,11 +559,12 @@ model FaixaRadioPadrao {
 // denúncia é resolvida no painel de moderação separado (ver
 // public/moderacao/index.html), que fala com /api/reports.
 enum TipoAlvoDenuncia {
-  POSTAGEM             // Postagem do feed (Postagem)
-  COMENTARIO_POSTAGEM  // Comentário de uma postagem do feed (ComentarioPostagem)
-  COMENTARIO_FAIXA     // Comentário numa faixa, no player (Comentario)
-  FAIXA                // Faixa/música enviada (Faixa) — inclui infração de direitos autorais
-  USUARIO              // Perfil/conta de um usuário (Usuario)
+  POSTAGEM                  // Postagem do feed (Postagem)
+  COMENTARIO_POSTAGEM       // Comentário de uma postagem do feed (ComentarioPostagem)
+  COMENTARIO_POSTAGEM_CLUBE // Comentário de uma postagem do mural de um clube (ComentarioPostagemClube)
+  COMENTARIO_FAIXA          // Comentário numa faixa, no player (Comentario)
+  FAIXA                     // Faixa/música enviada (Faixa) — inclui infração de direitos autorais
+  USUARIO                   // Perfil/conta de um usuário (Usuario)
 
   @@map("tipo_alvo_denuncia")
 }
@@ -733,8 +736,49 @@ model PostagemClube {
 
   clube   Clube   @relation(fields: [clubeId], references: [id], onDelete: Cascade)
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  comentarios ComentarioPostagemClube[]
 
   @@index([clubeId, createdAt])
   @@index([deletedAt])
   @@map("postagens_clube")
+}
+
+// ---------- Comentários de postagem de clube (thread no mural de um clube) ----------
+// Mesmo mecanismo de ComentarioPostagem (thread do feed geral), só que por
+// baixo de uma PostagemClube — visível/comentável só pelos membros do
+// clube (a API confere a associação em MembroClube antes de deixar ver ou
+// comentar).
+model ComentarioPostagemClube {
+  id              String    @id @default(cuid())
+  usuarioId       String    @map("usuario_id")
+  postagemClubeId String    @map("postagem_clube_id")
+  conteudo        String
+  createdAt       DateTime  @default(now()) @map("created_at")
+  // Soft-delete: ver comentário em Usuario.deletedAt.
+  deletedAt       DateTime? @map("deleted_at")
+
+  usuario       Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  postagemClube PostagemClube   @relation(fields: [postagemClubeId], references: [id], onDelete: Cascade)
+  curtidas      CurtidaComentarioPostagemClube[]
+
+  @@index([postagemClubeId])
+  @@index([deletedAt])
+  @@map("comentarios_postagem_clube")
+}
+
+// ---------- Reações (coração) nos comentários da thread de um clube ----------
+// Mesmo esquema de toggle de CurtidaComentarioPostagem, aplicado aos
+// comentários do mural de um clube.
+model CurtidaComentarioPostagemClube {
+  id           String   @id @default(cuid())
+  usuarioId    String   @map("usuario_id")
+  comentarioId String   @map("comentario_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  usuario    Usuario                 @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  comentario ComentarioPostagemClube @relation(fields: [comentarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, comentarioId])
+  @@index([comentarioId])
+  @@map("curtidas_comentario_postagem_clube")
 }
