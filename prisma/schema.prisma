@@ -343,6 +343,14 @@ model ComentarioPostagem {
   usuarioId  String   @map("usuario_id")
   postagemId String   @map("postagem_id")
   conteudo   String
+  // Comentário de voz (opcional). Quando preenchido, a thread renderiza um
+  // player de áudio em vez de um balão de texto comum — mesmo mecanismo
+  // usado nas conversas e no mural do clube (ver Mensagem.audioUrl).
+  // conteudo continua preenchido (com um texto padrão tipo "🎤 Comentário
+  // de voz") pra qualquer lugar que ainda exiba `content` puro. Limitado a
+  // 60s de gravação (ver useVoiceRecorder).
+  audioUrl      String?  @map("audio_url")
+  audioDuracao  Int?     @map("audio_duracao") // segundos
   createdAt  DateTime @default(now()) @map("created_at")
   // Soft-delete: ver comentário em Usuario.deletedAt.
   deletedAt  DateTime? @map("deleted_at")
@@ -753,6 +761,11 @@ model ComentarioPostagemClube {
   usuarioId       String    @map("usuario_id")
   postagemClubeId String    @map("postagem_clube_id")
   conteudo        String
+  // Comentário de voz (opcional) — mesmo mecanismo do mural do clube em si
+  // (ver PostagemClube.audioUrl). Limitado a 60s de gravação (ver
+  // useVoiceRecorder).
+  audioUrl        String?   @map("audio_url")
+  audioDuracao    Int?      @map("audio_duracao") // segundos
   createdAt       DateTime  @default(now()) @map("created_at")
   // Soft-delete: ver comentário em Usuario.deletedAt.
   deletedAt       DateTime? @map("deleted_at")

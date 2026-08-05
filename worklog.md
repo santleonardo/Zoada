@@ -165,3 +165,49 @@ Stage Summary:
   and use-mobile.ts). Needs `npx prisma generate` and
   `npx prisma db push` (or a migration) run somewhere with real network
   access before this ships.
+
+---
+Task ID: 14
+Agent: Main
+Task: Áudio (máx. 60s) nos comentários das threads (feed geral e clubes)
+
+Work Log:
+- Added audioUrl/audioDuracao (both optional) to ComentarioPostagem and
+  ComentarioPostagemClube in prisma/schema.prisma — same shape as
+  PostagemClube.audioUrl, conteudo stays required with a "🎤 Comentário de
+  voz" placeholder for audio-only comments.
+- /api/post-comments (POST) and /api/club-post-comments (POST) now accept
+  audio_url/audio_duration, clamp the duration server-side to
+  MAX_AUDIO_SECONDS = 60 regardless of what the client sends, and accept
+  the comment with just audio (no text) as long as one of the two is
+  present. Both GET handlers now return audio_url/audio_duration per
+  comment.
+- Added audio_url/audio_duration to PostComment and ClubPostComment
+  (src/types/index.ts).
+- postPostComment and postClubPostComment (src/lib/api.ts) now take an
+  optional third `audio: { url, duration }` argument, same signature
+  pattern as createClubPost.
+- PostCommentThread.tsx and ClubPostCommentThread.tsx: wired
+  useVoiceRecorder (resetKey = post/club-post id, disabled while logged
+  out, default maxSeconds = 60s — same hook used in ChatScreen/
+  ClubScreen). Added a mic button next to the comment input; while
+  recording, the input row is replaced by VoiceRecordingBar (cancel /
+  timer / send) exactly like the club mural and chat. Comments with
+  audio_url render a compact VoiceMessageBubble instead of the text
+  paragraph.
+
+Stage Summary:
+- Any thread (feed post or club post) now supports voice comments up to
+  60 seconds, capped both client-side (recorder auto-stops at 60s) and
+  server-side (duration clamped on save) — text-only, audio-only, and
+  neither-without-the-other are all still validated the same way the
+  club mural already validates its own posts.
+- Ran `npm install` + `npx tsc --noEmit` + `npx eslint` again in this
+  environment (still no real network access to binaries.prisma.sh, so
+  prisma generate/db push remain unverified here — see Task 13's note).
+  No new tsc errors; same two pre-existing unrelated ones. No new eslint
+  errors beyond the same set-state-in-effect pattern already present in
+  the files these were copied from.
+- Still needs `npx prisma generate` + `npx prisma db push` (or a
+  migration) with real network access to actually add the two new
+  columns before this ships.
