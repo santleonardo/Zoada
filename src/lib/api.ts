@@ -915,11 +915,21 @@ export async function fetchPostComments(postId: string): Promise<PostComment[]> 
 }
 
 // Envia um comentário na thread de uma postagem do feed (autenticado).
-export async function postPostComment(postId: string, content: string): Promise<PostComment | null> {
+// Aceita texto e/ou um áudio já enviado ao R2 (ver useVoiceRecorder).
+export async function postPostComment(
+  postId: string,
+  content: string,
+  audio?: { url: string; duration: number }
+): Promise<PostComment | null> {
   try {
     const res = await apiFetch('/api/post-comments', {
       method: 'POST',
-      body: JSON.stringify({ post_id: postId, content }),
+      body: JSON.stringify({
+        post_id: postId,
+        content,
+        audio_url: audio?.url,
+        audio_duration: audio?.duration,
+      }),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -1326,12 +1336,22 @@ export async function fetchClubPostComments(clubPostId: string): Promise<ClubPos
 }
 
 // Envia um comentário na thread de uma postagem do mural de um clube
-// (só membros do clube conseguem comentar).
-export async function postClubPostComment(clubPostId: string, content: string): Promise<ClubPostComment | null> {
+// (só membros do clube conseguem comentar). Aceita texto e/ou um áudio já
+// enviado ao R2 (ver useVoiceRecorder).
+export async function postClubPostComment(
+  clubPostId: string,
+  content: string,
+  audio?: { url: string; duration: number }
+): Promise<ClubPostComment | null> {
   try {
     const res = await apiFetch('/api/club-post-comments', {
       method: 'POST',
-      body: JSON.stringify({ club_post_id: clubPostId, content }),
+      body: JSON.stringify({
+        club_post_id: clubPostId,
+        content,
+        audio_url: audio?.url,
+        audio_duration: audio?.duration,
+      }),
     });
     if (!res.ok) return null;
     const data = await res.json();

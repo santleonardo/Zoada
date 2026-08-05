@@ -6,6 +6,11 @@ import { notDeleted } from '@/lib/soft-delete';
 import { criarNotificacao } from '@/lib/notifications';
 import type { PostComment } from '@/types';
 
+// Duração máxima aceita pra um comentário de voz — mesmo limite aplicado
+// no cliente por useVoiceRecorder (maxSeconds), reforçado aqui pra não
+// confiar só no front.
+const MAX_AUDIO_SECONDS = 60;
+
 // GET /api/post-comments?post_id=xxx — thread de comentários de uma
 // postagem do feed (público, igual ao resto do feed).
 export async function GET(request: Request) {
@@ -50,6 +55,8 @@ export async function GET(request: Request) {
         name: c.usuario.name,
         avatar_url: c.usuario.avatarUrl,
       },
+      audio_url: c.audioUrl,
+      audio_duration: c.audioDuracao,
       likes_count: c._count.curtidas,
       liked_by_me: userId ? c.curtidas.length > 0 : null,
     }));
@@ -70,11 +77,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { post_id, content } = await request.json();
+    const { post_id, content, audio_url, audio_duration } = await request.json();
     const trimmed = typeof content === 'string' ? content.trim().slice(0, 500) : '';
+    const audioUrl = typeof audio_url === 'string' && audio_url.trim() ? audio_url.trim() : null;
+    const audioDuracao = audioUrl && Number.isFinite(audio_duration)
+      ? Math.max(0, Math.min(MAX_AUDIO_SECONDS, Math.round(audio_duration)))
+      : null;
 
-    if (!post_id || !trimmed) {
-      return NextResponse.json({ error: 'post_id e content são obrigatórios' }, { status: 400 });
+    if (!post_id || (!trimmed && !audioUrl)) {
+      return NextResponse.json({ error: 'post_id e um texto ou áudio são obrigatórios' }, { status: 400 });
     }
 
     if (!isNeonConfigured) {
@@ -90,7 +101,9 @@ export async function POST(request: Request) {
       data: {
         usuarioId: userId,
         postagemId: post_id,
-        conteudo: trimmed,
+        conteudo: trimmed || '🎤 Comentário de voz',
+        audioUrl,
+        audioDuracao,
       },
       include: {
         usuario: { select: { id: true, name: true, avatarUrl: true } },
@@ -117,6 +130,8 @@ export async function POST(request: Request) {
         name: comentario.usuario.name,
         avatar_url: comentario.usuario.avatarUrl,
       },
+      audio_url: comentario.audioUrl,
+      audio_duration: comentario.audioDuracao,
       likes_count: 0,
       liked_by_me: false,
     };

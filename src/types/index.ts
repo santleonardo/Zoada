@@ -136,6 +136,11 @@ export interface PostComment {
   content: string;
   created_at: string;
   user?: { id: string; name: string; avatar_url: string | null } | null;
+  // Comentário de voz (opcional). Quando presente, a thread renderiza um
+  // player de áudio em vez de um balão de texto comum — mesmo mecanismo
+  // usado nas conversas e no mural do clube. Limitado a 60s.
+  audio_url?: string | null;
+  audio_duration?: number | null;
   // Reação de coração (curtida) num comentário da thread — quantidade total
   // e se o usuário logado já reagiu (null quando não autenticado).
   likes_count?: number;
@@ -346,6 +351,10 @@ export interface ClubPostComment {
   content: string;
   created_at: string;
   user?: { id: string; name: string; avatar_url: string | null } | null;
+  // Comentário de voz (opcional) — mesmo mecanismo de PostComment.audio_url.
+  // Limitado a 60s.
+  audio_url?: string | null;
+  audio_duration?: number | null;
   // Reação de coração (curtida) num comentário da thread — quantidade total
   // e se o usuário logado já reagiu (null quando não autenticado).
   likes_count?: number;
