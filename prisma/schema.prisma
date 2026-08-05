@@ -116,6 +116,9 @@ model Usuario {
   bloqueiosRecebidos Bloqueio[] @relation("BloqueiosRecebidos")
   notificacoesRecebidas Notificacao[] @relation("NotificacoesRecebidas")
   notificacoesGeradas   Notificacao[] @relation("NotificacoesGeradas")
+  clubesCriados    Clube[]
+  membrosClube     MembroClube[]
+  postagensClube   PostagemClube[]
 
   @@map("usuarios")
 }
@@ -657,4 +660,74 @@ model AdminModeracao {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("admins_moderacao")
+}
+
+// ---------- Clubes (comunidades de fãs) ----------
+// Estrutura básica de comunidades: qualquer usuário logado pode criar um
+// Clube (aba "Clube", logo depois de "Fãs"). Quem cria vira automaticamente
+// o admin (ver MembroClube.papel) — é ele quem convida novos membros. Cada
+// clube tem seu próprio mural de postagens (PostagemClube), separado do
+// feed geral da aba "Fãs".
+enum PapelClube {
+  ADMIN
+  MEMBRO
+
+  @@map("papel_clube")
+}
+
+model Clube {
+  id        String    @id @default(cuid())
+  nome      String
+  descricao String?
+  capaUrl   String?   @map("capa_url")
+  criadorId String    @map("criador_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  // Soft-delete: ver comentário em Usuario.deletedAt — mesma janela de 30 dias.
+  deletedAt DateTime? @map("deleted_at")
+
+  criador   Usuario         @relation(fields: [criadorId], references: [id], onDelete: Cascade)
+  membros   MembroClube[]
+  postagens PostagemClube[]
+
+  @@index([criadorId])
+  @@index([deletedAt])
+  @@map("clubes")
+}
+
+// Tabela de junção Clube <-> Usuario, com o papel de cada membro dentro
+// daquele clube (o mesmo usuário pode ser ADMIN num clube e MEMBRO comum
+// em outro). Quem cria o clube entra aqui como ADMIN na hora da criação.
+model MembroClube {
+  id        String     @id @default(cuid())
+  clubeId   String     @map("clube_id")
+  usuarioId String     @map("usuario_id")
+  papel     PapelClube @default(MEMBRO)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  clube   Clube   @relation(fields: [clubeId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([clubeId, usuarioId])
+  @@index([usuarioId])
+  @@map("membros_clube")
+}
+
+// Postagem no mural de um clube — só texto por enquanto (igual ao post
+// livre do feed geral), visível apenas para os membros daquele clube.
+model PostagemClube {
+  id        String    @id @default(cuid())
+  clubeId   String    @map("clube_id")
+  usuarioId String    @map("usuario_id")
+  conteudo  String
+  createdAt DateTime  @default(now()) @map("created_at")
+  // Soft-delete: ver comentário em Usuario.deletedAt.
+  deletedAt DateTime? @map("deleted_at")
+
+  clube   Clube   @relation(fields: [clubeId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([clubeId, createdAt])
+  @@index([deletedAt])
+  @@map("postagens_clube")
 }
