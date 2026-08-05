@@ -720,6 +720,13 @@ model PostagemClube {
   clubeId   String    @map("clube_id")
   usuarioId String    @map("usuario_id")
   conteudo  String
+  // Postagem de voz (opcional). Quando preenchida, o mural renderiza um
+  // player de áudio em vez de um balão de texto comum — mesmo mecanismo
+  // usado nas conversas (ver Mensagem.audioUrl). conteudo continua
+  // preenchido (com um texto padrão tipo "🎤 Mensagem de voz") pra
+  // qualquer lugar que ainda exiba `content` puro.
+  audioUrl      String?  @map("audio_url")
+  audioDuracao  Int?     @map("audio_duracao") // segundos
   createdAt DateTime  @default(now()) @map("created_at")
   // Soft-delete: ver comentário em Usuario.deletedAt.
   deletedAt DateTime? @map("deleted_at")
