@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Send, ArrowLeft, MessageCircle, X, Plus, Music, Play, Pause, Flag, ShieldOff, Shield, MoreVertical, Mic, Trash2 } from 'lucide-react';
+import { Search, Send, ArrowLeft, MessageCircle, X, Plus, Music, Play, Pause, Flag, ShieldOff, Shield, MoreVertical, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
 import { fetchConversations, fetchMessages, sendMessageApi, searchUsers, fetchPresence, fetchAllTracks, fetchBlockStatus, toggleBlockUser } from '@/lib/api';
-import { uploadVoiceMessage } from '@/lib/trackUpload';
 import { isOnline, formatLastSeen, HEARTBEAT_INTERVAL_MS } from '@/lib/presence';
+import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import CoverArt from './CoverArt';
 import Equalizer from './Equalizer';
 import ReportModal from './ReportModal';
+import VoiceMessageBubble from './VoiceMessageBubble';
+import VoiceRecordingBar from './VoiceRecordingBar';
 import type { Message, Conversation, User, Track } from '@/types';
 
 const ChatScreen: React.FC = () => {
@@ -184,19 +186,26 @@ const ChatConversation: React.FC = () => {
 
   // Gravação de mensagem de voz: 'idle' (botão de mic parado), 'recording'
   // (gravando, mostra o cronômetro) ou 'uploading' (parou de gravar e está
-  // subindo o áudio pro R2 antes de criar a mensagem).
-  const [voiceState, setVoiceState] = useState<'idle' | 'recording' | 'uploading'>('idle');
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const recordingSecondsRef = useRef(0);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingStreamRef = useRef<MediaStream | null>(null);
-  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stoppingRecordingRef = useRef(false);
-
-  // Duração máxima de uma mensagem de voz — ao chegar nesse limite, a
-  // gravação para e é enviada automaticamente (sem precisar tocar em nada).
-  const MAX_RECORDING_SECONDS = 60;
+  // subindo o áudio pro R2 antes de criar a mensagem). Mesmo hook usado no
+  // mural do clube.
+  const {
+    voiceState,
+    recordingSeconds,
+    maxSeconds: MAX_RECORDING_SECONDS,
+    startRecording: handleStartRecording,
+    cancelRecording: handleCancelRecording,
+    stopAndSendRecording: handleStopAndSendRecording,
+  } = useVoiceRecorder({
+    resetKey: selectedConversationId,
+    disabled: iBlocked || blockedBy,
+    onRecorded: async (url, durationSeconds) => {
+      if (!selectedConversationId) return false;
+      const sent = await sendMessageApi(selectedConversationId, '', undefined, { url, duration: durationSeconds });
+      if (!sent) return false;
+      setMessages((prev) => [...prev, sent]);
+      return true;
+    },
+  });
 
   // Busca o histórico real da conversa com esse usuário.
   useEffect(() => {
@@ -298,133 +307,6 @@ const ChatConversation: React.FC = () => {
 
     setMessages((prev) => [...prev, sent]);
     setShowShareSong(false);
-  };
-
-  // Libera o microfone e para o cronômetro — chamado tanto ao cancelar
-  // quanto ao terminar de gravar (com sucesso ou erro).
-  const stopRecordingStreamAndTimer = () => {
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
-    recordingStreamRef.current = null;
-  };
-
-  // Para de gravar (se estiver gravando) sem enviar nada, ao trocar de
-  // conversa ou sair da tela — pra não deixar o microfone "preso" aberto.
-  useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.onstop = null;
-        mediaRecorderRef.current.stop();
-      }
-      stopRecordingStreamAndTimer();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConversationId]);
-
-  const handleStartRecording = async () => {
-    if (iBlocked || blockedBy || voiceState !== 'idle') return;
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      toast.error('Seu navegador não suporta gravação de áudio.');
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const preferredTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
-      const mimeType = preferredTypes.find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported?.(t));
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-
-      audioChunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      recordingStreamRef.current = stream;
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-
-      setRecordingSeconds(0);
-      recordingSecondsRef.current = 0;
-      stoppingRecordingRef.current = false;
-      setVoiceState('recording');
-      recordingTimerRef.current = setInterval(() => {
-        recordingSecondsRef.current += 1;
-        setRecordingSeconds(recordingSecondsRef.current);
-        if (recordingSecondsRef.current >= MAX_RECORDING_SECONDS) {
-          // Bateu o limite de 60s — para e envia sozinho, sem precisar
-          // que o usuário toque em nada.
-          handleStopAndSendRecording();
-        }
-      }, 1000);
-    } catch {
-      toast.error('Não foi possível acessar o microfone. Verifique a permissão do navegador.');
-    }
-  };
-
-  const handleCancelRecording = () => {
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.onstop = null; // não dispara envio nenhum, só descarta
-      recorder.stop();
-    }
-    stopRecordingStreamAndTimer();
-    audioChunksRef.current = [];
-    mediaRecorderRef.current = null;
-    setVoiceState('idle');
-    setRecordingSeconds(0);
-    recordingSecondsRef.current = 0;
-    stoppingRecordingRef.current = false;
-  };
-
-  const handleStopAndSendRecording = () => {
-    const recorder = mediaRecorderRef.current;
-    if (!recorder || recorder.state === 'inactive' || stoppingRecordingRef.current || !selectedConversationId) return;
-    stoppingRecordingRef.current = true;
-    const finalSeconds = recordingSecondsRef.current;
-
-    recorder.onstop = async () => {
-      stopRecordingStreamAndTimer();
-      const mimeType = recorder.mimeType || 'audio/webm';
-      const blob = new Blob(audioChunksRef.current, { type: mimeType });
-      audioChunksRef.current = [];
-      mediaRecorderRef.current = null;
-
-      // Gravação vazia demais (ex: soltou o dedo sem gravar nada) — não
-      // vale a pena subir e criar uma mensagem quase em branco.
-      if (blob.size < 500) {
-        setVoiceState('idle');
-        setRecordingSeconds(0);
-        recordingSecondsRef.current = 0;
-        stoppingRecordingRef.current = false;
-        return;
-      }
-
-      setVoiceState('uploading');
-      try {
-        const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
-        const file = new File([blob], `voz-${Date.now()}.${ext}`, { type: mimeType });
-        const url = await uploadVoiceMessage(file);
-        const sent = await sendMessageApi(selectedConversationId, '', undefined, { url, duration: finalSeconds });
-        if (sent) {
-          setMessages((prev) => [...prev, sent]);
-        } else {
-          toast.error('Não foi possível enviar a mensagem de voz.');
-        }
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Falha ao enviar o áudio.');
-      } finally {
-        setVoiceState('idle');
-        setRecordingSeconds(0);
-        recordingSecondsRef.current = 0;
-        stoppingRecordingRef.current = false;
-      }
-    };
-
-    recorder.stop();
   };
 
   if (!selectedConversationId) return null;
@@ -604,36 +486,12 @@ const ChatConversation: React.FC = () => {
       {/* Input */}
       <div className="px-4 py-3 border-t border-black/5 glass safe-bottom">
         {voiceState === 'recording' ? (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCancelRecording}
-              className="p-3 rounded-xl bg-red-50 flex-shrink-0 active:scale-90 transition-all"
-              aria-label="Cancelar gravação"
-              title="Cancelar"
-            >
-              <Trash2 size={18} className="text-red-500" />
-            </button>
-            <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-xl bg-[#F2F2F8]">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-              <span
-                className={cn(
-                  'text-sm font-semibold tabular-nums',
-                  recordingSeconds >= MAX_RECORDING_SECONDS - 10 ? 'text-red-500' : 'text-[#1A1B25]'
-                )}
-              >
-                {formatRecordingTime(recordingSeconds)} / {formatRecordingTime(MAX_RECORDING_SECONDS)}
-              </span>
-              <span className="text-xs text-black/30 ml-auto">Gravando áudio...</span>
-            </div>
-            <button
-              onClick={handleStopAndSendRecording}
-              className="p-3 rounded-xl gradient-bg flex-shrink-0 active:scale-90 transition-all"
-              aria-label="Enviar mensagem de voz"
-              title="Enviar"
-            >
-              <Send size={18} className="text-white" />
-            </button>
-          </div>
+          <VoiceRecordingBar
+            seconds={recordingSeconds}
+            maxSeconds={MAX_RECORDING_SECONDS}
+            onCancel={handleCancelRecording}
+            onSend={handleStopAndSendRecording}
+          />
         ) : (
           <div className="flex items-center gap-2">
             <button
@@ -772,98 +630,6 @@ const TrackMessageCard: React.FC<{ track: Track; isMe: boolean }> = ({ track, is
           <Play size={14} className="text-white ml-0.5" fill="white" />
         )}
       </button>
-    </div>
-  );
-};
-
-// Player de mensagem de voz usado dentro do balão de chat — toca/pausa o
-// áudio gravado (tag <audio> própria, independente do motor de áudio
-// global das músicas) e mostra uma barra de progresso simples.
-const VoiceMessageBubble: React.FC<{ url: string; duration: number | null | undefined; isMe: boolean }> = ({ url, duration, isMe }) => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [loadedDuration, setLoadedDuration] = useState(duration || 0);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onEnded = () => {
-      setIsPlaying(false);
-      setCurrentTime(0);
-    };
-    const onLoadedMetadata = () => {
-      if (isFinite(audio.duration) && audio.duration > 0) setLoadedDuration(audio.duration);
-    };
-
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('ended', onEnded);
-    audio.addEventListener('loadedmetadata', onLoadedMetadata);
-    return () => {
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('ended', onEnded);
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-    };
-  }, []);
-
-  const handleToggle = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
-    } else {
-      audio.play().catch(() => {
-        // Autoplay/permissão bloqueada pelo navegador — sem tela de erro,
-        // o botão só continua mostrando "play".
-      });
-      setIsPlaying(true);
-    }
-  };
-
-  const total = loadedDuration || duration || 0;
-  const progress = total > 0 ? Math.min(1, currentTime / total) : 0;
-  const displaySeconds = isPlaying || currentTime > 0 ? currentTime : total;
-
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-3 rounded-2xl p-2.5 pr-3 min-w-[190px]',
-        isMe ? 'gradient-bg' : 'bg-white shadow-sm'
-      )}
-    >
-      <audio ref={audioRef} src={url} preload="metadata" className="hidden" />
-      <button
-        onClick={handleToggle}
-        className={cn(
-          'flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-all',
-          isMe ? 'bg-white/25' : 'gradient-bg'
-        )}
-        aria-label={isPlaying ? 'Pausar' : 'Tocar'}
-      >
-        {isPlaying ? (
-          <Pause size={14} className="text-white" fill="white" />
-        ) : (
-          <Play size={14} className="text-white ml-0.5" fill="white" />
-        )}
-      </button>
-
-      <div className="flex-1 min-w-0">
-        <div className={cn('h-1 rounded-full overflow-hidden', isMe ? 'bg-white/30' : 'bg-black/10')}>
-          <div
-            className={cn('h-full rounded-full', isMe ? 'bg-white' : 'gradient-bg')}
-            style={{ width: `${progress * 100}%` }}
-          />
-        </div>
-      </div>
-
-      <span className={cn('text-[11px] tabular-nums flex-shrink-0', isMe ? 'text-white/80' : 'text-black/40')}>
-        {formatRecordingTime(displaySeconds)}
-      </span>
-
-      <Mic size={13} className={cn('flex-shrink-0', isMe ? 'text-white/50' : 'text-black/25')} />
     </div>
   );
 };
@@ -1111,13 +877,6 @@ function formatTimeAgo(dateStr: string): string {
   if (diffMins < 60) return `${diffMins}m`;
   if (diffHours < 24) return `${diffHours}h`;
   return `${diffDays}d`;
-}
-
-function formatRecordingTime(totalSeconds: number): string {
-  const s = Math.max(0, Math.floor(totalSeconds || 0));
-  const minutes = Math.floor(s / 60);
-  const seconds = s % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function formatMessageTime(dateStr: string): string {

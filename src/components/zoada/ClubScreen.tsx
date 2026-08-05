@@ -1,13 +1,16 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, Users, UserPlus, UserMinus, Send, MessageSquareText, Check, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, Users, UserPlus, UserMinus, Send, MessageSquareText, Check, X, Loader2, ChevronDown, ChevronUp, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
 import { fetchClubs, fetchClubMembers, fetchClubPosts, createClubPost, removeClubMember } from '@/lib/api';
+import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import type { Club, ClubMember, ClubPost } from '@/types';
 import CoverArt from './CoverArt';
 import ClubInviteModal from './ClubInviteModal';
+import VoiceMessageBubble from './VoiceMessageBubble';
+import VoiceRecordingBar from './VoiceRecordingBar';
 
 /**
  * Tela de um clube (comunidade de fãs): cabeçalho com nome/capa, campo de
@@ -31,6 +34,27 @@ const ClubScreen: React.FC = () => {
 
   const isMember = !!club?.my_role;
   const isAdmin = club?.my_role === 'ADMIN';
+
+  // Gravação de postagem de voz para o mural — mesmo mecanismo usado nas
+  // conversas (ver ChatScreen), reaproveitado via useVoiceRecorder.
+  const {
+    voiceState,
+    recordingSeconds,
+    maxSeconds: maxRecordingSeconds,
+    startRecording: handleStartRecording,
+    cancelRecording: handleCancelRecording,
+    stopAndSendRecording: handleStopAndSendRecording,
+  } = useVoiceRecorder({
+    resetKey: selectedClubId,
+    disabled: !isMember,
+    onRecorded: async (url, durationSeconds) => {
+      if (!selectedClubId) return false;
+      const post = await createClubPost(selectedClubId, '', { url, duration: durationSeconds });
+      if (!post) return false;
+      setPosts((prev) => [post, ...prev]);
+      return true;
+    },
+  });
 
   useEffect(() => {
     if (!selectedClubId) return;
@@ -275,29 +299,55 @@ const ClubScreen: React.FC = () => {
 
               {/* Campo de postagens (mural do clube) */}
               <div className="rounded-xl bg-[#F7F7FB] p-3 mb-4">
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value.slice(0, 280))}
-                  placeholder="Poste algo para o clube..."
-                  rows={2}
-                  disabled={isPosting}
-                  className="w-full !py-2 !text-sm !bg-white resize-none"
-                />
-                <div className="flex items-center justify-between mt-1.5">
-                  <span className="text-[11px] text-black/30">{content.length}/280</span>
-                  <button
-                    onClick={handlePost}
-                    disabled={!content.trim() || isPosting}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full gradient-bg text-white text-sm font-semibold active:scale-95 transition-all disabled:opacity-40"
-                  >
-                    {isPosting ? (
-                      <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <Send size={14} />
-                    )}
-                    Postar
-                  </button>
-                </div>
+                {voiceState === 'recording' ? (
+                  <VoiceRecordingBar
+                    seconds={recordingSeconds}
+                    maxSeconds={maxRecordingSeconds}
+                    onCancel={handleCancelRecording}
+                    onSend={handleStopAndSendRecording}
+                  />
+                ) : (
+                  <>
+                    <textarea
+                      value={content}
+                      onChange={(e) => setContent(e.target.value.slice(0, 280))}
+                      placeholder="Poste algo para o clube..."
+                      rows={2}
+                      disabled={isPosting}
+                      className="w-full !py-2 !text-sm !bg-white resize-none"
+                    />
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-[11px] text-black/30">{content.length}/280</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={handleStartRecording}
+                          disabled={isPosting || voiceState === 'uploading'}
+                          className="p-2 rounded-full bg-white shadow-sm active:scale-90 transition-all disabled:opacity-40"
+                          aria-label="Gravar postagem de voz"
+                          title="Gravar áudio"
+                        >
+                          {voiceState === 'uploading' ? (
+                            <span className="block w-3.5 h-3.5 border-2 border-black/20 border-t-[#6C5CE7] rounded-full animate-spin" />
+                          ) : (
+                            <Mic size={16} className="text-[#6C5CE7]" />
+                          )}
+                        </button>
+                        <button
+                          onClick={handlePost}
+                          disabled={!content.trim() || isPosting}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full gradient-bg text-white text-sm font-semibold active:scale-95 transition-all disabled:opacity-40"
+                        >
+                          {isPosting ? (
+                            <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <Send size={14} />
+                          )}
+                          Postar
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Mural */}
@@ -322,7 +372,11 @@ const ClubScreen: React.FC = () => {
                         />
                         <span className="text-sm font-semibold text-[#1A1B25] truncate">{post.user.name}</span>
                       </div>
-                      <p className="text-sm text-black/70 whitespace-pre-wrap break-words">{post.content}</p>
+                      {post.audio_url ? (
+                        <VoiceMessageBubble url={post.audio_url} duration={post.audio_duration} isMe={false} />
+                      ) : (
+                        <p className="text-sm text-black/70 whitespace-pre-wrap break-words">{post.content}</p>
+                      )}
                     </div>
                   ))}
                 </div>
