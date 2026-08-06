@@ -864,7 +864,7 @@
   .block-stack > .radio-status {
     width: 100%;
   }
-  .block-stack .radio-cols { display: block; }
+  /* radio-cols inside panes keeps its own grid; stack only on narrow screens via media query */
 
   .app-shell {
     display: grid;
@@ -1564,68 +1564,66 @@
   <div id="section-radio" style="display:none;">
     <div class="section-head">
       <h2>📻 Rádio Zôada</h2>
-      <p>Controles ao vivo, estação, catálogo e agendamentos — organizados em abas.</p>
+      <p>Ao vivo, configuração da estação (com catálogo) e agendamentos.</p>
     </div>
 
     <div class="sub-tabs" id="radioSubTabs">
       <button type="button" class="sub-tab active" id="radioTabAoVivo" onclick="switchRadioTab('aovivo')">🔴 Ao vivo</button>
-      <button type="button" class="sub-tab" id="radioTabEstacao" onclick="switchRadioTab('estacao')">⚙️ Estação &amp; playlist</button>
-      <button type="button" class="sub-tab" id="radioTabCatalogo" onclick="switchRadioTab('catalogo')">🎵 Catálogo</button>
+      <button type="button" class="sub-tab" id="radioTabEstacao" onclick="switchRadioTab('estacao')">⚙️ Configurar estação</button>
       <button type="button" class="sub-tab" id="radioTabAgenda" onclick="switchRadioTab('agenda')">🕒 Agendamentos</button>
     </div>
 
     <div id="radio-pane-aovivo" class="block-stack">
-<div class="radio-status">
-      <img class="radio-cover" id="radioCoverPreview" src="/zoada-logo.png" alt="">
-      <div class="radio-status-info">
-        <p class="radio-status-name" id="radioStatusName">Rádio Zôada<span class="radio-pill radio-pill-fallback" id="radioStatusPill">Carregando…</span></p>
-        <p class="radio-status-track" id="radioStatusTrack">—</p>
+      <div class="radio-status">
+        <img class="radio-cover" id="radioCoverPreview" src="/zoada-logo.png" alt="">
+        <div class="radio-status-info">
+          <p class="radio-status-name" id="radioStatusName">Rádio Zôada<span class="radio-pill radio-pill-fallback" id="radioStatusPill">Carregando…</span></p>
+          <p class="radio-status-track" id="radioStatusTrack">—</p>
+        </div>
+        <div class="radio-status-actions">
+          <button class="btn-secondary" id="radioPauseBtn" onclick="toggleRadioPause()">Pausar</button>
+          <button class="btn-secondary" onclick="advanceRadioTrack()">Pular faixa ⏭</button>
+        </div>
       </div>
-      <div class="radio-status-actions">
-        <button class="btn-secondary" id="radioPauseBtn" onclick="toggleRadioPause()">Pausar</button>
-        <button class="btn-secondary" onclick="advanceRadioTrack()">Pular faixa ⏭</button>
-      </div>
-    </div>
       <div class="block-card">
-        <h3>O que é esta aba</h3>
-        <p class="sub" style="margin:0;">Pause, retome ou pule a faixa que está tocando agora na Rádio Zôada. A configuração da estação e os agendamentos ficam nas outras abas.</p>
+        <h3>Controles ao vivo</h3>
+        <p class="sub" style="margin:0;">Pause, retome ou pule a faixa que está tocando agora. Para montar a playlist e usar o catálogo, abra a aba <b>Configurar estação</b>.</p>
       </div>
     </div>
 
     <div id="radio-pane-estacao" class="block-stack" style="display:none;">
-<div class="radio-panel">
-        <h3>⚙️ Nome e capa</h3>
-        <p class="sub">Como a estação aparece no dial e no seletor de estações do app.</p>
-        <input type="text" id="radioNomeInput" maxlength="60" placeholder="Nome da estação">
-        <div class="field" style="margin-bottom:8px;">
-          <label for="radioCapaArquivoInput">Capa (imagem)</label>
-          <input type="file" id="radioCapaArquivoInput" accept="image/*" onchange="previewRadioCapaArquivo(this)">
-        </div>
-        <input type="text" id="radioCapaInput" placeholder="...ou cole a URL da capa (opcional se enviar imagem acima)">
-        <button class="btn-primary" onclick="saveRadioInfo()">Salvar nome/capa</button>
+      <div class="radio-cols">
+        <div class="radio-panel">
+          <h3>⚙️ Nome e capa</h3>
+          <p class="sub">Como a estação aparece no dial e no seletor de estações do app.</p>
+          <input type="text" id="radioNomeInput" maxlength="60" placeholder="Nome da estação">
+          <div class="field" style="margin-bottom:8px;">
+            <label for="radioCapaArquivoInput">Capa (imagem)</label>
+            <input type="file" id="radioCapaArquivoInput" accept="image/*" onchange="previewRadioCapaArquivo(this)">
+          </div>
+          <input type="text" id="radioCapaInput" placeholder="...ou cole a URL da capa (opcional se enviar imagem acima)">
+          <button class="btn-primary" onclick="saveRadioInfo()">Salvar nome/capa</button>
 
-        <h3 style="margin-top:20px;">🎶 Playlist atual (<span id="radioPlaylistCount">0</span>)</h3>
-        <p class="sub">Ordem de reprodução. Vazia = a Rádio Zôada volta a tocar o catálogo inteiro em shuffle.</p>
-        <div class="track-list" id="radioPlaylistList"></div>
-        <div class="actions" style="margin-top:10px;">
-          <button class="btn-ok" onclick="saveRadioPlaylist()">Salvar playlist</button>
+          <h3 style="margin-top:20px;">🎶 Playlist atual (<span id="radioPlaylistCount">0</span>)</h3>
+          <p class="sub">Ordem de reprodução. Use o <b>+</b> no catálogo ao lado para adicionar faixas. Vazia = catálogo inteiro em shuffle.</p>
+          <div class="track-list" id="radioPlaylistList"></div>
+          <div class="actions" style="margin-top:10px;">
+            <button class="btn-ok" onclick="saveRadioPlaylist()">Salvar playlist</button>
+          </div>
         </div>
-      
-    </div>
 
-    <div id="radio-pane-catalogo" class="block-stack" style="display:none;">
-<div class="radio-panel">
-        <h3>🎵 Catálogo</h3>
-        <p class="sub">Acordeão por artista. Abra e use <b>+</b> para colocar faixas na playlist da Rádio Zôada.</p>
-        <input type="text" class="track-search" id="radioCatalogSearch" placeholder="Buscar por título ou artista..." oninput="renderRadioCatalog()">
-        <div class="catalog-list" id="radioCatalogList" role="list"></div>
+        <div class="radio-panel">
+          <h3>🎵 Catálogo</h3>
+          <p class="sub">Acordeão por artista. Abra e use <b>+</b> para colocar faixas na playlist da Rádio Zôada.</p>
+          <input type="text" class="track-search" id="radioCatalogSearch" placeholder="Buscar por título ou artista..." oninput="renderRadioCatalog()">
+          <div class="catalog-list" id="radioCatalogList" role="list"></div>
+        </div>
       </div>
-    </div>
     </div>
 
     <div id="radio-pane-agenda" class="block-stack" style="display:none;">
-<div class="radio-panel" style="margin-top:16px;">
-      <h3>🕒 Agendamentos</h3>
+      <div class="radio-panel">
+        <h3>🕒 Agendamentos</h3>
       <p class="sub">Escolha uma playlist e um horário de início e fim — nesse intervalo ela toca sozinha na Rádio Zôada, e ao terminar o app volta automaticamente ao estado normal (a playlist/pausa configurada acima). Não precisa de ninguém clicar em nada na hora.</p>
 
       <div class="agenda-list" id="agendaList"><div class="agenda-empty">Carregando…</div></div>
@@ -1662,9 +1660,10 @@
         <button class="btn-secondary" onclick="cancelAgendaEdit()" id="agendaCancelBtn" style="display:none;">Cancelar edição</button>
       </div>
       <p class="status-msg" id="agendaFormStatus" style="display:none;"></p>
-    </div>
+      </div>
     </div>
   </div>
+
   <div id="section-musicas" style="display:none;">
     <div class="section-head">
       <h2>🎤 Músicas</h2>
@@ -2213,13 +2212,11 @@
     const panes = {
       aovivo: 'radio-pane-aovivo',
       estacao: 'radio-pane-estacao',
-      catalogo: 'radio-pane-catalogo',
       agenda: 'radio-pane-agenda'
     };
     const tabs = {
       aovivo: 'radioTabAoVivo',
       estacao: 'radioTabEstacao',
-      catalogo: 'radioTabCatalogo',
       agenda: 'radioTabAgenda'
     };
     Object.keys(panes).forEach((k) => {
@@ -2228,6 +2225,11 @@
       const t = document.getElementById(tabs[k]);
       if (t) t.classList.toggle('active', k === tab);
     });
+    // Ao abrir configuração, garante catálogo e playlist renderizados
+    if (tab === 'estacao') {
+      try { renderRadioPlaylist(); } catch (e) {}
+      try { renderRadioCatalog(); } catch (e) {}
+    }
   }
 
   function switchMusicasTab(tab) {
