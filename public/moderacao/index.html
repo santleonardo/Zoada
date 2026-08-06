@@ -169,103 +169,6 @@
   .page { max-width: 1080px; margin: 0 auto; padding: 22px 24px 60px; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 20px; }
 
-  /* ---------- Shell (sidebar de navegação + conteúdo) ---------- */
-  .app-shell {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 20px 24px 60px;
-    display: flex;
-    align-items: flex-start;
-    gap: 24px;
-  }
-  .sidebar {
-    width: 224px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 92px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    max-height: calc(100vh - 112px);
-    overflow-y: auto;
-    padding-bottom: 8px;
-  }
-  .sidebar::-webkit-scrollbar { width: 6px; }
-  .side-nav-group { display: flex; flex-direction: column; gap: 2px; }
-  .side-nav-label {
-    margin: 0 0 6px;
-    padding: 0 10px;
-    font-size: 10.5px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: .6px;
-    color: var(--muted-2);
-  }
-  .side-nav-group .tab {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    text-align: left;
-    justify-content: flex-start;
-    font-size: 13.5px;
-    font-weight: 700;
-    padding: 9px 12px;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--muted);
-    border: 1px solid transparent;
-    white-space: nowrap;
-  }
-  .side-nav-group .tab .count {
-    margin-left: auto;
-    background: rgba(232,67,147,.14);
-    color: var(--pink);
-    font-size: 10.5px;
-    font-weight: 800;
-    padding: 1px 7px;
-    border-radius: 999px;
-  }
-  .side-nav-group .tab:hover { background: var(--surface); color: var(--ink); border-color: var(--border); }
-  .side-nav-group .tab.active {
-    background: var(--surface);
-    color: var(--ink);
-    border-color: var(--border-strong);
-    box-shadow: var(--shadow-sm);
-    position: relative;
-  }
-  .side-nav-group .tab.active::before {
-    content: "";
-    position: absolute;
-    left: -1px; top: 8px; bottom: 8px;
-    width: 3px;
-    border-radius: 999px;
-    background: var(--gradient-brand);
-  }
-
-  .main-content { flex: 1; min-width: 0; }
-
-  .content-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    padding: 24px 26px 28px;
-  }
-
-  .section-head-icon {
-    width: 38px; height: 38px; border-radius: 11px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; flex-shrink: 0;
-  }
-  .section-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
-  .section-head h2 { margin: 0 0 3px; font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
-  .section-head p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
-
-  .block-grid { display: flex; flex-direction: column; gap: 16px; }
-
   /* ---------- Barra de conexão ---------- */
   /* ---------- Barra de conexão (resumo + painel separável) ---------- */
   .conn-bar {
@@ -392,7 +295,34 @@
   .btn-ok:hover { background: rgba(46,204,113,.24); }
   button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-  /* ---------- Navegação por seções: ver .sidebar / .side-nav-group perto do .app-shell ---------- */
+  /* ---------- Navegação por seções ---------- */
+  .section-switch {
+    position: sticky;
+    top: 76px;
+    z-index: 20;
+    display: flex;
+    gap: 6px;
+    margin-bottom: 22px;
+    padding: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow-sm);
+    overflow-x: auto;
+  }
+  .section-switch .tab {
+    flex: 1;
+    text-align: center;
+    font-size: 13.5px;
+    padding: 10px 16px;
+    white-space: nowrap;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    border: none;
+  }
+  .section-switch .tab:hover { background: rgba(26,27,37,.05); color: var(--ink); }
+  .section-switch .tab.active { background: var(--ink); color: #fff; box-shadow: var(--shadow-sm); }
 
   /* ---------- Abas de status (denúncias) ---------- */
   .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
@@ -424,7 +354,10 @@
     border-radius: var(--radius-lg);
   }
 
-  /* ---------- Cabeçalho de seção (título + descrição) — ver regras completas perto do .app-shell ---------- */
+  /* ---------- Cabeçalho de seção (título + descrição) ---------- */
+  .section-head { margin-bottom: 16px; }
+  .section-head h2 { margin: 0 0 3px; font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
+  .section-head p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
 
   /* ---------- Cards de denúncia ---------- */
   .card {
@@ -616,6 +549,29 @@
   .radio-pill-live { background: rgba(46,204,113,.15); color: #1a9c56; }
   .radio-pill-paused { background: rgba(232,67,147,.12); color: var(--pink); }
   .radio-pill-fallback { background: rgba(26,27,37,.08); color: var(--muted); }
+  .radio-pill-scheduled { background: rgba(230,126,34,.15); color: var(--orange); }
+
+  /* ---------- Agendamentos da Rádio Zôada (playlist com horário pra tocar/parar) ---------- */
+  .agenda-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+  .agenda-card {
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: 12px 14px; background: var(--surface-2);
+  }
+  .agenda-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .agenda-card-name { font-weight: 800; font-size: 13.5px; margin: 0; }
+  .agenda-card-range { font-size: 12px; color: var(--muted); margin: 3px 0 0; }
+  .agenda-card-tracks { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+  .agenda-card-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .agenda-empty { padding: 12px; text-align: center; color: var(--muted); font-size: 13px; }
+  .agenda-form-row { display: flex; gap: 9px; flex-wrap: wrap; }
+  .agenda-form-row > div { flex: 1; min-width: 160px; }
+  .agenda-form-row label { display: block; font-size: 11.5px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+  .agenda-form-row input[type="datetime-local"] { width: 100%; }
+  .agenda-picker-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px; margin-top: 8px; }
+  .agenda-picker-row { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; font-size: 13px; }
+  .agenda-picker-row:hover { background: rgba(0,0,0,.03); }
+  .agenda-picker-row .t { font-weight: 700; }
+  .agenda-picker-row .m { font-size: 11.5px; color: var(--muted); }
 
   .radio-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
   .radio-panel {
@@ -895,41 +851,6 @@
   #uploadFaixaStatus { margin: 0; }
 
   /* ---------- Responsivo (preserva o visual original, só adapta) ---------- */
-
-  /* Sidebar vira barra de tabs horizontal em telas menores */
-  @media (max-width: 980px) {
-    .app-shell { flex-direction: column; gap: 16px; padding: 16px 16px 48px; }
-    .sidebar {
-      position: sticky;
-      top: 66px;
-      width: 100%;
-      max-height: none;
-      flex-direction: row;
-      gap: 6px;
-      padding: 6px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      box-shadow: var(--shadow-sm);
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      z-index: 20;
-    }
-    .sidebar::-webkit-scrollbar { display: none; }
-    .side-nav-group { flex-direction: row; display: contents; }
-    .side-nav-label { display: none; }
-    .side-nav-group .tab {
-      flex: 0 0 auto;
-      width: auto;
-      border-radius: 999px;
-      padding: 9px 14px;
-    }
-    .side-nav-group .tab.active::before { display: none; }
-    .side-nav-group .tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
-    .content-card { padding: 18px 18px 22px; }
-  }
-
   @media (max-width: 760px) {
     .radio-cols { grid-template-columns: 1fr; }
     .auth-box.is-open { flex-direction: column; align-items: stretch; }
@@ -948,14 +869,19 @@
     header .conn-indicator { padding: 6px 10px 6px 8px; font-size: 11px; }
 
     .page, .wrap { padding: 12px 12px 28px; }
-    .app-shell { padding: 12px 12px 28px; }
 
-    .sidebar {
-      top: 56px;
+    .section-switch {
+      top: 60px;
       gap: 6px;
-      padding: 6px;
+      padding: 8px 0 6px;
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
-    .side-nav-group .tab {
+    .section-switch::-webkit-scrollbar { display: none; }
+    .section-switch .tab {
+      flex: 0 0 auto;
       padding: 8px 12px;
       font-size: 12px;
     }
@@ -964,10 +890,7 @@
     .auth-box.is-open { padding: 12px 14px; gap: 10px; }
     .card, .radio-panel, .aviso-box, .conv-box { padding: 12px 14px; }
     .card { margin-bottom: 10px; }
-    .content-card { padding: 14px 14px 18px; }
 
-    .section-head { gap: 10px; margin-bottom: 16px; padding-bottom: 14px; }
-    .section-head-icon { width: 32px; height: 32px; font-size: 15px; border-radius: 9px; }
     .section-head h2 { font-size: 15.5px; }
     .section-head p { font-size: 12.5px; }
 
@@ -997,7 +920,7 @@
 
   @media (max-width: 400px) {
     header h1 { font-size: 14.5px; }
-    .side-nav-group .tab { padding: 7px 10px; font-size: 11.5px; }
+    .section-switch .tab { padding: 7px 10px; font-size: 11.5px; }
   }
 
   /* Evita rolagem horizontal acidental */
@@ -1071,33 +994,7 @@
   </div>
 </header>
 
-<div class="app-shell">
-
-  <aside class="sidebar" id="sectionSwitch">
-    <div class="side-nav-group">
-      <p class="side-nav-label">Moderação</p>
-      <button class="tab active" id="tabSectionDenuncias" onclick="switchSection('denuncias')">🚩 Denúncias</button>
-      <button class="tab" id="tabSectionUsuarios" onclick="switchSection('usuarios')">🚫 Usuários</button>
-      <button class="tab" id="tabSectionClubes" onclick="switchSection('clubes')">🎪 Clubes</button>
-      <button class="tab" id="tabSectionFeed" onclick="switchSection('feed')">📝 Feed (Fãs)</button>
-    </div>
-    <div class="side-nav-group">
-      <p class="side-nav-label">Comunicação</p>
-      <button class="tab" id="tabSectionAvisos" onclick="switchSection('avisos')">📣 Avisos</button>
-      <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
-    </div>
-    <div class="side-nav-group">
-      <p class="side-nav-label">Conteúdo</p>
-      <button class="tab" id="tabSectionRadio" onclick="switchSection('radio')">📻 Rádio Zôada</button>
-      <button class="tab" id="tabSectionMusicas" onclick="switchSection('musicas')">🎤 Músicas</button>
-    </div>
-    <div class="side-nav-group">
-      <p class="side-nav-label">Sistema</p>
-      <button class="tab" id="tabSectionAdmins" onclick="switchSection('admins')">🔑 Admins</button>
-    </div>
-  </aside>
-
-  <main class="main-content">
+<div class="wrap">
 
   <div class="conn-bar" id="connBar">
     <div class="conn-bar-summary">
@@ -1125,15 +1022,22 @@
     </div>
   </div>
 
-  <div class="content-card">
+  <div class="section-switch" id="sectionSwitch">
+    <button class="tab active" id="tabSectionDenuncias" onclick="switchSection('denuncias')">🚩 Denúncias</button>
+    <button class="tab" id="tabSectionUsuarios" onclick="switchSection('usuarios')">🚫 Usuários</button>
+    <button class="tab" id="tabSectionClubes" onclick="switchSection('clubes')">🎪 Clubes</button>
+    <button class="tab" id="tabSectionAvisos" onclick="switchSection('avisos')">📣 Avisos</button>
+    <button class="tab" id="tabSectionFeed" onclick="switchSection('feed')">📝 Feed (Fãs)</button>
+    <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
+    <button class="tab" id="tabSectionRadio" onclick="switchSection('radio')">📻 Rádio Zôada</button>
+    <button class="tab" id="tabSectionMusicas" onclick="switchSection('musicas')">🎤 Músicas</button>
+    <button class="tab" id="tabSectionAdmins" onclick="switchSection('admins')">🔑 Admins</button>
+  </div>
 
   <div id="section-denuncias">
     <div class="section-head">
-      <span class="section-head-icon">🚩</span>
-      <div>
-        <h2>Denúncias</h2>
-        <p>Conteúdo e usuários denunciados pela comunidade, organizados por status.</p>
-      </div>
+      <h2>🚩 Denúncias</h2>
+      <p>Conteúdo e usuários denunciados pela comunidade, organizados por status.</p>
     </div>
 
     <div class="tabs" id="tabs"></div>
@@ -1143,11 +1047,8 @@
 
   <div id="section-usuarios" style="display:none;">
     <div class="section-head">
-      <span class="section-head-icon">🚫</span>
-      <div>
-        <h2>Usuários</h2>
-        <p>Suspenda o acesso de um usuário à plataforma por 24 horas ou 7 dias. Suspenso não consegue logar nem continuar usando um login já feito enquanto durar.</p>
-      </div>
+      <h2>🚫 Usuários</h2>
+      <p>Suspenda o acesso de um usuário à plataforma por 24 horas ou 7 dias. Suspenso não consegue logar nem continuar usando um login já feito enquanto durar.</p>
     </div>
 
     <div class="aviso-box">
@@ -1171,11 +1072,8 @@
 
   <div id="section-clubes" style="display:none;">
     <div class="section-head">
-      <span class="section-head-icon">🎪</span>
-      <div>
-        <h2>Clubes</h2>
-        <p>Lista de controle de todos os clubes criados na plataforma — quem criou, quantos membros e postagens tem, e se exige senha pra entrar. Excluir por aqui não depende do admin do clube.</p>
-      </div>
+      <h2>🎪 Clubes</h2>
+      <p>Lista de controle de todos os clubes criados na plataforma — quem criou, quantos membros e postagens tem, e se exige senha pra entrar. Excluir por aqui não depende do admin do clube.</p>
     </div>
 
     <div class="aviso-box">
@@ -1204,11 +1102,8 @@
 
   <div id="section-avisos" style="display:none;">
     <div class="section-head">
-      <span class="section-head-icon">📣</span>
-      <div>
-        <h2>Avisos</h2>
-        <p>Mensagem global que aparece no topo da tela inicial para qualquer pessoa que abrir o Zôada.</p>
-      </div>
+      <h2>📣 Avisos</h2>
+      <p>Mensagem global que aparece no topo da tela inicial para qualquer pessoa que abrir o Zôada.</p>
     </div>
 
     <div class="aviso-box">
@@ -1227,11 +1122,8 @@
 
   <div id="section-feed" style="display:none;">
     <div class="section-head">
-      <span class="section-head-icon">📝</span>
-      <div>
-        <h2>Postar no feed</h2>
-        <p>Publica direto no feed geral que aparece na aba <b>Fãs</b> do app, como se fosse a conta oficial <b>Zôada</b> (foto de perfil = logo do app).</p>
-      </div>
+      <h2>📝 Postar no feed</h2>
+      <p>Publica direto no feed geral que aparece na aba <b>Fãs</b> do app, como se fosse a conta oficial <b>Zôada</b> (foto de perfil = logo do app).</p>
     </div>
 
     <div class="aviso-box">
@@ -1263,11 +1155,8 @@
   <div id="section-mensagens" style="display:none;">
     <div id="threadsView">
       <div class="section-head">
-        <span class="section-head-icon">💬</span>
-        <div>
-          <h2>Mensagens</h2>
-          <p>Conversas iniciadas pelos usuários no painel deles ("Fale com a Moderação"). Clique numa pra responder.</p>
-        </div>
+        <h2>💬 Mensagens</h2>
+        <p>Conversas iniciadas pelos usuários no painel deles ("Fale com a Moderação"). Clique numa pra responder.</p>
       </div>
       <div id="threadsList"></div>
     </div>
@@ -1287,11 +1176,8 @@
 
   <div id="section-radio" style="display:none;">
     <div class="section-head">
-      <span class="section-head-icon">📻</span>
-      <div>
-        <h2>Rádio Zôada</h2>
-        <p>Nome, capa, playlist curada e controles de reprodução da estação.</p>
-      </div>
+      <h2>📻 Rádio Zôada</h2>
+      <p>Nome, capa, playlist curada e controles de reprodução da estação.</p>
     </div>
 
     <div class="radio-status">
@@ -1333,15 +1219,42 @@
         <div class="catalog-list" id="radioCatalogList" role="list"></div>
       </div>
     </div>
+
+    <div class="radio-panel" style="margin-top:16px;">
+      <h3>🕒 Agendamentos</h3>
+      <p class="sub">Escolha uma playlist e um horário de início e fim — nesse intervalo ela toca sozinha na Rádio Zôada, e ao terminar o app volta automaticamente ao estado normal (a playlist/pausa configurada acima). Não precisa de ninguém clicar em nada na hora.</p>
+
+      <div class="agenda-list" id="agendaList"><div class="agenda-empty">Carregando…</div></div>
+
+      <h3 id="agendaFormTitle" style="margin-top:18px;">➕ Novo agendamento</h3>
+      <input type="text" id="agendaNomeInput" maxlength="80" placeholder="Nome do agendamento (opcional, ex: Programa da Sexta)">
+      <div class="agenda-form-row">
+        <div>
+          <label for="agendaInicioInput">Começa em</label>
+          <input type="datetime-local" id="agendaInicioInput">
+        </div>
+        <div>
+          <label for="agendaFimInput">Termina em</label>
+          <input type="datetime-local" id="agendaFimInput">
+        </div>
+      </div>
+
+      <h3 style="margin-top:16px; font-size:13px;">🎶 Playlist do agendamento (<span id="agendaPlaylistCount">0</span>)</h3>
+      <input type="text" class="track-search" id="agendaTrackSearch" placeholder="Buscar por título ou artista..." oninput="renderAgendaTrackPicker()">
+      <div class="agenda-picker-list" id="agendaTrackPicker"></div>
+
+      <div class="actions" style="margin-top:12px;">
+        <button class="btn-ok" onclick="saveAgendamento()" id="agendaSaveBtn">Salvar agendamento</button>
+        <button class="btn-secondary" onclick="cancelAgendaEdit()" id="agendaCancelBtn" style="display:none;">Cancelar edição</button>
+      </div>
+      <p class="status-msg" id="agendaFormStatus" style="display:none;"></p>
+    </div>
   </div>
 
   <div id="section-musicas" style="display:none;">
     <div class="section-head">
-      <span class="section-head-icon">🎤</span>
-      <div>
-        <h2>Músicas</h2>
-        <p>Crie artistas-playlist e envie faixas para o catálogo público.</p>
-      </div>
+      <h2>🎤 Músicas</h2>
+      <p>Crie artistas-playlist e envie faixas para o catálogo público.</p>
     </div>
 
     <div class="radio-panel" style="margin-bottom:16px;">
@@ -1442,11 +1355,8 @@
 
   <div id="section-admins" style="display:none;">
     <div class="section-head">
-      <span class="section-head-icon">🔑</span>
-      <div>
-        <h2>Admins do painel</h2>
-        <p>Quem pode entrar aqui pela tela de login. A pessoa precisa <b>já ter uma conta cadastrada no app</b> — convidar só libera o acesso, não cria conta nenhuma.</p>
-      </div>
+      <h2>🔑 Admins do painel</h2>
+      <p>Quem pode entrar aqui pela tela de login. A pessoa precisa <b>já ter uma conta cadastrada no app</b> — convidar só libera o acesso, não cria conta nenhuma.</p>
     </div>
 
     <div class="aviso-box">
@@ -1468,10 +1378,7 @@
     </div>
   </div>
 
-  </div><!-- /.content-card -->
-  </main>
-
-</div><!-- /.app-shell -->
+</div>
 
 <footer>
   Este painel é só HTML/JS estático (sem framework). A chave de moderação fica salva
@@ -2570,6 +2477,9 @@
   let radioCatalog = [];       // todas as faixas (GET /api/tracks, público)
   let radioPlaylistIds = [];   // playlist em edição (ordem = ordem de reprodução)
   let expandedRadioArtistId = null; // acordeão do catálogo da rádio
+  let radioAgendamentos = [];  // agendamentos cadastrados (GET /api/moderacao/radio)
+  let agendaEditingId = null;  // null = criando um novo; senão, id do agendamento em edição
+  let agendaTrackIds = [];     // playlist do agendamento em edição, na ordem
 
   async function loadRadioCatalog() {
     try {
@@ -2578,6 +2488,7 @@
       const data = await res.json();
       radioCatalog = data.tracks || [];
       renderRadioCatalog();
+      renderAgendaTrackPicker();
     } catch (err) {
       document.getElementById('radioCatalogList').innerHTML =
         '<div class="status-msg">Erro ao carregar catálogo: ' + escapeHtml(String(err.message || err)) + '</div>';
@@ -2604,10 +2515,13 @@
       const data = await res.json();
       radioState = data.radio;
       radioPlaylistIds = radioState.tracks.map((t) => t.id);
+      radioAgendamentos = data.agendamentos || [];
       renderRadioStatus();
       renderRadioForm();
       renderRadioPlaylist();
       renderRadioCatalog();
+      renderAgendaList();
+      renderAgendaTrackPicker();
     } catch (err) {
       statusPill.textContent = 'Erro';
       statusPill.className = 'radio-pill radio-pill-fallback';
@@ -2922,6 +2836,205 @@
       renderRadioStatus();
     } catch (err) {
       alert('Erro ao pular faixa: ' + (err.message || err));
+    }
+  }
+
+  // ---------- Agendamentos da Rádio Zôada (playlist com horário pra tocar/parar) ----------
+
+  function isoToDatetimeLocal(iso) {
+    // datetime-local não entende timezone: converte pro relógio local de
+    // quem está usando o painel, que é a referência que a pessoa digitou.
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function datetimeLocalToIso(value) {
+    // new Date('YYYY-MM-DDTHH:mm') sem timezone é interpretado como
+    // horário local do navegador — exatamente o que o campo mostra.
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+
+  function agendaStatus(a) {
+    if (!a.ativo) return { label: 'Desativado', cls: 'radio-pill-fallback' };
+    const now = Date.now();
+    const inicio = new Date(a.inicio).getTime();
+    const fim = new Date(a.fim).getTime();
+    if (now < inicio) return { label: 'Agendado', cls: 'radio-pill-scheduled' };
+    if (now < fim) return { label: 'No ar agora', cls: 'radio-pill-live' };
+    return { label: 'Encerrado', cls: 'radio-pill-fallback' };
+  }
+
+  function formatAgendaDate(iso) {
+    return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderAgendaList() {
+    const list = document.getElementById('agendaList');
+    if (radioAgendamentos.length === 0) {
+      list.innerHTML = '<div class="agenda-empty">Nenhum agendamento ainda. Monte um abaixo.</div>';
+      return;
+    }
+    list.innerHTML = radioAgendamentos.map((a) => {
+      const st = agendaStatus(a);
+      const nomeLabel = a.nome ? escapeHtml(a.nome) : '(sem nome)';
+      return '' +
+        '<div class="agenda-card">' +
+          '<div class="agenda-card-head">' +
+            '<p class="agenda-card-name">' + nomeLabel + '<span class="radio-pill ' + st.cls + '">' + st.label + '</span></p>' +
+          '</div>' +
+          '<p class="agenda-card-range">' + formatAgendaDate(a.inicio) + ' até ' + formatAgendaDate(a.fim) + '</p>' +
+          '<p class="agenda-card-tracks">' + a.tracks.length + ' faixa' + (a.tracks.length === 1 ? '' : 's') + ' na playlist</p>' +
+          '<div class="agenda-card-actions">' +
+            '<button class="track-btn" onclick="editAgendamento(\'' + a.id + '\')">Editar</button>' +
+            '<button class="track-btn" onclick="toggleAgendaAtivo(\'' + a.id + '\', ' + !a.ativo + ')">' + (a.ativo ? 'Desativar' : 'Ativar') + '</button>' +
+            '<button class="track-btn danger" onclick="deleteAgendamento(\'' + a.id + '\')">Excluir</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function editAgendamento(id) {
+    const a = radioAgendamentos.find((x) => x.id === id);
+    if (!a) return;
+    agendaEditingId = id;
+    document.getElementById('agendaFormTitle').textContent = '✏️ Editando agendamento';
+    document.getElementById('agendaNomeInput').value = a.nome || '';
+    document.getElementById('agendaInicioInput').value = isoToDatetimeLocal(a.inicio);
+    document.getElementById('agendaFimInput').value = isoToDatetimeLocal(a.fim);
+    agendaTrackIds = a.tracks.map((t) => t.id);
+    document.getElementById('agendaCancelBtn').style.display = '';
+    document.getElementById('agendaSaveBtn').textContent = 'Salvar alterações';
+    renderAgendaTrackPicker();
+    document.getElementById('agendaFormTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelAgendaEdit() {
+    agendaEditingId = null;
+    document.getElementById('agendaFormTitle').textContent = '➕ Novo agendamento';
+    document.getElementById('agendaNomeInput').value = '';
+    document.getElementById('agendaInicioInput').value = '';
+    document.getElementById('agendaFimInput').value = '';
+    agendaTrackIds = [];
+    document.getElementById('agendaCancelBtn').style.display = 'none';
+    document.getElementById('agendaSaveBtn').textContent = 'Salvar agendamento';
+    renderAgendaTrackPicker();
+  }
+
+  function toggleAgendaTrack(id) {
+    const idx = agendaTrackIds.indexOf(id);
+    if (idx >= 0) agendaTrackIds.splice(idx, 1);
+    else agendaTrackIds.push(id);
+    renderAgendaTrackPicker();
+  }
+
+  function renderAgendaTrackPicker() {
+    const el = document.getElementById('agendaTrackPicker');
+    document.getElementById('agendaPlaylistCount').textContent = String(agendaTrackIds.length);
+    if (!el) return;
+
+    const q = (document.getElementById('agendaTrackSearch').value || '').trim().toLowerCase();
+    let items = radioCatalog;
+    if (q) {
+      items = items.filter((t) =>
+        (t.title || '').toLowerCase().includes(q) || (t.artist_name || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (items.length === 0) {
+      el.innerHTML = '<div class="status-msg" style="padding:10px;">Nenhuma faixa encontrada.</div>';
+      return;
+    }
+
+    el.innerHTML = items.map((t) => {
+      const checked = agendaTrackIds.includes(t.id);
+      return '' +
+        '<label class="agenda-picker-row">' +
+          '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleAgendaTrack(\'' + t.id + '\')">' +
+          '<span><span class="t">' + escapeHtml(t.title || '(sem título)') + '</span> · <span class="m">' + escapeHtml(t.artist_name || '') + '</span></span>' +
+        '</label>';
+    }).join('');
+  }
+
+  function showAgendaFormStatus(msg, isError) {
+    const el = document.getElementById('agendaFormStatus');
+    el.textContent = msg;
+    el.style.display = msg ? '' : 'none';
+    el.style.color = isError ? 'var(--pink)' : 'var(--muted)';
+  }
+
+  async function saveAgendamento() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+
+    const nome = document.getElementById('agendaNomeInput').value.trim();
+    const inicioVal = document.getElementById('agendaInicioInput').value;
+    const fimVal = document.getElementById('agendaFimInput').value;
+
+    if (!inicioVal || !fimVal) { showAgendaFormStatus('Preencha os horários de início e fim.', true); return; }
+    const inicio = datetimeLocalToIso(inicioVal);
+    const fim = datetimeLocalToIso(fimVal);
+    if (!inicio || !fim) { showAgendaFormStatus('Horário inválido.', true); return; }
+    if (new Date(fim) <= new Date(inicio)) { showAgendaFormStatus('O fim precisa ser depois do início.', true); return; }
+    if (agendaTrackIds.length === 0) { showAgendaFormStatus('Adicione ao menos uma faixa à playlist do agendamento.', true); return; }
+
+    const body = agendaEditingId
+      ? { action: 'update_schedule', id: agendaEditingId, nome, inicio, fim, track_ids: agendaTrackIds }
+      : { action: 'create_schedule', nome, inicio, fim, track_ids: agendaTrackIds };
+
+    try {
+      showAgendaFormStatus('Salvando…', false);
+      const res = await fetch(apiBase() + '/api/moderacao/radio', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      radioAgendamentos = data.agendamentos || [];
+      renderAgendaList();
+      cancelAgendaEdit();
+      showAgendaFormStatus('Agendamento salvo!', false);
+      setTimeout(() => showAgendaFormStatus('', false), 2500);
+    } catch (err) {
+      showAgendaFormStatus('Erro ao salvar: ' + (err.message || err), true);
+    }
+  }
+
+  async function toggleAgendaAtivo(id, ativo) {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/radio', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ action: 'update_schedule', id, ativo }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      radioAgendamentos = data.agendamentos || [];
+      renderAgendaList();
+    } catch (err) {
+      alert('Erro ao atualizar agendamento: ' + (err.message || err));
+    }
+  }
+
+  async function deleteAgendamento(id) {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+    if (!confirm('Excluir este agendamento? Essa ação não pode ser desfeita.')) return;
+    try {
+      const res = await fetch(apiBase() + '/api/moderacao/radio', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ action: 'delete_schedule', id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      radioAgendamentos = data.agendamentos || [];
+      if (agendaEditingId === id) cancelAgendaEdit();
+      renderAgendaList();
+    } catch (err) {
+      alert('Erro ao excluir agendamento: ' + (err.message || err));
     }
   }
 

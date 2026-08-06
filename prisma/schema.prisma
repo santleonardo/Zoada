@@ -183,6 +183,7 @@ model Faixa {
   reproducoes Reproducao[]
   faixasEstacao FaixaEstacao[]
   faixasRadioPadrao FaixaRadioPadrao[]
+  faixasRadioAgendamento FaixaRadioAgendamento[]
   postagens  Postagem[]
 
   @@index([deletedAt])
@@ -540,8 +541,53 @@ model RadioPadrao {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   faixas FaixaRadioPadrao[]
+  agendamentos RadioAgendamento[]
 
   @@map("radio_padrao")
+}
+
+// Agendamento de playlist da Rádio Zôada: a moderação escolhe uma playlist
+// (independente da playlist "ao vivo" configurada acima) e um intervalo
+// [inicio, fim) em que ela deve tocar automaticamente. Fora desse
+// intervalo, a Rádio Zôada volta a valer o estado normal (playlist/pausa
+// configurada em RadioPadrao). Não depende de cron: o próprio GET público
+// de /api/radio-padrao calcula, a cada chamada, se algum agendamento está
+// valendo "agora" e, se estiver, devolve a playlist agendada no lugar da
+// playlist normal — o mesmo polling de 6s que o app já faz cobre o início
+// e o fim automáticos.
+model RadioAgendamento {
+  id      String  @id @default(cuid())
+  radioId String  @map("radio_id")
+  nome    String? // rótulo opcional pra moderação identificar o agendamento (ex: "Programa da Sexta")
+  inicio  DateTime
+  fim     DateTime
+  // Permite desativar um agendamento sem apagar (ex: pausar uma recorrência
+  // sem perder a playlist/configuração já montada).
+  ativo   Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  radio  RadioPadrao              @relation(fields: [radioId], references: [id], onDelete: Cascade)
+  faixas FaixaRadioAgendamento[]
+
+  @@index([radioId])
+  @@index([inicio, fim])
+  @@map("radio_agendamentos")
+}
+
+model FaixaRadioAgendamento {
+  id            String @id @default(cuid())
+  agendamentoId String @map("agendamento_id")
+  faixaId       String @map("faixa_id")
+  ordem         Int    @default(0)
+
+  agendamento RadioAgendamento @relation(fields: [agendamentoId], references: [id], onDelete: Cascade)
+  faixa       Faixa            @relation(fields: [faixaId], references: [id], onDelete: Cascade)
+
+  @@unique([agendamentoId, faixaId])
+  @@index([agendamentoId])
+  @@map("faixas_radio_agendamento")
 }
 
 // ---------- Faixas da Rádio Zôada (playlist ordenada, curada pela moderação) ----------
