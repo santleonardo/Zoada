@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { isNeonConfigured, MODERATION_SECRET, RADIO_PADRAO_ID } from '@/lib/config';
-import type { RadioPadrao, Track } from '@/types';
+import type { RadioPadrao, RadioAgendamento, Track } from '@/types';
 import { isValidBearerSecret } from '@/lib/rateLimit';
 
 // ============================================================
@@ -10,11 +10,20 @@ import { isValidBearerSecret } from '@/lib/rateLimit';
 // Mesmo padrão de autenticação de /api/reports e /api/aviso: header
 // `Authorization: Bearer <MODERATION_SECRET>`.
 //
-// GET   — estado atual (playlist, nome, capa, pausada, faixa atual).
+// GET   — estado atual (playlist, nome, capa, pausada, faixa atual) +
+//         lista de agendamentos cadastrados (ver mais abaixo).
 // PATCH — { action: 'set_info',   nome?, capa_url? }
 //         { action: 'set_tracks', track_ids: string[] }  (ordem = ordem do array)
 //         { action: 'pause' } / { action: 'resume' }
 //         { action: 'advance' }  → pula pra próxima faixa da playlist
+//         { action: 'create_schedule', track_ids, inicio, fim, nome? }
+//           → agenda uma playlist pra tocar automaticamente entre `inicio`
+//             e `fim` (strings ISO). Fora da moderação manual: enquanto o
+//             agendamento estiver valendo, ele manda na Rádio Zôada; ao
+//             terminar, o app volta sozinho ao estado normal (ver
+//             /api/radio-padrao, que calcula isso a cada leitura).
+//         { action: 'update_schedule', id, track_ids?, inicio?, fim?, nome?, ativo? }
+//         { action: 'delete_schedule', id }
 //
 // A leitura pública (usada pelo app) fica em /api/radio-padrao.
 // ============================================================
@@ -71,6 +80,46 @@ function toResponse(radio: NonNullable<Awaited<ReturnType<typeof loadWithTracks>
   };
 }
 
+async function loadAgendamentos(radioId: string): Promise<RadioAgendamento[]> {
+  const agendamentos = await db.radioAgendamento.findMany({
+    where: { radioId },
+    orderBy: { inicio: 'asc' },
+    include: {
+      faixas: {
+        orderBy: { ordem: 'asc' },
+        include: { faixa: { include: { artista: { select: { nome: true } } } } },
+      },
+    },
+  });
+
+  return agendamentos.map((a) => {
+    const tracks: Track[] = a.faixas
+      .filter((fr) => fr.faixa)
+      .map((fr) => ({
+        id: fr.faixa.id,
+        title: fr.faixa.titulo,
+        artist_id: fr.faixa.artistaId,
+        artist_name: fr.faixa.artista?.nome || '',
+        cover_url: fr.faixa.coverUrl || '',
+        audio_url: fr.faixa.audioUrl || '',
+        audio_url_low: fr.faixa.audioUrlLow || null,
+        duration: fr.faixa.duracao,
+        plays_count: fr.faixa.playsCount,
+        created_at: fr.faixa.createdAt.toISOString(),
+      }));
+
+    return {
+      id: a.id,
+      nome: a.nome,
+      inicio: a.inicio.toISOString(),
+      fim: a.fim.toISOString(),
+      ativo: a.ativo,
+      track_ids: tracks.map((t) => t.id),
+      tracks,
+    };
+  });
+}
+
 export async function GET(request: Request) {
   try {
     if (!isModerator(request)) {
@@ -80,9 +129,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Neon não configurado' }, { status: 503 });
     }
 
-    await getOrCreateRadio();
+    const created = await getOrCreateRadio();
     const radio = await loadWithTracks(RADIO_PADRAO_ID);
-    return NextResponse.json({ radio: toResponse(radio!) });
+    const agendamentos = await loadAgendamentos(created.id);
+    return NextResponse.json({ radio: toResponse(radio!), agendamentos });
   } catch (error) {
     console.error('[MODERACAO RADIO GET]', error);
     return NextResponse.json({ error: 'Erro ao buscar a Rádio Zôada' }, { status: 500 });
@@ -204,8 +254,125 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ radio: toResponse(radio!) });
     }
 
+    if (action === 'create_schedule' || action === 'update_schedule') {
+      const isUpdate = action === 'update_schedule';
+      const id = typeof body.id === 'string' ? body.id : undefined;
+      if (isUpdate && !id) {
+        return NextResponse.json({ error: 'id é obrigatório para update_schedule' }, { status: 400 });
+      }
+
+      let inicio: Date | undefined;
+      let fim: Date | undefined;
+      if (body.inicio !== undefined) {
+        const d = new Date(body.inicio);
+        if (Number.isNaN(d.getTime())) {
+          return NextResponse.json({ error: 'inicio inválido' }, { status: 400 });
+        }
+        inicio = d;
+      }
+      if (body.fim !== undefined) {
+        const d = new Date(body.fim);
+        if (Number.isNaN(d.getTime())) {
+          return NextResponse.json({ error: 'fim inválido' }, { status: 400 });
+        }
+        fim = d;
+      }
+
+      // Na criação os dois são obrigatórios; na edição, se só um vier,
+      // valida contra o valor já salvo.
+      let existing: { inicio: Date; fim: Date } | null = null;
+      if (isUpdate) {
+        existing = await db.radioAgendamento.findFirst({
+          where: { id, radioId: current.id },
+          select: { inicio: true, fim: true },
+        });
+        if (!existing) {
+          return NextResponse.json({ error: 'Agendamento não encontrado' }, { status: 404 });
+        }
+      } else if (!inicio || !fim) {
+        return NextResponse.json({ error: 'inicio e fim são obrigatórios' }, { status: 400 });
+      }
+
+      const inicioFinal = inicio ?? existing!.inicio;
+      const fimFinal = fim ?? existing!.fim;
+      if (fimFinal <= inicioFinal) {
+        return NextResponse.json({ error: 'fim precisa ser depois de inicio' }, { status: 400 });
+      }
+
+      const nome = typeof body.nome === 'string' ? body.nome.trim().slice(0, 80) || null : undefined;
+      const ativo = typeof body.ativo === 'boolean' ? body.ativo : undefined;
+
+      let trackIds: string[] | undefined;
+      if (body.track_ids !== undefined) {
+        if (!Array.isArray(body.track_ids)) {
+          return NextResponse.json({ error: 'track_ids deve ser um array' }, { status: 400 });
+        }
+        const existingTracks = await db.faixa.findMany({
+          where: { id: { in: body.track_ids }, deletedAt: null },
+          select: { id: true },
+        });
+        const validIds = new Set(existingTracks.map((t) => t.id));
+        trackIds = (body.track_ids as string[]).filter((tid) => validIds.has(tid));
+      } else if (!isUpdate) {
+        trackIds = [];
+      }
+
+      if (!isUpdate && (!trackIds || trackIds.length === 0)) {
+        return NextResponse.json({ error: 'track_ids não pode ser vazio ao criar um agendamento' }, { status: 400 });
+      }
+
+      const agendamento = isUpdate
+        ? await db.radioAgendamento.update({
+            where: { id: id! },
+            data: {
+              ...(inicio !== undefined ? { inicio } : {}),
+              ...(fim !== undefined ? { fim } : {}),
+              ...(nome !== undefined ? { nome } : {}),
+              ...(ativo !== undefined ? { ativo } : {}),
+            },
+          })
+        : await db.radioAgendamento.create({
+            data: {
+              radioId: current.id,
+              nome: nome ?? null,
+              inicio: inicioFinal,
+              fim: fimFinal,
+            },
+          });
+
+      if (trackIds !== undefined) {
+        await db.faixaRadioAgendamento.deleteMany({ where: { agendamentoId: agendamento.id } });
+        if (trackIds.length > 0) {
+          await db.faixaRadioAgendamento.createMany({
+            data: trackIds.map((faixaId, index) => ({
+              agendamentoId: agendamento.id,
+              faixaId,
+              ordem: index,
+            })),
+          });
+        }
+      }
+
+      const agendamentos = await loadAgendamentos(current.id);
+      return NextResponse.json({ agendamentos });
+    }
+
+    if (action === 'delete_schedule') {
+      const id = typeof body.id === 'string' ? body.id : undefined;
+      if (!id) {
+        return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+      }
+      await db.radioAgendamento.deleteMany({ where: { id, radioId: current.id } });
+      const agendamentos = await loadAgendamentos(current.id);
+      return NextResponse.json({ agendamentos });
+    }
+
     return NextResponse.json(
-      { error: 'Ação inválida. Use "set_info", "set_tracks", "pause", "resume" ou "advance".' },
+      {
+        error:
+          'Ação inválida. Use "set_info", "set_tracks", "pause", "resume", "advance", ' +
+          '"create_schedule", "update_schedule" ou "delete_schedule".',
+      },
       { status: 400 },
     );
   } catch (error) {

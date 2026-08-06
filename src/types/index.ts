@@ -287,6 +287,24 @@ export interface RadioPadrao {
   // Playlist curada pela moderação, na ordem escolhida. Vazia = a Rádio
   // Zôada volta ao comportamento padrão (shuffle de todo o catálogo).
   tracks: Track[];
+  // true quando o estado acima veio de um agendamento ativo agora (ver
+  // RadioAgendamento) em vez da configuração manual da moderação. Só
+  // presente na resposta pública (/api/radio-padrao); ausente = estado
+  // normal.
+  agendamento_ativo?: { id: string; nome: string | null; fim: string } | null;
+}
+
+// Agendamento de playlist da Rádio Zôada: toca uma playlist específica
+// automaticamente entre `inicio` e `fim`, sem precisar de ação manual da
+// moderação nesses horários (ver /api/moderacao/radio).
+export interface RadioAgendamento {
+  id: string;
+  nome: string | null;
+  inicio: string;
+  fim: string;
+  ativo: boolean;
+  track_ids: string[];
+  tracks: Track[];
 }
 
 // Resultado da busca de usuários por nome (aba "Fãs") — versão enxuta do
