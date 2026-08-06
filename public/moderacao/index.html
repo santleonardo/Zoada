@@ -572,6 +572,11 @@
   .agenda-picker-row:hover { background: rgba(0,0,0,.03); }
   .agenda-picker-row .t { font-weight: 700; }
   .agenda-picker-row .m { font-size: 11.5px; color: var(--muted); }
+  .agenda-upload-box {
+    border: 1px dashed var(--border-strong); border-radius: var(--radius-md);
+    padding: 12px 14px; margin: 10px 0 12px; background: var(--surface-2);
+  }
+  .agenda-upload-box input[type="file"] { width: 100%; margin-top: 6px; font-size: 12.5px; }
 
   .radio-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
   .radio-panel {
@@ -1240,6 +1245,16 @@
       </div>
 
       <h3 style="margin-top:16px; font-size:13px;">🎶 Playlist do agendamento (<span id="agendaPlaylistCount">0</span>)</h3>
+      <div class="agenda-upload-box">
+        <p class="upload-step-title" style="margin:0 0 4px;">⬆️ Enviar novo programa</p>
+        <p class="sub">Sobe um áudio (episódio, programete, vinheta etc.) direto pro catálogo e já adiciona na playlist deste agendamento — não precisa passar pela aba Músicas.</p>
+        <input type="text" id="agendaProgramaTituloInput" maxlength="200" placeholder="Nome do programa (ex: Programa da Sexta — Ep. 1)">
+        <input type="file" id="agendaProgramaArquivoInput" accept="audio/*">
+        <div class="actions" style="margin-top:8px;">
+          <button class="btn-primary" onclick="uploadRadioPrograma()" id="agendaProgramaUploadBtn">Enviar programa</button>
+        </div>
+        <p class="status-msg" id="agendaProgramaStatus" style="display:none;"></p>
+      </div>
       <input type="text" class="track-search" id="agendaTrackSearch" placeholder="Buscar por título ou artista..." oninput="renderAgendaTrackPicker()">
       <div class="agenda-picker-list" id="agendaTrackPicker"></div>
 
@@ -2480,6 +2495,8 @@
   let radioAgendamentos = [];  // agendamentos cadastrados (GET /api/moderacao/radio)
   let agendaEditingId = null;  // null = criando um novo; senão, id do agendamento em edição
   let agendaTrackIds = [];     // playlist do agendamento em edição, na ordem
+  let radioProgramaArtistId = null; // cache do artista "guarda-chuva" dos programas enviados por aqui
+  const RADIO_PROGRAMA_ARTIST_NOME = 'Programas da Rádio Zôada';
 
   async function loadRadioCatalog() {
     try {
@@ -2956,6 +2973,126 @@
           '<span><span class="t">' + escapeHtml(t.title || '(sem título)') + '</span> · <span class="m">' + escapeHtml(t.artist_name || '') + '</span></span>' +
         '</label>';
     }).join('');
+  }
+
+  // Garante que existe um artista "guarda-chuva" pra guardar os programas
+  // enviados por aqui (a tabela de faixas exige um artista dono). Procura
+  // por nome antes de criar, pra não duplicar a cada upload.
+  async function ensureRadioProgramaArtist() {
+    if (radioProgramaArtistId) return radioProgramaArtistId;
+
+    const res = await fetch(apiBase() + '/api/moderacao/artists', {
+      headers: { Authorization: 'Bearer ' + secret() },
+    });
+    if (!res.ok) throw new Error('Falha ao buscar artistas (HTTP ' + res.status + ')');
+    const data = await res.json();
+    const existing = (data.artists || []).find((a) => a.name === RADIO_PROGRAMA_ARTIST_NOME);
+    if (existing) {
+      radioProgramaArtistId = existing.id;
+      return radioProgramaArtistId;
+    }
+
+    const createRes = await fetch(apiBase() + '/api/moderacao/artists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+      body: JSON.stringify({
+        nome: RADIO_PROGRAMA_ARTIST_NOME,
+        genero: 'Programa de rádio',
+        bio: 'Artista automático usado pra guardar os programas enviados pela moderação direto na tela de agendamentos da Rádio Zôada.',
+      }),
+    });
+    if (!createRes.ok) throw new Error('Falha ao criar o artista dos programas (HTTP ' + createRes.status + ')');
+    const created = await createRes.json();
+    radioProgramaArtistId = created.id;
+    return radioProgramaArtistId;
+  }
+
+  function showAgendaProgramaStatus(msg, isError) {
+    const el = document.getElementById('agendaProgramaStatus');
+    el.textContent = msg;
+    el.style.display = msg ? '' : 'none';
+    el.style.color = isError ? 'var(--pink)' : 'var(--muted)';
+  }
+
+  // Sobe um arquivo de áudio direto pro catálogo (novo programa) e já
+  // marca na playlist do agendamento em edição — sem precisar ir na aba
+  // Músicas pra depois voltar aqui e procurar a faixa recém-criada.
+  async function uploadRadioPrograma() {
+    if (!secret()) { alert('Cole a chave de moderação acima e clique em "Conectar" primeiro.'); return; }
+
+    const tituloInput = document.getElementById('agendaProgramaTituloInput');
+    const fileInput = document.getElementById('agendaProgramaArquivoInput');
+    const btn = document.getElementById('agendaProgramaUploadBtn');
+    const titulo = tituloInput.value.trim();
+    const file = fileInput.files[0];
+
+    if (!titulo) { showAgendaProgramaStatus('Dê um nome pro programa antes de enviar.', true); return; }
+    if (!file) { showAgendaProgramaStatus('Escolha um arquivo de áudio.', true); return; }
+
+    btn.disabled = true;
+    try {
+      showAgendaProgramaStatus('Preparando…', false);
+      const artistaId = await ensureRadioProgramaArtist();
+
+      showAgendaProgramaStatus('Lendo duração do áudio…', false);
+      const duracao = await readAudioDurationMod(file);
+
+      showAgendaProgramaStatus('Enviando áudio…', false);
+      const presignRes = await fetch(apiBase() + '/api/moderacao/storage/presign-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type || 'application/octet-stream',
+          folder: 'tracks',
+        }),
+      });
+      if (!presignRes.ok) {
+        const err = await presignRes.json().catch(() => ({}));
+        throw new Error(err.error || ('Falha ao gerar link de upload (HTTP ' + presignRes.status + ')'));
+      }
+      const { uploadUrl, publicUrl } = await presignRes.json();
+
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      });
+      if (!putRes.ok) {
+        throw new Error(
+          'Falha ao enviar o arquivo pro armazenamento (HTTP ' + putRes.status + '). ' +
+          'Confira se o bucket tem CORS liberando PUT para este domínio.'
+        );
+      }
+
+      showAgendaProgramaStatus('Salvando no catálogo…', false);
+      const trackRes = await fetch(apiBase() + '/api/moderacao/tracks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret() },
+        body: JSON.stringify({ titulo, artistaId, audioUrl: publicUrl, duracao }),
+      });
+      if (!trackRes.ok) {
+        const err = await trackRes.json().catch(() => ({}));
+        throw new Error(err.error || ('Falha ao salvar o programa (HTTP ' + trackRes.status + ')'));
+      }
+      const track = await trackRes.json();
+
+      // Adiciona no catálogo em memória (sem precisar recarregar tudo) e
+      // já marca na playlist do agendamento que está sendo editado.
+      radioCatalog = [track, ...radioCatalog];
+      if (!agendaTrackIds.includes(track.id)) agendaTrackIds.push(track.id);
+
+      tituloInput.value = '';
+      fileInput.value = '';
+      renderAgendaTrackPicker();
+      renderRadioCatalog();
+      showAgendaProgramaStatus('"' + track.title + '" enviado e adicionado à playlist deste agendamento!', false);
+      setTimeout(() => showAgendaProgramaStatus('', false), 3500);
+    } catch (err) {
+      showAgendaProgramaStatus('Erro: ' + (err.message || err), true);
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   function showAgendaFormStatus(msg, isError) {
