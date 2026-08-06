@@ -86,7 +86,7 @@ const SupportChatPanel: React.FC = () => {
       >
         <div className="flex items-center gap-2">
           <ShieldCheck size={18} className="text-[#6C5CE7]" />
-          <h3 className="text-lg font-semibold text-[#1A1B25]">Fale com a Moderação</h3>
+          <h3 className="text-lg font-semibold text-[#1A1B25]">Fale Conosco</h3>
         </div>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
@@ -104,8 +104,8 @@ const SupportChatPanel: React.FC = () => {
       {isOpen && (
         <div className="mt-4">
           <p className="text-xs text-black/40 mb-4">
-            Dúvidas, problemas com a conta ou quer contestar uma denúncia? Mande uma mensagem
-            direto pra equipe de moderação por aqui.
+            Dúvidas, problemas com a conta ou quer contestar uma denúncia? Quer saber como
+            anunciar no app? Mande uma mensagem direto pra nossa equipe por aqui.
           </p>
 
           {/* Histórico de mensagens */}
