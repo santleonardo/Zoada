@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Zôada — Painel de Moderação</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,6 +29,7 @@
     --radius-lg: 16px;
     --gradient-brand: linear-gradient(90deg, var(--orange), var(--pink), var(--purple));
     --gradient-btn: linear-gradient(90deg, var(--orange), var(--pink));
+    --header-h: 72px;
   }
 
   * { box-sizing: border-box; }
@@ -137,6 +138,7 @@
     z-index: 30;
     background: var(--gradient-brand);
     padding: 18px 24px;
+    padding-top: max(18px, env(safe-area-inset-top));
     color: #fff;
     box-shadow: var(--shadow-md);
   }
@@ -167,7 +169,7 @@
   header .conn-dot.on { background: #4ce38f; }
 
   .page { max-width: 1080px; margin: 0 auto; padding: 22px 24px 60px; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 20px; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 20px 0; }
 
   /* ---------- Barra de conexão ---------- */
   /* ---------- Barra de conexão (resumo + painel separável) ---------- */
@@ -855,52 +857,288 @@
   .upload-submit-row button { flex-shrink: 0; }
   #uploadFaixaStatus { margin: 0; }
 
-  /* ---------- Responsivo (preserva o visual original, só adapta) ---------- */
-  @media (max-width: 760px) {
-    .radio-cols { grid-template-columns: 1fr; }
-    .auth-box.is-open { flex-direction: column; align-items: stretch; }
-    .field { min-width: 0; width: 100%; }
-    .conn-bar-summary { padding: 10px 12px; }
-    .conn-bar-hint { display: none; }
-    .radio-status { flex-wrap: wrap; }
-    .radio-status-actions { width: 100%; }
+
+  /* ---------- Layout com sidebar + conteúdo ---------- */
+
+  .block-stack > .radio-panel,
+  .block-stack > .radio-status {
+    width: 100%;
+  }
+  .block-stack .radio-cols { display: block; }
+
+  .app-shell {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 0;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 18px 20px 48px;
+    align-items: start;
+  }
+  .side-nav {
+    position: sticky;
+    top: 88px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 12px 16px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+  }
+  .side-nav-group {
+    margin-bottom: 14px;
+  }
+  .side-nav-group:last-child { margin-bottom: 0; }
+  .side-nav-label {
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .55px;
+    color: var(--muted-2);
+    padding: 4px 10px 8px;
+  }
+  .side-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    color: var(--ink);
+    border: none;
+    border-radius: 10px;
+    padding: 9px 11px;
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+    margin-bottom: 2px;
+    transition: background .12s ease, color .12s ease;
+  }
+  .side-nav-item:hover { background: rgba(26,27,37,.05); }
+  .side-nav-item.active {
+    background: var(--ink);
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+  }
+  .side-nav-item .count {
+    margin-left: auto;
+    background: rgba(232,67,147,.14);
+    color: var(--pink);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+  .side-nav-item.active .count {
+    background: rgba(255,255,255,.22);
+    color: #fff;
+  }
+  .side-nav-icon { font-size: 15px; line-height: 1; width: 1.3em; text-align: center; flex-shrink: 0; }
+
+  .main-content { min-width: 0; padding-left: 18px; }
+
+  /* Sub-tabs dentro de seções densas */
+  .sub-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding: 5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    flex-wrap: wrap;
+  }
+  .sub-tab {
+    flex: 1;
+    min-width: max-content;
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    border-radius: 9px;
+    padding: 9px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .12s ease, color .12s ease;
+  }
+  .sub-tab:hover { background: rgba(26,27,37,.05); color: var(--ink); }
+  .sub-tab.active {
+    background: var(--ink);
+    color: #fff;
+    box-shadow: var(--shadow-sm);
   }
 
-  @media (max-width: 640px) {
-    header { padding: 12px 14px; }
-    header h1 { font-size: 16px; }
-    header p { display: none; }
-    header .brand-icon { width: 34px; height: 34px; font-size: 17px; }
-    header .conn-indicator { padding: 6px 10px 6px 8px; font-size: 11px; }
+  .block-stack { display: flex; flex-direction: column; gap: 16px; }
+  .block-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 18px 20px;
+  }
+  .block-card > h3 {
+    margin: 0 0 4px;
+    font-size: 14.5px;
+    font-weight: 800;
+  }
+  .block-card > .sub {
+    margin: 0 0 14px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
 
-    .page, .wrap { padding: 12px 12px 28px; }
+  /* Esconde a barra de seções antiga no desktop (mantida só no mobile) */
+  .section-switch.desktop-hidden { display: none; }
 
-    .section-switch {
-      top: 60px;
-      gap: 6px;
-      padding: 8px 0 6px;
+  @media (max-width: 900px) {
+    .app-shell {
+      grid-template-columns: 1fr;
+      padding: 10px 12px 36px;
+    }
+    .side-nav { display: none; }
+    .section-switch.desktop-hidden {
+      display: flex;
+      position: sticky;
+      top: var(--header-h, 72px);
+      z-index: 25;
+      margin: 0 0 14px;
+      border-radius: 14px;
+      gap: 4px;
+      padding: 6px;
       overflow-x: auto;
       flex-wrap: nowrap;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
     }
-    .section-switch::-webkit-scrollbar { display: none; }
+    .section-switch.desktop-hidden::-webkit-scrollbar { display: none; }
     .section-switch .tab {
       flex: 0 0 auto;
-      padding: 8px 12px;
+      white-space: nowrap;
+      padding: 10px 14px;
+      font-size: 12.5px;
+      min-height: 40px;
+    }
+    .main-content { padding-left: 0; }
+    .wrap { padding: 12px 12px 0; max-width: 100%; }
+  }
+
+  @media (max-width: 760px) {
+    .radio-cols { grid-template-columns: 1fr; }
+    .auth-box.is-open { flex-direction: column; align-items: stretch; }
+    .field { min-width: 0; width: 100%; }
+    .conn-bar-summary { padding: 10px 12px; gap: 8px; }
+    .conn-bar-hint { display: none; }
+    .radio-status {
+      flex-wrap: wrap;
+      padding: 14px;
+      gap: 12px;
+    }
+    .radio-status-actions {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .radio-status-actions button { width: 100%; min-height: 42px; }
+    .agenda-form-row { flex-direction: column; }
+    .agenda-form-row > div { min-width: 0; width: 100%; }
+    .sub-tabs {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      gap: 4px;
+      padding: 4px;
+    }
+    .sub-tabs::-webkit-scrollbar { display: none; }
+    .sub-tab {
+      flex: 0 0 auto;
+      min-width: max-content;
+      padding: 10px 12px;
+      font-size: 12px;
+      min-height: 40px;
+    }
+    .block-card { padding: 14px 16px; }
+  }
+
+  @media (max-width: 640px) {
+    header {
+      padding: 12px 14px;
+      padding-top: max(12px, env(safe-area-inset-top));
+      padding-left: max(14px, env(safe-area-inset-left));
+      padding-right: max(14px, env(safe-area-inset-right));
+    }
+    header h1 { font-size: 16px; }
+    header p { display: none; }
+    header .brand-icon { width: 34px; height: 34px; font-size: 17px; }
+    header .conn-indicator { padding: 6px 10px 6px 8px; font-size: 11px; }
+    header .wrap { gap: 10px; }
+    .header-user { gap: 8px; }
+    .header-user-name {
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .header-user .btn-ghost {
+      min-height: 36px;
+      padding: 6px 10px;
       font-size: 12px;
     }
 
-    .conn-bar { margin-bottom: 12px; }
+    /* Sticky nav abaixo do header compacto no mobile */
+    .section-switch.desktop-hidden {
+      top: var(--header-h, 58px);
+      margin-left: 0;
+      margin-right: 0;
+      border-radius: 12px;
+      position: sticky;
+    }
+
+    .page, .wrap { padding: 10px 10px 0; }
+    .app-shell { padding: 8px 10px 28px; }
+
+    .conn-bar { margin-bottom: 10px; border-radius: 12px; }
     .auth-box.is-open { padding: 12px 14px; gap: 10px; }
-    .card, .radio-panel, .aviso-box, .conv-box { padding: 12px 14px; }
+    .card, .radio-panel, .aviso-box, .conv-box, .block-card {
+      padding: 12px 14px;
+      border-radius: 12px;
+    }
     .card { margin-bottom: 10px; }
 
+    .section-head { margin-bottom: 12px; }
     .section-head h2 { font-size: 15.5px; }
     .section-head p { font-size: 12.5px; }
 
+    /* Touch targets & full-width primary actions */
+    button {
+      min-height: 42px;
+    }
+    .btn-primary, .btn-secondary, .btn-danger, .btn-ok {
+      padding: 11px 14px;
+    }
+
+    /* Avoid iOS zoom on focus */
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    input[type="file"],
+    input[type="datetime-local"],
+    textarea,
+    select {
+      font-size: 16px !important;
+      max-width: 100%;
+    }
+
     .msg-list { max-height: min(50vh, 360px); }
     .track-list { max-height: min(40vh, 320px); }
+    .catalog-list { max-height: min(55vh, 480px); }
+
     .acc-track {
       grid-template-columns: 28px 1fr;
       grid-template-areas:
@@ -909,28 +1147,152 @@
     }
     .acc-track-n { grid-area: n; }
     .acc-track-body { grid-area: body; }
-    .acc-track-btns { grid-area: btns; justify-content: flex-start; padding-left: 38px; }
-
+    .acc-track-btns {
+      grid-area: btns;
+      justify-content: flex-start;
+      padding-left: 38px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .acc-track-btns button {
+      min-height: 36px;
+      font-size: 12px;
+      padding: 7px 10px;
+    }
 
     .reply-row { flex-direction: column; }
-    .reply-row textarea { min-height: 56px; }
+    .reply-row textarea { min-height: 64px; }
     .reply-row button { width: 100%; }
 
-    .actions { flex-direction: column; align-items: stretch; }
-    .actions select, .actions button { width: 100%; }
+    .actions {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .actions select,
+    .actions button { width: 100%; }
+
+    .radio-cover { width: 52px; height: 52px; }
+    .radio-status-name { font-size: 14.5px; }
+    .radio-status-actions {
+      grid-template-columns: 1fr;
+    }
+
+    .agenda-card-actions {
+      flex-direction: column;
+    }
+    .agenda-card-actions button { width: 100%; }
 
     .upload-dropzone { padding: 14px; }
-    footer { padding: 18px 14px 28px; font-size: 11px; }
+    .upload-submit-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .upload-submit-row button { width: 100%; }
+
+    .thread-item { padding: 12px 12px; min-height: 56px; }
+    .thread-preview { max-width: 100%; }
+
+    .aviso-current {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .meta-row {
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tabs {
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tabs .tab {
+      flex: 0 0 auto;
+      white-space: nowrap;
+      min-height: 38px;
+      padding: 8px 12px;
+    }
+
+    footer {
+      padding: 18px 14px max(28px, env(safe-area-inset-bottom));
+      font-size: 11px;
+    }
+
+    .club-modal-overlay {
+      padding: 12px 10px;
+      padding-top: max(12px, env(safe-area-inset-top));
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      align-items: stretch;
+    }
+    .club-modal {
+      padding: 16px;
+      border-radius: 14px;
+      max-width: 100%;
+      margin: 0;
+    }
+    .club-modal-head h2 { font-size: 15.5px; }
+
+    .login-screen {
+      padding: 16px;
+      padding-top: max(16px, env(safe-area-inset-top));
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+    .login-card {
+      width: 100%;
+      max-width: 100%;
+      padding: 22px 18px;
+    }
   }
 
   @media (max-width: 400px) {
     header h1 { font-size: 14.5px; }
-    .section-switch .tab { padding: 7px 10px; font-size: 11.5px; }
+    header .conn-indicator span:not(.conn-dot) {
+      /* keep short label */
+    }
+    .section-switch .tab { padding: 9px 11px; font-size: 11.5px; }
+    .sub-tab { padding: 9px 10px; font-size: 11.5px; }
+    .header-user-name { display: none; }
+    .radio-status-actions { grid-template-columns: 1fr; }
+  }
+
+  /* Landscape phones: keep nav usable */
+  @media (max-height: 480px) and (orientation: landscape) {
+    .section-switch.desktop-hidden {
+      position: relative;
+      top: auto;
+    }
+    .side-nav {
+      max-height: calc(100vh - 80px);
+    }
+    .login-screen { padding: 12px; }
+    .login-card { padding: 16px; }
   }
 
   /* Evita rolagem horizontal acidental */
-  html, body { overflow-x: hidden; max-width: 100%; }
+  html, body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
   img, video { max-width: 100%; height: auto; }
+
+  /* Touch feedback */
+  @media (hover: none) {
+    .side-nav-item:hover,
+    .sub-tab:hover,
+    .tab:hover {
+      background: transparent;
+    }
+    .side-nav-item:active:not(.active) { background: rgba(26,27,37,.08); }
+    .sub-tab:active:not(.active),
+    .tab:active:not(.active) { background: rgba(26,27,37,.08); }
+    button:active { opacity: .88; }
+  }
 
   /* Modal de detalhe do clube (ver membros, mural, etc — acessado pelo
      botão "Ver clube" na lista de controle). */
@@ -1027,19 +1389,45 @@
     </div>
   </div>
 
-  <div class="section-switch" id="sectionSwitch">
+  <div class="section-switch desktop-hidden" id="sectionSwitch">
     <button class="tab active" id="tabSectionDenuncias" onclick="switchSection('denuncias')">🚩 Denúncias</button>
     <button class="tab" id="tabSectionUsuarios" onclick="switchSection('usuarios')">🚫 Usuários</button>
     <button class="tab" id="tabSectionClubes" onclick="switchSection('clubes')">🎪 Clubes</button>
     <button class="tab" id="tabSectionAvisos" onclick="switchSection('avisos')">📣 Avisos</button>
-    <button class="tab" id="tabSectionFeed" onclick="switchSection('feed')">📝 Feed (Fãs)</button>
-    <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Mensagens<span class="count" id="msgUnreadBadge"></span></button>
-    <button class="tab" id="tabSectionRadio" onclick="switchSection('radio')">📻 Rádio Zôada</button>
+    <button class="tab" id="tabSectionFeed" onclick="switchSection('feed')">📝 Feed</button>
+    <button class="tab" id="tabSectionMensagens" onclick="switchSection('mensagens')">💬 Msgs<span class="count" id="msgUnreadBadgeMobile" style="display:none;"></span></button>
+    <button class="tab" id="tabSectionRadio" onclick="switchSection('radio')">📻 Rádio</button>
     <button class="tab" id="tabSectionMusicas" onclick="switchSection('musicas')">🎤 Músicas</button>
     <button class="tab" id="tabSectionAdmins" onclick="switchSection('admins')">🔑 Admins</button>
   </div>
 
-  <div id="section-denuncias">
+  <div class="app-shell">
+    <nav class="side-nav" id="sideNav" aria-label="Navegação do painel">
+      <div class="side-nav-group">
+        <div class="side-nav-label">Moderação</div>
+        <button type="button" class="side-nav-item active" id="sideDenuncias" onclick="switchSection('denuncias')"><span class="side-nav-icon">🚩</span> Denúncias</button>
+        <button type="button" class="side-nav-item" id="sideUsuarios" onclick="switchSection('usuarios')"><span class="side-nav-icon">🚫</span> Usuários</button>
+        <button type="button" class="side-nav-item" id="sideClubes" onclick="switchSection('clubes')"><span class="side-nav-icon">🎪</span> Clubes</button>
+      </div>
+      <div class="side-nav-group">
+        <div class="side-nav-label">Conteúdo</div>
+        <button type="button" class="side-nav-item" id="sideAvisos" onclick="switchSection('avisos')"><span class="side-nav-icon">📣</span> Avisos</button>
+        <button type="button" class="side-nav-item" id="sideFeed" onclick="switchSection('feed')"><span class="side-nav-icon">📝</span> Feed (Fãs)</button>
+        <button type="button" class="side-nav-item" id="sideMensagens" onclick="switchSection('mensagens')"><span class="side-nav-icon">💬</span> Mensagens<span class="count" id="msgUnreadBadge" style="display:none;"></span></button>
+      </div>
+      <div class="side-nav-group">
+        <div class="side-nav-label">Rádio &amp; catálogo</div>
+        <button type="button" class="side-nav-item" id="sideRadio" onclick="switchSection('radio')"><span class="side-nav-icon">📻</span> Rádio Zôada</button>
+        <button type="button" class="side-nav-item" id="sideMusicas" onclick="switchSection('musicas')"><span class="side-nav-icon">🎤</span> Músicas</button>
+      </div>
+      <div class="side-nav-group">
+        <div class="side-nav-label">Sistema</div>
+        <button type="button" class="side-nav-item" id="sideAdmins" onclick="switchSection('admins')"><span class="side-nav-icon">🔑</span> Admins</button>
+      </div>
+    </nav>
+
+    <div class="main-content">
+<div id="section-denuncias">
     <div class="section-head">
       <h2>🚩 Denúncias</h2>
       <p>Conteúdo e usuários denunciados pela comunidade, organizados por status.</p>
@@ -1049,8 +1437,7 @@
 
     <div id="list"></div>
   </div>
-
-  <div id="section-usuarios" style="display:none;">
+<div id="section-usuarios" style="display:none;">
     <div class="section-head">
       <h2>🚫 Usuários</h2>
       <p>Suspenda o acesso de um usuário à plataforma por 24 horas ou 7 dias. Suspenso não consegue logar nem continuar usando um login já feito enquanto durar.</p>
@@ -1074,8 +1461,7 @@
       <div id="suspendedUsersList"><div class="status-msg">Carregando…</div></div>
     </div>
   </div>
-
-  <div id="section-clubes" style="display:none;">
+<div id="section-clubes" style="display:none;">
     <div class="section-head">
       <h2>🎪 Clubes</h2>
       <p>Lista de controle de todos os clubes criados na plataforma — quem criou, quantos membros e postagens tem, e se exige senha pra entrar. Excluir por aqui não depende do admin do clube.</p>
@@ -1104,8 +1490,7 @@
   <div id="clubModalOverlay" class="club-modal-overlay" style="display:none;" onclick="if(event.target===this) closeClubModal();">
     <div class="club-modal" id="clubModalBody"></div>
   </div>
-
-  <div id="section-avisos" style="display:none;">
+<div id="section-avisos" style="display:none;">
     <div class="section-head">
       <h2>📣 Avisos</h2>
       <p>Mensagem global que aparece no topo da tela inicial para qualquer pessoa que abrir o Zôada.</p>
@@ -1124,8 +1509,7 @@
       </div>
     </div>
   </div>
-
-  <div id="section-feed" style="display:none;">
+<div id="section-feed" style="display:none;">
     <div class="section-head">
       <h2>📝 Postar no feed</h2>
       <p>Publica direto no feed geral que aparece na aba <b>Fãs</b> do app, como se fosse a conta oficial <b>Zôada</b> (foto de perfil = logo do app).</p>
@@ -1156,8 +1540,7 @@
       <div id="feedPostsList"><div class="status-msg">Conecte-se acima para ver os posts.</div></div>
     </div>
   </div>
-
-  <div id="section-mensagens" style="display:none;">
+<div id="section-mensagens" style="display:none;">
     <div id="threadsView">
       <div class="section-head">
         <h2>💬 Mensagens</h2>
@@ -1178,14 +1561,21 @@
       </div>
     </div>
   </div>
-
   <div id="section-radio" style="display:none;">
     <div class="section-head">
       <h2>📻 Rádio Zôada</h2>
-      <p>Nome, capa, playlist curada e controles de reprodução da estação.</p>
+      <p>Controles ao vivo, estação, catálogo e agendamentos — organizados em abas.</p>
     </div>
 
-    <div class="radio-status">
+    <div class="sub-tabs" id="radioSubTabs">
+      <button type="button" class="sub-tab active" id="radioTabAoVivo" onclick="switchRadioTab('aovivo')">🔴 Ao vivo</button>
+      <button type="button" class="sub-tab" id="radioTabEstacao" onclick="switchRadioTab('estacao')">⚙️ Estação &amp; playlist</button>
+      <button type="button" class="sub-tab" id="radioTabCatalogo" onclick="switchRadioTab('catalogo')">🎵 Catálogo</button>
+      <button type="button" class="sub-tab" id="radioTabAgenda" onclick="switchRadioTab('agenda')">🕒 Agendamentos</button>
+    </div>
+
+    <div id="radio-pane-aovivo" class="block-stack">
+<div class="radio-status">
       <img class="radio-cover" id="radioCoverPreview" src="/zoada-logo.png" alt="">
       <div class="radio-status-info">
         <p class="radio-status-name" id="radioStatusName">Rádio Zôada<span class="radio-pill radio-pill-fallback" id="radioStatusPill">Carregando…</span></p>
@@ -1196,9 +1586,14 @@
         <button class="btn-secondary" onclick="advanceRadioTrack()">Pular faixa ⏭</button>
       </div>
     </div>
+      <div class="block-card">
+        <h3>O que é esta aba</h3>
+        <p class="sub" style="margin:0;">Pause, retome ou pule a faixa que está tocando agora na Rádio Zôada. A configuração da estação e os agendamentos ficam nas outras abas.</p>
+      </div>
+    </div>
 
-    <div class="radio-cols">
-      <div class="radio-panel">
+    <div id="radio-pane-estacao" class="block-stack" style="display:none;">
+<div class="radio-panel">
         <h3>⚙️ Nome e capa</h3>
         <p class="sub">Como a estação aparece no dial e no seletor de estações do app.</p>
         <input type="text" id="radioNomeInput" maxlength="60" placeholder="Nome da estação">
@@ -1215,17 +1610,21 @@
         <div class="actions" style="margin-top:10px;">
           <button class="btn-ok" onclick="saveRadioPlaylist()">Salvar playlist</button>
         </div>
-      </div>
+      
+    </div>
 
-      <div class="radio-panel">
+    <div id="radio-pane-catalogo" class="block-stack" style="display:none;">
+<div class="radio-panel">
         <h3>🎵 Catálogo</h3>
         <p class="sub">Acordeão por artista. Abra e use <b>+</b> para colocar faixas na playlist da Rádio Zôada.</p>
         <input type="text" class="track-search" id="radioCatalogSearch" placeholder="Buscar por título ou artista..." oninput="renderRadioCatalog()">
         <div class="catalog-list" id="radioCatalogList" role="list"></div>
       </div>
     </div>
+    </div>
 
-    <div class="radio-panel" style="margin-top:16px;">
+    <div id="radio-pane-agenda" class="block-stack" style="display:none;">
+<div class="radio-panel" style="margin-top:16px;">
       <h3>🕒 Agendamentos</h3>
       <p class="sub">Escolha uma playlist e um horário de início e fim — nesse intervalo ela toca sozinha na Rádio Zôada, e ao terminar o app volta automaticamente ao estado normal (a playlist/pausa configurada acima). Não precisa de ninguém clicar em nada na hora.</p>
 
@@ -1264,25 +1663,22 @@
       </div>
       <p class="status-msg" id="agendaFormStatus" style="display:none;"></p>
     </div>
+    </div>
   </div>
-
   <div id="section-musicas" style="display:none;">
     <div class="section-head">
       <h2>🎤 Músicas</h2>
-      <p>Crie artistas-playlist e envie faixas para o catálogo público.</p>
+      <p>Artistas, upload de faixas e catálogo — separados para não misturar tudo na mesma tela.</p>
     </div>
 
-    <div class="radio-panel" style="margin-bottom:16px;">
-      <h3>🎤 Criar artista (playlist)</h3>
-      <p class="sub">Cada artista funciona como uma playlist: crie um artista aqui e depois envie músicas pra ele ao lado. Útil pra popular o catálogo com playlists oficiais (ex: "Sertanejo Zôada", "Forró Raiz").</p>
-      <input type="text" id="artistaNomeInput" maxlength="100" placeholder="Nome do artista/playlist">
-      <input type="text" id="artistaGeneroInput" maxlength="60" placeholder="Gênero (opcional)">
-      <textarea id="artistaBioInput" maxlength="500" placeholder="Bio (opcional)" style="width:100%; min-height:44px; margin-bottom:8px;"></textarea>
-      <button class="btn-primary" onclick="createArtistaMod()">Criar artista</button>
+    <div class="sub-tabs" id="musicasSubTabs">
+      <button type="button" class="sub-tab active" id="musicasTabUpload" onclick="switchMusicasTab('upload')">⬆️ Enviar</button>
+      <button type="button" class="sub-tab" id="musicasTabArtistas" onclick="switchMusicasTab('artistas')">🎤 Artistas</button>
+      <button type="button" class="sub-tab" id="musicasTabCatalogo" onclick="switchMusicasTab('catalogo')">🎧 Catálogo</button>
     </div>
 
-    <div class="radio-cols">
-      <div class="radio-panel">
+    <div id="musicas-pane-upload" class="block-stack">
+<div class="radio-panel">
         <h3>⬆️ Enviar música</h3>
         <p class="sub">Escolha o artista, junte os arquivos e revise a fila antes de enviar. O upload vai direto pro armazenamento.</p>
 
@@ -1358,7 +1754,22 @@
         </div>
       </div>
 
-      <div class="radio-panel">
+      
+    </div>
+
+    <div id="musicas-pane-artistas" class="block-stack" style="display:none;">
+<div class="radio-panel" style="margin-bottom:16px;">
+      <h3>🎤 Criar artista (playlist)</h3>
+      <p class="sub">Cada artista funciona como uma playlist: crie um artista aqui e depois envie músicas pra ele ao lado. Útil pra popular o catálogo com playlists oficiais (ex: "Sertanejo Zôada", "Forró Raiz").</p>
+      <input type="text" id="artistaNomeInput" maxlength="100" placeholder="Nome do artista/playlist">
+      <input type="text" id="artistaGeneroInput" maxlength="60" placeholder="Gênero (opcional)">
+      <textarea id="artistaBioInput" maxlength="500" placeholder="Bio (opcional)" style="width:100%; min-height:44px; margin-bottom:8px;"></textarea>
+      <button class="btn-primary" onclick="createArtistaMod()">Criar artista</button>
+    </div>
+    </div>
+
+    <div id="musicas-pane-catalogo" class="block-stack" style="display:none;">
+<div class="radio-panel">
         <h3>🎧 Catálogo de músicas</h3>
         <p class="sub">Acordeão por artista. Abra um item para ver as faixas e usar <b>Editar</b> / <b>Apagar</b>.</p>
         <input type="text" class="track-search" id="artistaSearchInput" placeholder="Buscar artista ou música..." oninput="onCatalogSearchInput()">
@@ -1367,8 +1778,7 @@
       </div>
     </div>
   </div>
-
-  <div id="section-admins" style="display:none;">
+<div id="section-admins" style="display:none;">
     <div class="section-head">
       <h2>🔑 Admins do painel</h2>
       <p>Quem pode entrar aqui pela tela de login. A pessoa precisa <b>já ter uma conta cadastrada no app</b> — convidar só libera o acesso, não cria conta nenhuma.</p>
@@ -1392,6 +1802,8 @@
       <div id="adminsList"><div class="status-msg">Carregando…</div></div>
     </div>
   </div>
+    </div><!-- /.main-content -->
+  </div><!-- /.app-shell -->
 
 </div>
 
@@ -1420,6 +1832,7 @@
     document.getElementById('dashboardApp').style.display = '';
     const user = JSON.parse(localStorage.getItem(LS_USER) || 'null');
     document.getElementById('headerUserName').textContent = user ? ('👤 ' + (user.name || user.email)) : '';
+    requestAnimationFrame(syncHeaderOffset);
   }
 
   function loginBase() {
@@ -1706,8 +2119,21 @@
     }
   }
 
+
+  function syncHeaderOffset() {
+    const header = document.querySelector('#dashboardApp header') || document.querySelector('header');
+    if (!header) return;
+    const h = Math.ceil(header.getBoundingClientRect().height);
+    if (h > 0) document.documentElement.style.setProperty('--header-h', h + 'px');
+  }
+  window.addEventListener('resize', syncHeaderOffset);
+  window.addEventListener('orientationchange', function () { setTimeout(syncHeaderOffset, 150); });
+
   restoreConfig();
   renderTabs();
+  syncHeaderOffset();
+  setTimeout(syncHeaderOffset, 50);
+
   if (secret()) {
     showDashboard();
     loadReports(); loadThreads(); loadRadioModeracao(); loadArtistsMod();
@@ -1723,40 +2149,52 @@
   let activeThreadUserName = '';
 
   function switchSection(section) {
-    document.getElementById('section-denuncias').style.display = section === 'denuncias' ? '' : 'none';
-    document.getElementById('section-usuarios').style.display = section === 'usuarios' ? '' : 'none';
-    document.getElementById('section-clubes').style.display = section === 'clubes' ? '' : 'none';
-    document.getElementById('section-avisos').style.display = section === 'avisos' ? '' : 'none';
-    document.getElementById('section-feed').style.display = section === 'feed' ? '' : 'none';
-    document.getElementById('section-mensagens').style.display = section === 'mensagens' ? '' : 'none';
-    document.getElementById('section-radio').style.display = section === 'radio' ? '' : 'none';
-    document.getElementById('section-musicas').style.display = section === 'musicas' ? '' : 'none';
-    document.getElementById('section-admins').style.display = section === 'admins' ? '' : 'none';
-    document.getElementById('tabSectionDenuncias').classList.toggle('active', section === 'denuncias');
-    document.getElementById('tabSectionUsuarios').classList.toggle('active', section === 'usuarios');
-    document.getElementById('tabSectionClubes').classList.toggle('active', section === 'clubes');
-    document.getElementById('tabSectionAvisos').classList.toggle('active', section === 'avisos');
-    document.getElementById('tabSectionFeed').classList.toggle('active', section === 'feed');
-    document.getElementById('tabSectionMensagens').classList.toggle('active', section === 'mensagens');
-    document.getElementById('tabSectionRadio').classList.toggle('active', section === 'radio');
-    document.getElementById('tabSectionMusicas').classList.toggle('active', section === 'musicas');
-    document.getElementById('tabSectionAdmins').classList.toggle('active', section === 'admins');
-    if (section === 'usuarios') {
-      loadSuspendedUsers();
-    }
-    if (section === 'clubes') {
-      loadClubsMod();
-    }
-    if (section === 'avisos') {
-      loadAviso();
-    }
+    const sections = ['denuncias','usuarios','clubes','avisos','feed','mensagens','radio','musicas','admins'];
+    sections.forEach((s) => {
+      const el = document.getElementById('section-' + s);
+      if (el) el.style.display = s === section ? '' : 'none';
+    });
+
+    const tabMap = {
+      denuncias: 'tabSectionDenuncias',
+      usuarios: 'tabSectionUsuarios',
+      clubes: 'tabSectionClubes',
+      avisos: 'tabSectionAvisos',
+      feed: 'tabSectionFeed',
+      mensagens: 'tabSectionMensagens',
+      radio: 'tabSectionRadio',
+      musicas: 'tabSectionMusicas',
+      admins: 'tabSectionAdmins'
+    };
+    Object.keys(tabMap).forEach((k) => {
+      const t = document.getElementById(tabMap[k]);
+      if (t) t.classList.toggle('active', k === section);
+    });
+
+    const sideMap = {
+      denuncias: 'sideDenuncias',
+      usuarios: 'sideUsuarios',
+      clubes: 'sideClubes',
+      avisos: 'sideAvisos',
+      feed: 'sideFeed',
+      mensagens: 'sideMensagens',
+      radio: 'sideRadio',
+      musicas: 'sideMusicas',
+      admins: 'sideAdmins'
+    };
+    Object.keys(sideMap).forEach((k) => {
+      const t = document.getElementById(sideMap[k]);
+      if (t) t.classList.toggle('active', k === section);
+    });
+
+    if (section === 'usuarios') loadSuspendedUsers();
+    if (section === 'clubes') loadClubsMod();
+    if (section === 'avisos') loadAviso();
     if (section === 'feed') {
       loadRadioCatalog().then(renderFeedTrackOptions);
       loadFeedPosts();
     }
     if (section === 'mensagens') {
-      // Volta pra lista de conversas ao trocar de aba, nunca deixa preso
-      // numa conversa antiga.
       backToThreads();
       loadThreads();
     }
@@ -1768,17 +2206,61 @@
       loadArtistsMod();
       loadRadioCatalog();
     }
-    if (section === 'admins') {
-      loadAdmins();
-    }
+    if (section === 'admins') loadAdmins();
   }
+
+  function switchRadioTab(tab) {
+    const panes = {
+      aovivo: 'radio-pane-aovivo',
+      estacao: 'radio-pane-estacao',
+      catalogo: 'radio-pane-catalogo',
+      agenda: 'radio-pane-agenda'
+    };
+    const tabs = {
+      aovivo: 'radioTabAoVivo',
+      estacao: 'radioTabEstacao',
+      catalogo: 'radioTabCatalogo',
+      agenda: 'radioTabAgenda'
+    };
+    Object.keys(panes).forEach((k) => {
+      const el = document.getElementById(panes[k]);
+      if (el) el.style.display = k === tab ? '' : 'none';
+      const t = document.getElementById(tabs[k]);
+      if (t) t.classList.toggle('active', k === tab);
+    });
+  }
+
+  function switchMusicasTab(tab) {
+    const panes = {
+      upload: 'musicas-pane-upload',
+      artistas: 'musicas-pane-artistas',
+      catalogo: 'musicas-pane-catalogo'
+    };
+    const tabs = {
+      upload: 'musicasTabUpload',
+      artistas: 'musicasTabArtistas',
+      catalogo: 'musicasTabCatalogo'
+    };
+    Object.keys(panes).forEach((k) => {
+      const el = document.getElementById(panes[k]);
+      if (el) el.style.display = k === tab ? '' : 'none';
+      const t = document.getElementById(tabs[k]);
+      if (t) t.classList.toggle('active', k === tab);
+    });
+  }
+
 
   function fmtBadgeCount(n) { return n > 99 ? '99+' : String(n); }
 
   function renderMsgUnreadBadge() {
     const total = threads.reduce((acc, t) => acc + t.unread_count, 0);
-    const badge = document.getElementById('msgUnreadBadge');
-    badge.innerHTML = total > 0 ? ' <span class="count">' + fmtBadgeCount(total) + '</span>' : '';
+    const text = total > 0 ? fmtBadgeCount(total) : '';
+    ['msgUnreadBadge', 'msgUnreadBadgeMobile'].forEach((id) => {
+      const badge = document.getElementById(id);
+      if (!badge) return;
+      badge.textContent = text;
+      badge.style.display = total > 0 ? '' : 'none';
+    });
   }
 
   async function loadThreads() {
