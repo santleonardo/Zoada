@@ -111,7 +111,11 @@ const RadioScreen: React.FC = () => {
       {
         id: DEFAULT_STATION_ID,
         name: radioPadrao?.nome || 'Rádio Zôada',
-        subtitle: radioPadrao?.pausada ? 'Pausada pela moderação' : (radioPadrao?.tracks.length ? 'Selecionada pela equipe' : 'Shuffle infinito'),
+        subtitle: radioPadrao?.pausada
+          ? 'Pausada pela moderação'
+          : (radioPadrao?.agendamento_ativo
+            ? (radioPadrao.agendamento_ativo.nome || 'Programação agendada')
+            : (radioPadrao?.tracks.length ? 'Selecionada pela equipe' : 'Shuffle infinito')),
         cover_url: radioPadrao?.cover_url || '/zoada-logo.png',
       },
     ];
@@ -319,9 +323,11 @@ const RadioScreen: React.FC = () => {
                     ? (radioPadrao?.pausada
                       ? 'Pausada pela moderação'
                       : radioEnabled
-                        ? (radioPadrao && radioPadrao.tracks.length > 0
-                          ? `${queueLength} músicas selecionadas pela equipe`
-                          : `${queueLength} músicas em shuffle infinito`)
+                        ? (radioPadrao?.agendamento_ativo
+                          ? `🕒 ${radioPadrao.agendamento_ativo.nome || 'Programação agendada'}`
+                          : (radioPadrao && radioPadrao.tracks.length > 0
+                            ? `${queueLength} músicas selecionadas pela equipe`
+                            : `${queueLength} músicas em shuffle infinito`))
                         : 'Toque para iniciar a rádio')
                     : (selectedStation?.owner
                       ? `Estação de ${selectedStation.owner.name} — ${queueLength} faixas`
