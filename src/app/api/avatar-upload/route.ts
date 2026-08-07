@@ -4,17 +4,31 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { isR2Configured } from '@/lib/config';
 import { uploadToR2 } from '@/lib/r2';
+import {
+  processImage,
+  assertClientUploadSize,
+  assertAllowedMime,
+  ImageProcessError,
+} from '@/lib/imageProcess';
+import { checkRateLimit } from '@/lib/rateLimit';
 import crypto from 'crypto';
 
 // POST /api/avatar-upload
-// Faz upload de uma foto de perfil.
-// - Se R2 estiver configurado: envia pro R2 e retorna a URL pública.
-// - Se não: salva localmente em public/avatars/ e retorna /avatars/filename.
+// Upload de foto de perfil — sempre processa (resize ≤512, ≤150 KB, WebP/JPEG)
+// antes de gravar. Nunca salva o original como versão final.
 export async function POST(request: Request) {
   try {
     const userId = await authenticateRequest(request);
     if (!userId) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    const rl = checkRateLimit(`media:avatar:${userId}`, 20, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: `Muitos uploads. Tente de novo em ${rl.retryAfterSeconds}s.` },
+        { status: 429 }
+      );
     }
 
     const formData = await request.formData();
@@ -24,47 +38,54 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 });
     }
 
-    // Validar tipo de arquivo.
-    // IMPORTANTE: SVG fica de fora de propósito — é um formato de texto/XML
-    // que pode conter <script> embutido. Se alguém abrisse o arquivo
-    // diretamente (mesma origem do app quando o R2 não está configurado,
-    // já que o fallback salva em public/avatars/), esse script rodaria
-    // com acesso ao localStorage do app, inclusive o token de login.
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Tipo de arquivo não permitido. Use JPG, PNG, GIF ou WebP.' },
-        { status: 400 }
-      );
+    try {
+      assertAllowedMime(file.type);
+      assertClientUploadSize(file.size);
+    } catch (e) {
+      if (e instanceof ImageProcessError) {
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      }
+      throw e;
     }
 
-    // Validar tamanho (5MB máximo para avatares)
-    const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: 'Imagem muito grande (máx 5MB)' }, { status: 400 });
+    const raw = Buffer.from(await file.arrayBuffer());
+    let processed;
+    try {
+      processed = await processImage(raw, 'avatar', file.type);
+    } catch (e) {
+      if (e instanceof ImageProcessError) {
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      }
+      throw e;
     }
 
-    const ext = file.name.split('.').pop() || 'jpg';
-    const safeExt = ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'jpg';
-    const filename = `${userId}-${crypto.randomBytes(8).toString('hex')}.${safeExt}`;
-
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const filename = `${userId}-${crypto.randomBytes(8).toString('hex')}.${processed.ext}`;
 
     if (isR2Configured) {
-      // Upload para R2
       const key = `avatars/${userId}/${filename}`;
-      const publicUrl = await uploadToR2(key, buffer, file.type);
-      return NextResponse.json({ url: publicUrl, key });
+      const publicUrl = await uploadToR2(key, processed.buffer, processed.contentType);
+      return NextResponse.json({
+        url: publicUrl,
+        key,
+        width: processed.width,
+        height: processed.height,
+        bytes: processed.bytes,
+      });
     }
 
     // Fallback local: salva em public/avatars/
     const avatarsDir = join(process.cwd(), 'public', 'avatars');
     await mkdir(avatarsDir, { recursive: true });
     const filePath = join(avatarsDir, filename);
-    await writeFile(filePath, buffer);
+    await writeFile(filePath, processed.buffer);
 
     const publicUrl = `/avatars/${filename}`;
-    return NextResponse.json({ url: publicUrl });
+    return NextResponse.json({
+      url: publicUrl,
+      width: processed.width,
+      height: processed.height,
+      bytes: processed.bytes,
+    });
   } catch (error) {
     console.error('[AVATAR UPLOAD]', error);
     return NextResponse.json({ error: 'Erro ao fazer upload do avatar' }, { status: 500 });

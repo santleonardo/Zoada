@@ -2,9 +2,18 @@ import { NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/auth';
 import { uploadToR2, getPresignedUrl, getPublicUrl } from '@/lib/r2';
 import { isR2Configured } from '@/lib/config';
+import {
+  processImage,
+  assertClientUploadSize,
+  assertAllowedMime,
+  ImageProcessError,
+  type ImageKind,
+} from '@/lib/imageProcess';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 // POST /api/storage/upload
-// Upload a file to Cloudflare R2 (multipart/form-data)
+// Upload de imagem para R2 — sempre processa (resize/compress) antes de gravar.
+// Áudio NÃO passa por aqui (usa presign direto).
 export async function POST(request: Request) {
   try {
     const userId = await authenticateRequest(request);
@@ -13,7 +22,21 @@ export async function POST(request: Request) {
     }
 
     if (!isR2Configured) {
-      return NextResponse.json({ error: 'R2 não configurado. Defina R2_ACCOUNT_ID, R2_ACCESS_KEY_ID e R2_SECRET_ACCESS_KEY no .env' }, { status: 503 });
+      return NextResponse.json(
+        {
+          error:
+            'R2 não configurado. Defina R2_ACCOUNT_ID, R2_ACCESS_KEY_ID e R2_SECRET_ACCESS_KEY no .env',
+        },
+        { status: 503 }
+      );
+    }
+
+    const rl = checkRateLimit(`media:storage:${userId}`, 40, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: `Muitos uploads. Tente de novo em ${rl.retryAfterSeconds}s.` },
+        { status: 429 }
+      );
     }
 
     const formData = await request.formData();
@@ -24,45 +47,56 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 });
     }
 
-    // Validate file size (50MB max)
-    const maxSize = 50 * 1024 * 1024;
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: 'Arquivo muito grande (máx 50MB)' }, { status: 400 });
+    try {
+      assertAllowedMime(file.type);
+      assertClientUploadSize(file.size);
+    } catch (e) {
+      if (e instanceof ImageProcessError) {
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      }
+      throw e;
     }
 
-    // Só imagens passam por aqui hoje em dia (avatares e capas — áudio de
-    // faixa vai direto pro R2 via presigned URL, ver trackUpload.ts). Trava
-    // o tipo no servidor mesmo assim: o `accept` do <input> no navegador é
-    // só uma sugestão de UI, não impede alguém de mandar outro tipo de
-    // arquivo direto pela API. SVG fica de fora de propósito (pode conter
-    // <script> embutido — mesmo risco do upload de avatar).
-    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedImageTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Tipo de arquivo não permitido. Use JPG, PNG, GIF ou WebP.' },
-        { status: 400 }
-      );
+    // Escolhe limites conforme a pasta (avatars vs capas vs genérico).
+    let kind: ImageKind = 'other';
+    if (folder === 'avatars') kind = 'avatar';
+    else if (folder === 'clubs' || folder === 'covers') kind = 'club_cover';
+    else if (folder === 'album') kind = 'album';
+
+    const raw = Buffer.from(await file.arrayBuffer());
+    let processed;
+    try {
+      processed = await processImage(raw, kind, file.type);
+    } catch (e) {
+      if (e instanceof ImageProcessError) {
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      }
+      throw e;
     }
 
-    // Generate key with user folder and timestamp
-    const ext = file.name.split('.').pop() || 'bin';
-    const key = `${folder}/${userId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}.${ext}`;
+    const key = `${folder}/${userId}/${Date.now()}-${cryptoRandom()}.${processed.ext}`;
+    const publicUrl = await uploadToR2(key, processed.buffer, processed.contentType);
 
-    // Upload to R2
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const publicUrl = await uploadToR2(key, buffer, file.type);
-
-    return NextResponse.json({
-      key,
-      url: publicUrl,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        key,
+        url: publicUrl,
+        name: file.name,
+        size: processed.bytes,
+        type: processed.contentType,
+        width: processed.width,
+        height: processed.height,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('[STORAGE UPLOAD]', error);
     return NextResponse.json({ error: 'Erro ao fazer upload' }, { status: 500 });
   }
+}
+
+function cryptoRandom(): string {
+  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 }
 
 // GET /api/storage/presign?key=xxx&expires=3600
@@ -86,16 +120,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'R2 não configurado' }, { status: 503 });
     }
 
-    // Verify user has access to this key (must contain their userId in path)
-    if (!key.includes(userId)) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const presignedUrl = await getPresignedUrl(key, expires);
-
-    return NextResponse.json({ url: presignedUrl, expiresIn: expires });
+    const url = await getPresignedUrl(key, expires);
+    return NextResponse.json({ url, key, publicUrl: getPublicUrl(key) });
   } catch (error) {
     console.error('[STORAGE PRESIGN]', error);
-    return NextResponse.json({ error: 'Erro ao gerar URL assinada' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao gerar URL' }, { status: 500 });
   }
 }

@@ -39,6 +39,7 @@ export async function GET(request: Request) {
       include: {
         estacoesRadio: true,
         artistas: { include: { faixas: true } },
+        fotosAlbum: true,
       },
     });
 
@@ -47,6 +48,14 @@ export async function GET(request: Request) {
         if (usuario.avatarUrl) {
           const k = keyFromPublicUrl(usuario.avatarUrl);
           if (k) r2Keys.push(k);
+        }
+        for (const foto of usuario.fotosAlbum) {
+          if (foto.key && !foto.key.startsWith('local:')) {
+            r2Keys.push(foto.key);
+          } else if (foto.url) {
+            const k = keyFromPublicUrl(foto.url);
+            if (k) r2Keys.push(k);
+          }
         }
         for (const e of usuario.estacoesRadio) {
           if (e.capaUrl) {

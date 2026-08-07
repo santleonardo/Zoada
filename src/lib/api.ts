@@ -161,12 +161,98 @@ export async function uploadAvatar(file: File): Promise<string | null> {
       method: 'POST',
       body: formData,
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.warn('[uploadAvatar]', err.error || res.status);
+      return null;
+    }
     const data = await res.json();
     return data.url ?? null;
   } catch (err) {
     console.warn('[uploadAvatar] falha ao enviar foto:', err);
     return null;
+  }
+}
+
+// ---------- Álbum de fotos do perfil ----------
+
+export interface AlbumPhoto {
+  id: string;
+  url: string;
+  key: string;
+  sort_order: number;
+  width: number | null;
+  height: number | null;
+  bytes: number | null;
+  created_at: string;
+}
+
+export async function fetchAlbumPhotos(userId: string): Promise<AlbumPhoto[]> {
+  try {
+    const res = await apiFetch(`/api/album?userId=${encodeURIComponent(userId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.photos) ? data.photos : [];
+  } catch (err) {
+    console.warn('[fetchAlbumPhotos]', err);
+    return [];
+  }
+}
+
+/** Sobe uma foto pro álbum. Retorna a foto criada ou mensagem de erro. */
+export async function uploadAlbumPhoto(
+  file: File
+): Promise<{ photo: AlbumPhoto } | { error: string }> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiFetch('/api/album', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { error: (data.error as string) || 'Falha ao enviar a foto' };
+    }
+    return { photo: data.photo as AlbumPhoto };
+  } catch (err) {
+    console.warn('[uploadAlbumPhoto]', err);
+    return { error: 'Falha de rede ao enviar a foto' };
+  }
+}
+
+export async function deleteAlbumPhoto(id: string): Promise<{ ok: true } | { error: string }> {
+  try {
+    const res = await apiFetch(`/api/album?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { error: (data.error as string) || 'Falha ao remover a foto' };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.warn('[deleteAlbumPhoto]', err);
+    return { error: 'Falha de rede ao remover a foto' };
+  }
+}
+
+export async function reorderAlbumPhotos(
+  order: string[]
+): Promise<{ photos: AlbumPhoto[] } | { error: string }> {
+  try {
+    const res = await apiFetch('/api/album', {
+      method: 'PATCH',
+      body: JSON.stringify({ order }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { error: (data.error as string) || 'Falha ao reordenar' };
+    }
+    return { photos: (data.photos as AlbumPhoto[]) || [] };
+  } catch (err) {
+    console.warn('[reorderAlbumPhotos]', err);
+    return { error: 'Falha de rede ao reordenar' };
   }
 }
 

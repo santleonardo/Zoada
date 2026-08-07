@@ -1,4 +1,6 @@
 import { apiFetch, getAuthToken } from '@/lib/api';
+import { optimizeImageClient, ClientImageError } from '@/lib/clientImageOptimize';
+import type { ImageKind } from '@/lib/imageLimits';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL, fetchFile } from '@ffmpeg/util';
 
@@ -234,12 +236,24 @@ async function uploadFileDirectToR2(file: File, folder: string): Promise<string>
   return publicUrl as string;
 }
 
-/** Sobe uma imagem (avatar/capa) pro R2 e devolve a URL pública. */
-export async function uploadImageFile(file: File, folder: 'avatars' | 'covers' | 'track-covers'): Promise<string> {
-  // TEMPORÁRIO (diagnóstico do 403 no upload direto): usando a rota do
-  // servidor em vez do upload direto pro R2. Reverter para
-  // `return uploadFileDirectToR2(file, folder);` depois de resolver.
-  return uploadFileViaServer(file, folder);
+/** Sobe uma imagem (avatar/capa) pro R2 e devolve a URL pública.
+ * Pré-otimiza no client e o servidor reprocessa com sharp (tetos finais).
+ */
+export async function uploadImageFile(
+  file: File,
+  folder: 'avatars' | 'covers' | 'track-covers'
+): Promise<string> {
+  const kind: ImageKind =
+    folder === 'avatars' ? 'avatar' : folder === 'covers' ? 'club_cover' : 'other';
+  let optimized: File;
+  try {
+    optimized = await optimizeImageClient(file, kind);
+  } catch (e) {
+    if (e instanceof ClientImageError) throw e;
+    optimized = file;
+  }
+  // Via servidor para aplicar processImage (sharp) antes de gravar no R2.
+  return uploadFileViaServer(optimized, folder);
 }
 
 /**
