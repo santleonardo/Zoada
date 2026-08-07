@@ -121,6 +121,7 @@ model Usuario {
   postagensClube   PostagemClube[]
   comentariosPostagemClube ComentarioPostagemClube[]
   curtidasComentarioPostagemClube CurtidaComentarioPostagemClube[]
+  fotosAlbum       FotoAlbum[]
 
   @@map("usuarios")
 }
@@ -845,4 +846,26 @@ model CurtidaComentarioPostagemClube {
   @@unique([usuarioId, comentarioId])
   @@index([comentarioId])
   @@map("curtidas_comentario_postagem_clube")
+}
+
+
+// ---------- Álbum de fotos do perfil ----------
+// Metadados apenas — o binário fica no R2. Teto técnico: 8 fotos por
+// usuário (meta de produto ~5). Ao apagar a conta (cascade) ou a foto
+// individual, o job/API deve também remover o objeto no R2 via `key`.
+model FotoAlbum {
+  id        String   @id @default(cuid())
+  usuarioId String   @map("usuario_id")
+  url       String
+  key       String
+  sortOrder Int      @map("sort_order")
+  width     Int?
+  height    Int?
+  bytes     Int?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, sortOrder])
+  @@map("fotos_album")
 }
