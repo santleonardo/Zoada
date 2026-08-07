@@ -12,6 +12,7 @@ import CoverArt from './CoverArt';
 import UserFeedPanel from './UserFeedPanel';
 import ReportModal from './ReportModal';
 import FollowListDialog from './FollowListDialog';
+import AlbumPanel from './AlbumPanel';
 
 /**
  * Perfil público de OUTRO usuário — aberto quando alguém clica no nome de
@@ -353,6 +354,7 @@ const UserProfileScreen: React.FC = () => {
             </div>
           ) : (
             <>
+          <AlbumPanel userId={profile.id} isOwner={isSelf} />
           {/* Mais ouvidas: top 10 músicas que esse usuário mais repetiu,
               da mais pra menos ouvida (ex: 15x aparece antes de 10x). */}
           {topTracks.length > 0 && (

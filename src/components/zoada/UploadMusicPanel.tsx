@@ -420,14 +420,14 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
         <input
           ref={avatarInputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           className="hidden"
           onChange={(e) => handleAvatarPick(e.target.files?.[0] || null)}
         />
         <input
           ref={coverInputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           className="hidden"
           onChange={(e) => handleCoverPick(e.target.files?.[0] || null)}
         />
@@ -498,7 +498,7 @@ const UploadMusicPanel: React.FC<UploadMusicPanelProps> = ({ userName, onUploade
               <input
                 id={`track-cover-${idx}`}
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                 className="hidden"
                 onChange={(e) => handlePickTrackCover(idx, e.target.files?.[0] || null)}
               />

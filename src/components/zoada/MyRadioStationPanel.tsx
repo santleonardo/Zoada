@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Radio, Loader2, Check, X, Trash2, ChevronDown, Plus, GripVertical, ImagePlus, RadioTower, VolumeX } from 'lucide-react';
 import { fetchMyRadioStation, saveRadioStation, publishRadioStation, unpublishRadioStation, deleteRadioStation, fetchAllTracks } from '@/lib/api';
 import { uploadImageFile } from '@/lib/trackUpload';
+import { validateImageFileClient } from '@/lib/clientImageOptimize';
 import type { RadioStation, Track } from '@/types';
 import CoverArt from './CoverArt';
 import GradientButton from './GradientButton';
@@ -100,6 +101,12 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
   const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const errMsg = validateImageFileClient(file);
+    if (errMsg) {
+      // feedback simples via alert se não houver toast neste painel
+      window.alert(errMsg);
+      return;
+    }
     setCoverFile(file);
     setCoverPreview(URL.createObjectURL(file));
     e.target.value = '';
@@ -442,7 +449,7 @@ const MyRadioStationPanel: React.FC<MyRadioStationPanelProps> = ({ refreshKey })
                   <input
                     ref={coverInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                     className="hidden"
                     onChange={handleCoverChange}
                   />

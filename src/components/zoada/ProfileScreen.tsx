@@ -41,6 +41,7 @@ import DeleteAccountDialog from './DeleteAccountDialog';
 import TrashDialog from './TrashDialog';
 import BlockedUsersDialog from './BlockedUsersDialog';
 import FollowListDialog from './FollowListDialog';
+import AlbumPanel from './AlbumPanel';
 
 // Feature flags: "Enviar música" e "Criar estação de rádio" viraram
 // funções premium (a serem lançadas no futuro). Por enquanto ficam
@@ -198,11 +199,20 @@ const ProfileScreen: React.FC = () => {
 
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    if (file.type && !allowed.includes(file.type)) {
+      setSaveError('Tipo não permitido. Use JPG, PNG, WebP, HEIC ou HEIF.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveError('Imagem muito grande (máx. 5 MB). Escolha um arquivo menor.');
+      return;
+    }
+    setSaveError(null);
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
-    // Limpa o input pra permitir escolher o mesmo arquivo de novo depois.
-    e.target.value = '';
   };
 
   const handleSaveProfile = async () => {
@@ -365,7 +375,7 @@ const ProfileScreen: React.FC = () => {
             <input
               ref={avatarInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
               className="hidden"
               onChange={handleAvatarFileChange}
             />
@@ -523,6 +533,9 @@ const ProfileScreen: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Álbum de fotos do perfil */}
+      <AlbumPanel userId={user.id} isOwner />
 
       {/* Seu feed: músicas que você postou no próprio perfil, com opção de apagar. */}
       <UserFeedPanel userId={user.id} isSelf />

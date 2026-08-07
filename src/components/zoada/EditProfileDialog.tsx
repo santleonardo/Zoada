@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { uploadAvatar } from '@/lib/api';
+import { optimizeImageClient, validateImageFileClient, ClientImageError } from '@/lib/clientImageOptimize';
 import { getAuthToken } from '@/lib/api';
 
 interface EditProfileDialogProps {
@@ -49,15 +50,9 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onClose }) 
     if (!file) return;
 
     // Validar tipo
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      setError('Use JPG, PNG, GIF ou WebP.');
-      return;
-    }
-
-    // Validar tamanho (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Imagem muito grande (máx 5MB).');
+    const validationError = validateImageFileClient(file);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -101,7 +96,17 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onClose }) 
         if (!token || token === 'demo') {
           finalAvatarUrl = avatarPreview;
         } else {
-          const uploadedUrl = await uploadAvatar(avatarFile);
+          let fileToUpload = avatarFile;
+          try {
+            fileToUpload = await optimizeImageClient(avatarFile, 'avatar');
+          } catch (optErr) {
+            if (optErr instanceof ClientImageError) {
+              setError(optErr.message);
+              setSaving(false);
+              return;
+            }
+          }
+          const uploadedUrl = await uploadAvatar(fileToUpload);
           if (!uploadedUrl) {
             setError('Erro ao fazer upload da foto. Tente novamente.');
             setIsUploading(false);
@@ -204,7 +209,7 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onClose }) 
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
               className="hidden"
               onChange={handleFileSelect}
             />

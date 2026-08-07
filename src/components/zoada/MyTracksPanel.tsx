@@ -160,7 +160,7 @@ const MyTracksPanel: React.FC<MyTracksPanelProps> = ({ refreshKey }) => {
           <input
             ref={editCoverInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
             className="hidden"
             onChange={(e) => handlePickEditCover(e.target.files?.[0] || null)}
           />

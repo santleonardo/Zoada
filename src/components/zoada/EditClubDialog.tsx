@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { X, Camera, Loader2, Users as UsersIcon, Trash2, Lock, Eye, EyeOff } from 'lucide-react';
 import type { Club } from '@/types';
 import { uploadClubCover, updateClub, deleteClub } from '@/lib/api';
+import { optimizeImageClient, validateImageFileClient, ClientImageError } from '@/lib/clientImageOptimize';
 
 interface EditClubDialogProps {
   open: boolean;
@@ -62,14 +63,9 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      setError('Use JPG, PNG, GIF ou WebP.');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Imagem muito grande (máx 5MB).');
+    const validationError = validateImageFileClient(file);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -125,7 +121,17 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
 
       if (coverFile) {
         setIsUploading(true);
-        const uploadedUrl = await uploadClubCover(club.id, coverFile);
+        let fileToUpload = coverFile;
+        try {
+          fileToUpload = await optimizeImageClient(coverFile, 'club_cover');
+        } catch (optErr) {
+          if (optErr instanceof ClientImageError) {
+            setError(optErr.message);
+            setSaving(false);
+            return;
+          }
+        }
+        const uploadedUrl = await uploadClubCover(club.id, fileToUpload);
         setIsUploading(false);
         if (!uploadedUrl) {
           setError('Erro ao fazer upload da capa. Tente novamente.');
@@ -255,7 +261,7 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({ open, club, onClose, on
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
               className="hidden"
               onChange={handleFileSelect}
             />
